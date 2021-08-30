@@ -1,0 +1,61 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+install.packages("usethis")
+
+library(usethis)
+```
+
+```{r}
+# Create a new package -------------------------------------------------
+path <- file.path( "/home/ignatius/PostDoc/2021/ProteomeRiver")
+create_package(path)
+
+proj_activate(path)
+#> ✓ Setting active project to '/private/var/folders/03/9x7925g54mncswxx06wpkxl00000gn/T/RtmpxLZ8U3/mypkg'
+#> ✓ Changing working directory to '/var/folders/03/9x7925g54mncswxx06wpkxl00000gn/T/RtmpxLZ8U3/mypkg/'
+
+# create_from_github("IgnatiusPang/ProteomeRiver", fork=FALSE)
+
+use_git()
+
+use_lgpl_license(version = 3, include_future = TRUE)
+
+use_package("MASS", "Suggests")
+#> ✓ Adding 'MASS' to Suggests field in DESCRIPTION
+#> ● Use `requireNamespace("MASS", quietly = TRUE)` to test if package is installed
+#> ● Then directly refer to functons like `MASS::fun()` (replacing `fun()`).
+
+# Set up other files -------------------------------------------------
+use_readme_md()
+#> ✓ Writing 'README.md'
+
+use_news_md()
+#> ✓ Writing 'NEWS.md'
+
+use_test("my-test")
+#> ✓ Adding 'testthat' to Suggests field in DESCRIPTION
+#> ✓ Setting Config/testthat/edition field in DESCRIPTION to '3'
+#> ✓ Creating 'tests/testthat/'
+#> ✓ Writing 'tests/testthat.R'
+#> ✓ Writing 'tests/testthat/test-my-test.R'
+#> ● Edit 'tests/testthat/test-my-test.R'
+
+x <- 1
+y <- 2
+use_data(x, y)
+#> ✓ Adding 'R' to Depends field in DESCRIPTION
+#> ✓ Creating 'data/'
+#> ✓ Setting LazyData to 'true' in 'DESCRIPTION'
+#> ✓ Saving 'x', 'y' to 'data/x.rda', 'data/y.rda'
+#> ● Document your data (see 'https://r-pkgs.org/data.html')
+
+# Use git ------------------------------------------------------------
+use_git()
+#> ✓ Initialising Git repo
+#> ✓ Adding '.Rproj.user', '.Rhistory', '.Rdata', '.httr-oauth', '.DS_Store' to '.gitignore'
+```
+
