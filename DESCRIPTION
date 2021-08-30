@@ -14,7 +14,28 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.0.0
 Suggests: 
+    EDASeq,
+    missMethyl,
+    RUVSeq,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
-    seqinr
+    dplyr,
+    tidyr,
+    seqinr,
+    tidyselect,
+    ggplot2,
+    purrr,
+    tibble,
+    magrittr,
+    readxl,
+    rlang,
+    vroom,
+    ggpubr,
+    plotly,
+    knitr,
+    limma,
+    qvalue,
+    ruv,
+    mixOmics,
+    UniProt.ws
