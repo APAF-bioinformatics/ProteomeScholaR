@@ -23,12 +23,33 @@ proj_activate(path)
 use_git()
 
 use_lgpl_license(version = 3, include_future = TRUE)
+```
 
-use_package("MASS", "Suggests")
-#> ✓ Adding 'MASS' to Suggests field in DESCRIPTION
-#> ● Use `requireNamespace("MASS", quietly = TRUE)` to test if package is installed
-#> ● Then directly refer to functons like `MASS::fun()` (replacing `fun()`).
+```{r}
+use_package("tidyverse", type = "Imports", min_version = NULL)
+use_package("magrittr", type = "Imports", min_version = NULL)
+use_package("readxl", type = "Imports", min_version = NULL)
+use_package("rlang", type = "Imports", min_version = NULL)
+use_package("vroom", type = "Imports", min_version = NULL)
+use_package("ggpubr", type = "Imports", min_version = NULL)
+use_package("plotly", type = "Imports", min_version = NULL)
+use_package("knitr", type = "Imports", min_version = NULL)
 
+# statistical packages
+use_package("limma", type = "Imports", min_version = NULL)
+use_package("qvalue", type = "Imports", min_version = NULL)
+use_package("ruv", type = "Imports", min_version = NULL)
+use_package("mixOmics", type = "Imports", min_version = NULL)
+use_package("EDASeq", type = "Imports", min_version = NULL)
+use_package("RUVSeq", type = "Imports", min_version = NULL)
+use_package("missMethyl", type = "Imports", min_version = NULL)
+
+# proteomics packages
+use_package("seqinr", type = "Imports", min_version = NULL)
+use_package("UniProt.ws", type = "Imports", min_version = NULL)
+```
+
+```{r}
 # Set up other files -------------------------------------------------
 use_readme_md()
 #> ✓ Writing 'README.md'
@@ -37,21 +58,11 @@ use_news_md()
 #> ✓ Writing 'NEWS.md'
 
 use_test("my-test")
-#> ✓ Adding 'testthat' to Suggests field in DESCRIPTION
-#> ✓ Setting Config/testthat/edition field in DESCRIPTION to '3'
-#> ✓ Creating 'tests/testthat/'
-#> ✓ Writing 'tests/testthat.R'
-#> ✓ Writing 'tests/testthat/test-my-test.R'
-#> ● Edit 'tests/testthat/test-my-test.R'
 
-x <- 1
-y <- 2
-use_data(x, y)
-#> ✓ Adding 'R' to Depends field in DESCRIPTION
-#> ✓ Creating 'data/'
-#> ✓ Setting LazyData to 'true' in 'DESCRIPTION'
-#> ✓ Saving 'x', 'y' to 'data/x.rda', 'data/y.rda'
-#> ● Document your data (see 'https://r-pkgs.org/data.html')
+
+# x <- 1
+# y <- 2
+# use_data(x, y)
 
 # Use git ------------------------------------------------------------
 use_git()

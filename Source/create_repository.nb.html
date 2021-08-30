@@ -251,54 +251,77 @@ The downloaded source packages are in
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY3JlYXRlX3BhY2thZ2UocGF0aClcblxuYGBgIn0= -->
-<pre class="r"><code>create_package(path)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoi4pyTIFNldHRpbmcgYWN0aXZlIHByb2plY3QgdG8gJy9ob21lL2lnbmF0aXVzL1Bvc3REb2MvMjAyMS9Qcm90ZW9tZVJpdmVyJ1xuT3ZlcndyaXRlIHByZS1leGlzdGluZyBmaWxlICdERVNDUklQVElPTic/XG5cbjE6IE5lZ2F0aXZlXG4yOiBOb3BlXG4zOiBGb3Igc3VyZVxuIn0= -->
-<pre><code>✓ Setting active project to &#39;/home/ignatius/PostDoc/2021/ProteomeRiver&#39;
-Overwrite pre-existing file &#39;DESCRIPTION&#39;?
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBDcmVhdGUgYSBuZXcgcGFja2FnZSAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXG5wYXRoIDwtIGZpbGUucGF0aCggXCIvaG9tZS9pZ25hdGl1cy9Qb3N0RG9jLzIwMjEvUHJvdGVvbWVSaXZlclwiKVxuY3JlYXRlX3BhY2thZ2UocGF0aClcblxucHJval9hY3RpdmF0ZShwYXRoKVxuIz4g4pyTIFNldHRpbmcgYWN0aXZlIHByb2plY3QgdG8gJy9wcml2YXRlL3Zhci9mb2xkZXJzLzAzLzl4NzkyNWc1NG1uY3N3eHgwNndwa3hsMDAwMDBnbi9UL1J0bXB4TFo4VTMvbXlwa2cnXG4jPiDinJMgQ2hhbmdpbmcgd29ya2luZyBkaXJlY3RvcnkgdG8gJy92YXIvZm9sZGVycy8wMy85eDc5MjVnNTRtbmNzd3h4MDZ3cGt4bDAwMDAwZ24vVC9SdG1weExaOFUzL215cGtnLydcblxuIyBjcmVhdGVfZnJvbV9naXRodWIoXCJJZ25hdGl1c1BhbmcvUHJvdGVvbWVSaXZlclwiLCBmb3JrPUZBTFNFKVxuXG51c2VfZ2l0KClcblxudXNlX2xncGxfbGljZW5zZSh2ZXJzaW9uID0gMywgaW5jbHVkZV9mdXR1cmUgPSBUUlVFKVxuYGBgIn0= -->
+<pre class="r"><code># Create a new package -------------------------------------------------
+path &lt;- file.path( &quot;/home/ignatius/PostDoc/2021/ProteomeRiver&quot;)
+create_package(path)
 
-1: Negative
-2: Nope
-3: For sure</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuMVxuYGBgIn0= -->
-<pre class="r"><code>1</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoi4pyTIExlYXZpbmcgJ0RFU0NSSVBUSU9OJyB1bmNoYW5nZWRcblBhY2thZ2U6IFByb3Rlb21lUml2ZXJcblRpdGxlOiBXaGF0IHRoZSBQYWNrYWdlIERvZXMgKE9uZSBMaW5lLCBUaXRsZSBDYXNlKVxuVmVyc2lvbjogMC4wLjAuOTAwMFxuQXV0aG9yc0BSIChwYXJzZWQpOlxuICAgICogRmlyc3QgTGFzdCA8Zmlyc3QubGFzdEBleGFtcGxlLmNvbT4gW2F1dCwgY3JlXSAoWU9VUi1PUkNJRC1JRClcbkRlc2NyaXB0aW9uOiBXaGF0IHRoZSBwYWNrYWdlIGRvZXMgKG9uZSBwYXJhZ3JhcGgpLlxuTGljZW5zZTogYHVzZV9taXRfbGljZW5zZSgpYCwgYHVzZV9ncGwzX2xpY2Vuc2UoKWAgb3IgZnJpZW5kcyB0b1xuICAgIHBpY2sgYSBsaWNlbnNlXG5FbmNvZGluZzogVVRGLThcbkxhenlEYXRhOiB0cnVlXG5Sb3h5Z2VuOiBsaXN0KG1hcmtkb3duID0gVFJVRSlcblJveHlnZW5Ob3RlOiA3LjAuMFxuT3ZlcndyaXRlIHByZS1leGlzdGluZyBmaWxlICdQcm90ZW9tZVJpdmVyLlJwcm9qJz9cblxuMTogTmVnYXRpdmVcbjI6IE5vIHdheVxuMzogSSBhZ3JlZVxuIn0= -->
-<pre><code>✓ Leaving &#39;DESCRIPTION&#39; unchanged
-Package: ProteomeRiver
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R (parsed):
-    * First Last &lt;first.last@example.com&gt; [aut, cre] (YOUR-ORCID-ID)
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to
-    pick a license
-Encoding: UTF-8
-LazyData: true
-Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.0
-Overwrite pre-existing file &#39;ProteomeRiver.Rproj&#39;?
+proj_activate(path)
+#&gt; ✓ Setting active project to &#39;/private/var/folders/03/9x7925g54mncswxx06wpkxl00000gn/T/RtmpxLZ8U3/mypkg&#39;
+#&gt; ✓ Changing working directory to &#39;/var/folders/03/9x7925g54mncswxx06wpkxl00000gn/T/RtmpxLZ8U3/mypkg/&#39;
 
-1: Negative
-2: No way
-3: I agree</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuMVxuYGBgIn0= -->
-<pre class="r"><code>1</code></pre>
+# create_from_github(&quot;IgnatiusPang/ProteomeRiver&quot;, fork=FALSE)
+
+use_git()
+
+use_lgpl_license(version = 3, include_future = TRUE)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoi4pyTIExlYXZpbmcgJ1Byb3Rlb21lUml2ZXIuUnByb2onIHVuY2hhbmdlZFxu4pyTIE9wZW5pbmcgJy9ob21lL2lnbmF0aXVzL1Bvc3REb2MvMjAyMS9Qcm90ZW9tZVJpdmVyLycgaW4gbmV3IFJTdHVkaW8gc2Vzc2lvblxu4pyTIFNldHRpbmcgYWN0aXZlIHByb2plY3QgdG8gJy9ob21lL2lnbmF0aXVzL1Bvc3REb2MvMjAyMS9NdWx0aVBob3MyMDIxJ1xuIn0= -->
-<pre><code>✓ Leaving &#39;ProteomeRiver.Rproj&#39; unchanged
-✓ Opening &#39;/home/ignatius/PostDoc/2021/ProteomeRiver/&#39; in new RStudio session
-✓ Setting active project to &#39;/home/ignatius/PostDoc/2021/MultiPhos2021&#39;</code></pre>
-<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudXNlX3BhY2thZ2UoXCJ0aWR5dmVyc2VcIiwgdHlwZSA9IFwiSW1wb3J0c1wiLCBtaW5fdmVyc2lvbiA9IE5VTEwpXG51c2VfcGFja2FnZShcIm1hZ3JpdHRyXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJyZWFkeGxcIiwgdHlwZSA9IFwiSW1wb3J0c1wiLCBtaW5fdmVyc2lvbiA9IE5VTEwpXG51c2VfcGFja2FnZShcInJsYW5nXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJ2cm9vbVwiLCB0eXBlID0gXCJJbXBvcnRzXCIsIG1pbl92ZXJzaW9uID0gTlVMTClcbnVzZV9wYWNrYWdlKFwiZ2dwdWJyXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJwbG90bHlcIiwgdHlwZSA9IFwiSW1wb3J0c1wiLCBtaW5fdmVyc2lvbiA9IE5VTEwpXG51c2VfcGFja2FnZShcImtuaXRyXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxuXG4jIHN0YXRpc3RpY2FsIHBhY2thZ2VzXG51c2VfcGFja2FnZShcImxpbW1hXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJxdmFsdWVcIiwgdHlwZSA9IFwiSW1wb3J0c1wiLCBtaW5fdmVyc2lvbiA9IE5VTEwpXG51c2VfcGFja2FnZShcInJ1dlwiLCB0eXBlID0gXCJJbXBvcnRzXCIsIG1pbl92ZXJzaW9uID0gTlVMTClcbnVzZV9wYWNrYWdlKFwibWl4T21pY3NcIiwgdHlwZSA9IFwiSW1wb3J0c1wiLCBtaW5fdmVyc2lvbiA9IE5VTEwpXG51c2VfcGFja2FnZShcIkVEQVNlcVwiLCB0eXBlID0gXCJJbXBvcnRzXCIsIG1pbl92ZXJzaW9uID0gTlVMTClcbnVzZV9wYWNrYWdlKFwiUlVWU2VxXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJtaXNzTWV0aHlsXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxuXG4jIHByb3Rlb21pY3MgcGFja2FnZXNcbnVzZV9wYWNrYWdlKFwic2VxaW5yXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxudXNlX3BhY2thZ2UoXCJVbmlQcm90LndzXCIsIHR5cGUgPSBcIkltcG9ydHNcIiwgbWluX3ZlcnNpb24gPSBOVUxMKVxuYGBgIn0= -->
+<pre class="r"><code>use_package(&quot;tidyverse&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;magrittr&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;readxl&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;rlang&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;vroom&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;ggpubr&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;plotly&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;knitr&quot;, type = &quot;Imports&quot;, min_version = NULL)
+
+# statistical packages
+use_package(&quot;limma&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;qvalue&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;ruv&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;mixOmics&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;EDASeq&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;RUVSeq&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;missMethyl&quot;, type = &quot;Imports&quot;, min_version = NULL)
+
+# proteomics packages
+use_package(&quot;seqinr&quot;, type = &quot;Imports&quot;, min_version = NULL)
+use_package(&quot;UniProt.ws&quot;, type = &quot;Imports&quot;, min_version = NULL)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBTZXQgdXAgb3RoZXIgZmlsZXMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLVxudXNlX3JlYWRtZV9tZCgpXG4jPiDinJMgV3JpdGluZyAnUkVBRE1FLm1kJ1xuXG51c2VfbmV3c19tZCgpXG4jPiDinJMgV3JpdGluZyAnTkVXUy5tZCdcblxudXNlX3Rlc3QoXCJteS10ZXN0XCIpXG5cblxuIyB4IDwtIDFcbiMgeSA8LSAyXG4jIHVzZV9kYXRhKHgsIHkpXG5cbiMgVXNlIGdpdCAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1cbnVzZV9naXQoKVxuIz4g4pyTIEluaXRpYWxpc2luZyBHaXQgcmVwb1xuIz4g4pyTIEFkZGluZyAnLlJwcm9qLnVzZXInLCAnLlJoaXN0b3J5JywgJy5SZGF0YScsICcuaHR0ci1vYXV0aCcsICcuRFNfU3RvcmUnIHRvICcuZ2l0aWdub3JlJ1xuYGBgIn0= -->
+<pre class="r"><code># Set up other files -------------------------------------------------
+use_readme_md()
+#&gt; ✓ Writing &#39;README.md&#39;
+
+use_news_md()
+#&gt; ✓ Writing &#39;NEWS.md&#39;
+
+use_test(&quot;my-test&quot;)
+
+
+# x &lt;- 1
+# y &lt;- 2
+# use_data(x, y)
+
+# Use git ------------------------------------------------------------
+use_git()
+#&gt; ✓ Initialising Git repo
+#&gt; ✓ Adding &#39;.Rproj.user&#39;, &#39;.Rhistory&#39;, &#39;.Rdata&#39;, &#39;.httr-oauth&#39;, &#39;.DS_Store&#39; to &#39;.gitignore&#39;</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9Cmluc3RhbGwucGFja2FnZXMoInVzZXRoaXMiKQoKbGlicmFyeSh1c2V0aGlzKQpgYGAKCmBgYHtyfQojIENyZWF0ZSBhIG5ldyBwYWNrYWdlIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KcGF0aCA8LSBmaWxlLnBhdGgoICIvaG9tZS9pZ25hdGl1cy9Qb3N0RG9jLzIwMjEvUHJvdGVvbWVSaXZlciIpCmNyZWF0ZV9wYWNrYWdlKHBhdGgpCgpwcm9qX2FjdGl2YXRlKHBhdGgpCiM+IOKckyBTZXR0aW5nIGFjdGl2ZSBwcm9qZWN0IHRvICcvcHJpdmF0ZS92YXIvZm9sZGVycy8wMy85eDc5MjVnNTRtbmNzd3h4MDZ3cGt4bDAwMDAwZ24vVC9SdG1weExaOFUzL215cGtnJwojPiDinJMgQ2hhbmdpbmcgd29ya2luZyBkaXJlY3RvcnkgdG8gJy92YXIvZm9sZGVycy8wMy85eDc5MjVnNTRtbmNzd3h4MDZ3cGt4bDAwMDAwZ24vVC9SdG1weExaOFUzL215cGtnLycKCiMgY3JlYXRlX2Zyb21fZ2l0aHViKCJJZ25hdGl1c1BhbmcvUHJvdGVvbWVSaXZlciIsIGZvcms9RkFMU0UpCgp1c2VfZ2l0KCkKCnVzZV9sZ3BsX2xpY2Vuc2UodmVyc2lvbiA9IDMsIGluY2x1ZGVfZnV0dXJlID0gVFJVRSkKCnVzZV9wYWNrYWdlKCJNQVNTIiwgIlN1Z2dlc3RzIikKIz4g4pyTIEFkZGluZyAnTUFTUycgdG8gU3VnZ2VzdHMgZmllbGQgaW4gREVTQ1JJUFRJT04KIz4g4pePIFVzZSBgcmVxdWlyZU5hbWVzcGFjZSgiTUFTUyIsIHF1aWV0bHkgPSBUUlVFKWAgdG8gdGVzdCBpZiBwYWNrYWdlIGlzIGluc3RhbGxlZAojPiDil48gVGhlbiBkaXJlY3RseSByZWZlciB0byBmdW5jdG9ucyBsaWtlIGBNQVNTOjpmdW4oKWAgKHJlcGxhY2luZyBgZnVuKClgKS4KCiMgU2V0IHVwIG90aGVyIGZpbGVzIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KdXNlX3JlYWRtZV9tZCgpCiM+IOKckyBXcml0aW5nICdSRUFETUUubWQnCgp1c2VfbmV3c19tZCgpCiM+IOKckyBXcml0aW5nICdORVdTLm1kJwoKdXNlX3Rlc3QoIm15LXRlc3QiKQojPiDinJMgQWRkaW5nICd0ZXN0dGhhdCcgdG8gU3VnZ2VzdHMgZmllbGQgaW4gREVTQ1JJUFRJT04KIz4g4pyTIFNldHRpbmcgQ29uZmlnL3Rlc3R0aGF0L2VkaXRpb24gZmllbGQgaW4gREVTQ1JJUFRJT04gdG8gJzMnCiM+IOKckyBDcmVhdGluZyAndGVzdHMvdGVzdHRoYXQvJwojPiDinJMgV3JpdGluZyAndGVzdHMvdGVzdHRoYXQuUicKIz4g4pyTIFdyaXRpbmcgJ3Rlc3RzL3Rlc3R0aGF0L3Rlc3QtbXktdGVzdC5SJwojPiDil48gRWRpdCAndGVzdHMvdGVzdHRoYXQvdGVzdC1teS10ZXN0LlInCgp4IDwtIDEKeSA8LSAyCnVzZV9kYXRhKHgsIHkpCiM+IOKckyBBZGRpbmcgJ1InIHRvIERlcGVuZHMgZmllbGQgaW4gREVTQ1JJUFRJT04KIz4g4pyTIENyZWF0aW5nICdkYXRhLycKIz4g4pyTIFNldHRpbmcgTGF6eURhdGEgdG8gJ3RydWUnIGluICdERVNDUklQVElPTicKIz4g4pyTIFNhdmluZyAneCcsICd5JyB0byAnZGF0YS94LnJkYScsICdkYXRhL3kucmRhJwojPiDil48gRG9jdW1lbnQgeW91ciBkYXRhIChzZWUgJ2h0dHBzOi8vci1wa2dzLm9yZy9kYXRhLmh0bWwnKQoKIyBVc2UgZ2l0IC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQp1c2VfZ2l0KCkKIz4g4pyTIEluaXRpYWxpc2luZyBHaXQgcmVwbwojPiDinJMgQWRkaW5nICcuUnByb2oudXNlcicsICcuUmhpc3RvcnknLCAnLlJkYXRhJywgJy5odHRyLW9hdXRoJywgJy5EU19TdG9yZScgdG8gJy5naXRpZ25vcmUnCmBgYAoK</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9Cmluc3RhbGwucGFja2FnZXMoInVzZXRoaXMiKQoKbGlicmFyeSh1c2V0aGlzKQpgYGAKCmBgYHtyfQojIENyZWF0ZSBhIG5ldyBwYWNrYWdlIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KcGF0aCA8LSBmaWxlLnBhdGgoICIvaG9tZS9pZ25hdGl1cy9Qb3N0RG9jLzIwMjEvUHJvdGVvbWVSaXZlciIpCmNyZWF0ZV9wYWNrYWdlKHBhdGgpCgpwcm9qX2FjdGl2YXRlKHBhdGgpCiM+IOKckyBTZXR0aW5nIGFjdGl2ZSBwcm9qZWN0IHRvICcvcHJpdmF0ZS92YXIvZm9sZGVycy8wMy85eDc5MjVnNTRtbmNzd3h4MDZ3cGt4bDAwMDAwZ24vVC9SdG1weExaOFUzL215cGtnJwojPiDinJMgQ2hhbmdpbmcgd29ya2luZyBkaXJlY3RvcnkgdG8gJy92YXIvZm9sZGVycy8wMy85eDc5MjVnNTRtbmNzd3h4MDZ3cGt4bDAwMDAwZ24vVC9SdG1weExaOFUzL215cGtnLycKCiMgY3JlYXRlX2Zyb21fZ2l0aHViKCJJZ25hdGl1c1BhbmcvUHJvdGVvbWVSaXZlciIsIGZvcms9RkFMU0UpCgp1c2VfZ2l0KCkKCnVzZV9sZ3BsX2xpY2Vuc2UodmVyc2lvbiA9IDMsIGluY2x1ZGVfZnV0dXJlID0gVFJVRSkKYGBgCgpgYGB7cn0KdXNlX3BhY2thZ2UoInRpZHl2ZXJzZSIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoIm1hZ3JpdHRyIiwgdHlwZSA9ICJJbXBvcnRzIiwgbWluX3ZlcnNpb24gPSBOVUxMKQp1c2VfcGFja2FnZSgicmVhZHhsIiwgdHlwZSA9ICJJbXBvcnRzIiwgbWluX3ZlcnNpb24gPSBOVUxMKQp1c2VfcGFja2FnZSgicmxhbmciLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCnVzZV9wYWNrYWdlKCJ2cm9vbSIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoImdncHViciIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoInBsb3RseSIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoImtuaXRyIiwgdHlwZSA9ICJJbXBvcnRzIiwgbWluX3ZlcnNpb24gPSBOVUxMKQoKIyBzdGF0aXN0aWNhbCBwYWNrYWdlcwp1c2VfcGFja2FnZSgibGltbWEiLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCnVzZV9wYWNrYWdlKCJxdmFsdWUiLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCnVzZV9wYWNrYWdlKCJydXYiLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCnVzZV9wYWNrYWdlKCJtaXhPbWljcyIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoIkVEQVNlcSIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoIlJVVlNlcSIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoIm1pc3NNZXRoeWwiLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCgojIHByb3Rlb21pY3MgcGFja2FnZXMKdXNlX3BhY2thZ2UoInNlcWluciIsIHR5cGUgPSAiSW1wb3J0cyIsIG1pbl92ZXJzaW9uID0gTlVMTCkKdXNlX3BhY2thZ2UoIlVuaVByb3Qud3MiLCB0eXBlID0gIkltcG9ydHMiLCBtaW5fdmVyc2lvbiA9IE5VTEwpCmBgYAoKYGBge3J9CiMgU2V0IHVwIG90aGVyIGZpbGVzIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KdXNlX3JlYWRtZV9tZCgpCiM+IOKckyBXcml0aW5nICdSRUFETUUubWQnCgp1c2VfbmV3c19tZCgpCiM+IOKckyBXcml0aW5nICdORVdTLm1kJwoKdXNlX3Rlc3QoIm15LXRlc3QiKQoKCiMgeCA8LSAxCiMgeSA8LSAyCiMgdXNlX2RhdGEoeCwgeSkKCiMgVXNlIGdpdCAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KdXNlX2dpdCgpCiM+IOKckyBJbml0aWFsaXNpbmcgR2l0IHJlcG8KIz4g4pyTIEFkZGluZyAnLlJwcm9qLnVzZXInLCAnLlJoaXN0b3J5JywgJy5SZGF0YScsICcuaHR0ci1vYXV0aCcsICcuRFNfU3RvcmUnIHRvICcuZ2l0aWdub3JlJwpgYGAKCg==</div>
 
 
 
