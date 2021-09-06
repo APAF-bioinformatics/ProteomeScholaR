@@ -77,3 +77,11 @@ use_git()
 #> ✓ Adding '.Rproj.user', '.Rhistory', '.Rdata', '.httr-oauth', '.DS_Store' to '.gitignore'
 ```
 
+
+```{r}
+usethis::use_build_ignore("create_repository.Rmd")
+```
+```{r}
+#usethis::use_vignette("my-vignette")
+```
+
