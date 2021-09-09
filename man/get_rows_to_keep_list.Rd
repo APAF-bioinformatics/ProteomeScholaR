@@ -33,7 +33,7 @@ get_rows_to_keep_list(
 \item{abundance_threshold}{Abundance threshold in which the protein in the sample must be above for it to be considered for inclusion into data analysis.}
 }
 \value{
-A list, each element is a vector containing the protein accessions (e.g. row_id) with enough number of values.
+A list, the name of each element is the sample ID and each element is a vector containing the protein accessions (e.g. row_id) with enough number of values.
 }
 \description{
 For each experimental group, identify proteins that does have enough number of samples with abundance values.

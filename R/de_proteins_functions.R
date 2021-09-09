@@ -1,43 +1,3 @@
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-#'Parse the headers of a Uniprot FASTA file and extract the headers and sequences into a data frame
-#'Use seqinr object instead as it seems to be a lot faster to run substring
-#' @param path to input faster file with header format described in https://www.uniprot.org/help/fasta-headers
-#' @return A table containing the following columns:
-#' db  sp for Swiss-Prot, tr for TrEMBL
-#' uniprot_acc Uniprot Accession
-#' uniprot_id  Uniprot ID
-#' species     Species
-#' tax_id      Taxonomy ID
-#' gene_name   Gene symbol
-#' protein_evidence 1 to 5, the lower the value, the more evidence that supports the existence of this protein
-#' sequence_version Sequence version
-#' is_isoform  Is it a protein isoform (not the canonical form)
-#' isoform_num     Isoform number.
-#' cleaned_acc Cleaned accession without isoform number.
-#' status  Reviewed or unreviewed.
-#' seq     Amino acid sequence.
-#' seq_length      Sequence length (integer).
-#' @export
-parse_fasta_file <- function( fasta_file) {
-
-    aa_seqinr <-  read.fasta( file = fasta_file,
-                             seqtype="AA",
-                             whole.header	=TRUE,
-                             as.string=TRUE)
-
-  acc_detail_tab <- parse_fasta_object(aa_seqinr)
-
-  names(aa_seqinr) <- str_match( names(aa_seqinr), "(sp|tr)\\|(.+?)\\|(.*)\\s+" )[,3]
-
-  aa_seq_tbl <- acc_detail_tab %>%
-                  mutate(seq = map_chr( aa_seqinr, 1)) %>%
-                  mutate(seq_length = purrr::map_int(seq, str_length) )
-}
-
-
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -66,6 +26,7 @@ remove_empty_rows <- function(input_table, col_pattern, row_id) {
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+#' Plot the number of missing values in each sample
 #'@param input_table  Data matrix with each row as a protein and each column a sample.
 #'@return A ggplot2 bar plot showing the number of missing values per column.
 #'@export
@@ -95,7 +56,7 @@ get_plot_num_missing_vales <- function(input_table) {
 #'@param group_column The name of the column in design_matrix table that has the experimental group.
 #'@param min_num_samples_per_group An integer representing the minimum number of samples per group.
 #'@param abundance_threshold Abundance threshold in which the protein in the sample must be above for it to be considered for inclusion into data analysis.
-#'@return A list, each element is a vector containing the protein accessions (e.g. row_id) with enough number of values.
+#'@return A list, the name of each element is the sample ID and each element is a vector containing the protein accessions (e.g. row_id) with enough number of values.
 #'@export
 get_rows_to_keep_list <- function( input_table, cols, design_matrix, sample_id, row_id, group_column, min_num_samples_per_group, abundance_threshold) {
 
@@ -175,55 +136,11 @@ get_ruvIII_replicate_matrix <- function( design_matrix, sample_id_column, group_
 }
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#'@export
-print_volcano_plot <- function(data,
-                    qm.threshold = 0.05,
-                    logFC.threshold = 1,
-                    logFC = logFC,
-                    qvalue=q.mod) {
-
-    comparison <- unique( data$comparison)
-
-     selected_data <-  data %>%
-       rownames_to_column( "ID") %>%
-       mutate( lqm=-log2({{qvalue}}), qm={{qvalue}}) %>%
-       dplyr::select (ID, lqm, qm,  {{logFC}}) %>%
-       dplyr::mutate( colour= case_when ( abs({{logFC}}) >= logFC.threshold & qm >= qm.threshold ~ "orange",
-                                  abs({{logFC}}) >= logFC.threshold & qm < qm.threshold ~ "purple",
-                                  abs({{logFC}}) < logFC.threshold & qm  < qm.threshold ~ "blue",
-                                  TRUE ~ "black" )) %>%
-      dplyr::mutate( colour = factor( colour, levels=c("black", "orange", "blue", "purple")))
-
-      p <- selected_data %>%
-            ggplot( aes(y=lqm, x=logFC))  +
-            geom_point(aes(col=colour)) +
-            scale_colour_manual(values = c(levels(selected_data$colour)),
-                                labels=c(paste0("Not significant, logFC > ",
-                                  logFC.threshold),
-                                  paste0("Significant, logFC >= ",
-                                         logFC.threshold),
-                                  paste0("Significant, logFC <",
-                                         logFC.threshold),
-                                  "Not Significant")) +
-            geom_vline(xintercept=1, colour="black", size=0.2) +
-            geom_vline(xintercept=-1, colour="black", size=0.2) +
-            geom_hline(yintercept=-log2(qm.threshold)) +
-            theme_bw() +
-            xlab("Log fold changes") +
-            ylab("-log2 moderated q-value") +
-           # geom_text(data=selected_data[selected_data$colour == "purple",], aes(y=lqm, x=logFC, label=ID), size=3.0) +
-            ggtitle( comparison ) +
-            theme(legend.position="none")
-
-   return(p)
-
-}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #'@export
-plot_PCA <- function( data,
+plot_pca <- function( data,
                       design_matrix,
                       sample_id_column = Sample_ID,
                       group_column = group,
@@ -247,7 +164,7 @@ plot_PCA <- function( data,
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #'@export
-my_ruv_rle <- function (Y, rowinfo = NULL, probs = c(0.05, 0.25, 0.5, 0.75,
+plot_rle <- function (Y, rowinfo = NULL, probs = c(0.05, 0.25, 0.5, 0.75,
     0.95), ylim = c(-0.5, 0.5))
 {
   #  checks = check.ggplot()
@@ -300,12 +217,12 @@ rle_pca_plot_list <- function( list_of_data_matrix, design_matrix,
                                sample_id_column=Sample_ID, group_column=group, list_of_descriptions) {
 
   rle_list <- purrr::map2( list_of_data_matrix, list_of_descriptions,
-                           ~my_ruv_rle(t(as.matrix(  .x)),
+                           ~plot_rle(t(as.matrix(  .x)),
                                        rowinfo=design_matrix[colnames(.x), quo_name(enquo(group_column))]) +
                              labs(title=.y) )
 
   pca_list <- purrr::map2( list_of_data_matrix, list_of_descriptions,
-                           ~plot_PCA(.x,
+                           ~plot_pca(.x,
                                      design_matrix = design_matrix,
                                      sample_id_column = {{sample_id_column}},
                                      group_column  = {{group}},
@@ -313,31 +230,37 @@ rle_pca_plot_list <- function( list_of_data_matrix, design_matrix,
 
   list_of_plots <- c( rle_list, pca_list)
 
-rle_pca_plots_arranged <- ggarrange(plotlist=list_of_plots, nrow =2 , ncol =length(list_of_descriptions),
-  common.legend = FALSE, legend = "bottom", widths = 14, heights = 14)
+  rle_pca_plots_arranged <- ggarrange(plotlist=list_of_plots, nrow =2 , ncol =length(list_of_descriptions),
+                                      common.legend = FALSE, legend = "bottom", widths = 14, heights = 14)
 
-rle_pca_plots_arranged
+  rle_pca_plots_arranged
 }
 
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' Count the number of statistically significant differentially expressed proteins (according to user-defined threshold)
+#' @param lfc_thresh A numerical value specifying the log fold-change threhold (absolute value) for calling statistically significant proteins.
+#' @param q_val_thresh A numerical value specifying the q-value threshold for statistically significant proteins.
+#' @param log_fc_column The name of the log fold-change column (tidyverse style).
+#' @param q_value_column The name of the q-value column (tidyverse style).
+#' @return A table with the following columns:
+#' status: The status could be Significant and Up, Significant and Down or Not significant
+#' counts: The number of proteins wit this status
 #'@export
 count_stat_de_genes <- function(data,
-                    qm.threshold = 0.05,
-                    logFC.threshold = 0,
-                    logFC = logFC,
-                    qvalue=q.mod ) {
+                                lfc_thresh = 0,
+                                q_val_thresh = 0.05,
+                    log_fc_column = logFC,
+                    q_value_column=q.mod ) {
 
     comparison <- unique( data$comparison)
 
      selected_data <-  data %>%
-       rownames_to_column( "ID") %>%
-       mutate( lqm=-log2({{qvalue}}), qm={{qvalue}}) %>%
-       dplyr::select (ID, lqm, qm,  {{logFC}}) %>%
-       dplyr::mutate( status= case_when (  qm >= qm.threshold ~"Not significant",
-                                  {{logFC}} >= logFC.threshold  & qm < qm.threshold ~ "Significant and Up",
-                                  {{logFC}} < logFC.threshold  & qm < qm.threshold ~  "Significant and Down",
+       dplyr::mutate( status= case_when (  {{q_value_column}} >= q_val_thresh ~"Not significant",
+                                  {{log_fc_column}} >= lfc_thresh  & {{q_value_column}} < q_val_thresh ~ "Significant and Up",
+                                  {{log_fc_column}} < lfc_thresh  & {{q_value_column}} < q_val_thresh ~  "Significant and Down",
                                   TRUE ~ "Not significant" ))
 
      counts <- selected_data %>%
@@ -350,15 +273,36 @@ count_stat_de_genes <- function(data,
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#' Format results table for use in volcano plots, counting number of significant proteins, p-values distribution histogram.
+#' @param list_of_de_tables A list with each element being a results table with log fold-change and q-value per protein.
+#' @param list_of_descriptions  A list of strings describing the parameters used to generate the result table.
+#' @param formula_string The formula string used in the facet_grid command for the ggplot scatter plot.
+#' @param facet_column The name of the column describing the type of analysis or parameters used to generate the result table (tidyverse style). This is related to the \code{list_of_descriptions} parameter above.
+#' @param comparison_column The name of the column describing the contrasts or comparison between groups (tidyverse style).
+#' @param expression_column The name of the column that will contain the formula expressions of the contrasts.
 #'@export
-print_count_de_genes_table <- function( list_of_de_tables, list_of_descriptions, formula_string="analysis_type ~ comparison", facet_column=analysis_type )  {
+print_count_de_genes_table <- function( list_of_de_tables,
+                                        list_of_descriptions,
+                                        formula_string="analysis_type ~ comparison",
+                                        facet_column=analysis_type,
+                                        comparison_column=comparison,
+                                        expression_column=expression)  {
 
   count_stat_de_genes_helper <-  function(de_table, description) {
-    purrr::map( de_table, count_stat_de_genes) %>%
+    purrr::map( de_table, ~count_stat_de_genes(.,
+                                               lfc_thresh = 0,
+                                               q_val_thresh = 0.05,
+                                               log_fc_column = logFC,
+                                               q_value_column=q.mod )) %>%
       purrr::map2( names(de_table),
-                   ~{.x %>% mutate( comparison = .y)}) %>%
+                   ~{.x %>%
+                      mutate( {{comparison_column}} := .y ) }) %>%
       bind_rows %>%
-      mutate(   {{facet_column}} := description)
+      mutate(   {{facet_column}} := description)  %>%
+      separate( {{comparison_column}},
+                sep="=",
+                into=c( quo_name( enquo(comparison_column)),
+                        quo_name( enquo(expression_column))))
   }
 
   num_significant_de_genes_all <- purrr::map2( list_of_de_tables,
@@ -386,54 +330,92 @@ print_count_de_genes_table <- function( list_of_de_tables, list_of_descriptions,
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#'@export
+#' Format results table for use in volcano plots, counting number of significant proteins, p-values distribution histogram.
+#' @param list_of_de_tables A list with each element being a results table with log fold-change and q-value per protein.
+#' @param list_of_descriptions  A list of strings describing the parameters used to generate the result table.
+#' @param row_id The name of the row ID column (tidyverse style).
+#' @param p_value_column The name of the raw p-value column (tidyverse style).
+#' @param q_value_column The name of the q-value column (tidyverse style).
+#' @param log_q_value_column The name of the log q-value column (tidyverse style).
+#' @param log_fc_column The name of the log fold-change column (tidyverse style).
+#' @param comparison_column The name of the column describing the contrasts or comparison between groups (tidyverse style).
+#' @param expression_column The name of the column that will contain the formula expressions of the contrasts.
+#' @param facet_column The name of the column describing the type of analysis or parameters used to generate the result table (tidyverse style). This is related to the \code{list_of_descriptions} parameter above.
+#' @param q_val_thresh A numerical value specifying the q-value threshold for statistically significant proteins.
+#' @return A table with the following columns:
+#' row_id:  The protein ID, this column is derived from the input to the row_id column.
+#' log_q_value_column: The log (base 10) q-value, this column name is derived from the input to the log_q_value_column.
+#' q_value_column:  The q-value, this column name is derived from the input to the q_value_column.
+#'   p_value_column: The p-value, this column name is derived from the input to p_value_column.
+#'   log_fc_column: The log fold-change, this column name is derived from the input to log_fc_column.
+#'   comparison_column: The comparison, this column name is derived from the input to comparison_column.
+#'   expression_column: The formula expression for the contrasts, this column name is derived from the input to expression_column.
+#'   facet_column: The analysis type, this column name is derived from the input to facet_column.
+#'   colour The colour of the dots used in the volcano plot.
+#'   orange = Absolute Log fold-change >= 1 and q-value >= threshold
+#'   purple = Absolute Log fold-change >= 1 and q-value < threshold
+#'   blue = Absolute Log fold-change < 1 and q-value < threshold
+#'   black = all other values
+#' @export
 get_significant_data <- function( list_of_de_tables,
                                   list_of_descriptions,
                                   row_id = uniprot_acc,
-                                  p_value_column = pmod,
+                                  p_value_column = p.mod,
                                   q_value_column = q.mod,
+                                  log_q_value_column = lqm,
                                   log_fc_column = logFC,
                                   comparison_column = comparison,
+                                  expression_column = expression,
                                   facet_column = analysis_type,
                                   q_val_thresh = 0.05) {
 
   get_row_binded_table <- function( de_table_list, description) {
     output <- purrr::map( de_table_list,
-                           function(tbl){tbl %>%
-                               rownames_to_column(quo_name(enquo(row_id))) %>%
-                               dplyr::select({{row_id}},
-                                             {{p_value_column}},
-                                             {{q_value_column}},
-                                             {{log_fc_column}})} ) %>%
-      purrr::map2( names( de_table_list), ~{.x %>% mutate( {{comparison_column}} := .y)}) %>%
+                          function(tbl){tbl %>%
+                              rownames_to_column(quo_name(enquo(row_id))) %>%
+                              dplyr::select({{row_id}},
+                                            {{p_value_column}},
+                                            {{q_value_column}},
+                                            {{log_fc_column}})} ) %>%
+      purrr::map2( names( de_table_list), ~{ .x %>%
+                                            mutate( {{comparison_column}} := .y)}) %>%
       bind_rows() %>%
-      mutate(   {{facet_column}} := description)
+      mutate(   {{facet_column}} := description)   %>%
+      separate( {{comparison_column}},
+                sep="=",
+                into=c( quo_name( enquo(comparison_column)),
+                        quo_name( enquo(expression_column))))
 
   }
 
-   logfc_tbl_all <- purrr::map2( list_of_de_tables, list_of_descriptions,
-                 function(a, b) { get_row_binded_table( de_table_list=a, description=b) } ) %>%
-                   bind_rows()
+  logfc_tbl_all <- purrr::map2( list_of_de_tables, list_of_descriptions,
+                                function(a, b) { get_row_binded_table( de_table_list=a, description=b) } ) %>%
+    bind_rows()
 
   selected_data <-  logfc_tbl_all %>%
-    rownames_to_column( "ID") %>%
-    mutate( lqm=-log10(q.mod), qm=q.mod) %>%
-    dplyr::select (ID, lqm, qm,  {{p_value_column}}, {{log_fc_column}},
-                   {{comparison_column}},
+    mutate( {{log_q_value_column}} :=-log10(q.mod)) %>%
+    dplyr::select ( {{row_id}}, {{log_q_value_column}}, {{q_value_column}},  {{p_value_column}}, {{log_fc_column}},
+                    {{comparison_column}}, {{expression_column}},
                    {{facet_column}}) %>%
-    dplyr::mutate( colour= case_when ( abs({{log_fc_column}}) >= 1 & qm >= q_val_thresh ~ "orange",
-                                       abs({{log_fc_column}}) >= 1 & qm < q_val_thresh ~ "purple",
-                                       abs({{log_fc_column}}) < 1 & qm  < q_val_thresh ~ "blue",
+    dplyr::mutate( colour= case_when ( abs({{log_fc_column}}) >= 1 &  {{q_value_column}} >= q_val_thresh ~ "orange",
+                                       abs({{log_fc_column}}) >= 1 &  {{q_value_column}} < q_val_thresh ~ "purple",
+                                       abs({{log_fc_column}}) < 1 &  {{q_value_column}}  < q_val_thresh ~ "blue",
                                        TRUE ~ "black" )) %>%
     dplyr::mutate( colour = factor( colour, levels=c("black", "orange", "blue", "purple")))
 
   selected_data
 
-
 }
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' Draw the volcano plot.
+#' @param selected_data A table that is generated by running the function \code{\link{get_significant_data}}.
+#' @param log_q_value_column The name of the column representing the log q-value.
+#' @param log_fc_column The name of the column representing the log fold-change.
+#' @param q_val_thresh A numerical value specifying the q-value threshold for statistically significant proteins.
+#' @param formula_string The formula string used in the facet_grid command for the ggplot scatter plot.
 #'@export
 print_volcano_plot <- function(  selected_data,
                        log_q_value_column = lqm,
@@ -467,8 +449,13 @@ print_volcano_plot <- function(  selected_data,
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' Draw the p-values distribution plot.
+#' @param selected_data A table that is generated by running the function \code{\link{get_significant_data}}.
+#' @param log_p_value_column The name of the column representing the p-value.
+#' @param formula_string The formula string used in the facet_grid command for the ggplot scatter plot.
 #'@export
-print_p_values_distribution <- function (selected_data, p_value_column = pmod, formula_string="is_ruv_applied ~ comparison" ) {
+print_p_values_distribution <- function (selected_data, p_value_column = p.mod, formula_string="is_ruv_applied ~ comparison" ) {
 
   breaks <- c( 0, 0.001, 0.01, 0.05,
                seq(0.1, 1, by = 0.1))
@@ -500,8 +487,15 @@ print_p_values_distribution <- function (selected_data, p_value_column = pmod, f
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#'@export
-eb.fit <- function( ID, data, design, contr.matrix)
+
+#' Run the Empircal Bayes Statistics for Differential Expression in the limma package
+#' @param ID List of protein accessions / row names.
+#' @param design Output from running the function \code{\link{model.matrix}}.
+#' @param contr.matrix Output from the function \code{\link{makeContrasts}}.
+#' @seealso \code{\link{model.matrix}}
+#' @seealso \code{\link{makeContrasts}}
+#' @export
+eb.fit <- function( data, design, contr.matrix)
 {
     fit <- lmFit(data, design)
     fit.c <- contrasts.fit(fit, contrasts=contr.matrix)
@@ -579,7 +573,7 @@ runTest <- function(ID, A, B, group_A, group_B, design_matrix, formula_string,
   contr.matrix <- makeContrasts( contrasts = paste0( group_B, "vs", group_A , "=", contrast_variable, group_B, "-", contrast_variable, group_A),
                                  levels = colnames(design_m))
 
-  eb_fit_list <- eb.fit(ID, cbind(A, B), design_m, contr.matrix=contr.matrix)
+  eb_fit_list <- eb.fit( cbind(A, B), design_m, contr.matrix=contr.matrix)
 
   r <- eb_fit_list$table
   fit.eb <- eb_fit_list$fit.eb
@@ -598,21 +592,43 @@ runTest <- function(ID, A, B, group_A, group_B, design_matrix, formula_string,
              fit.eb = fit.eb))
 }
 
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#'Assign experimental group list
+#'@param design_matrix A data frame representing the design matrix.
+#'@param group_id A string representing the name of the group ID column used in the design matrix.
+#'@param sample_id A string representing the name of the sample ID column used in the design matrix.
+#'@return A list where each element name is the name of a treatment group and each element is a vector containing the sample IDs within the treatment group.
+#'@export
+get_type_of_grouping <- function( design_matrix, group_id, sample_id ) {
+  temp_type_of_grouping <- design_matrix %>%
+    dplyr::select(!!rlang::sym(group_id), !!rlang::sym(sample_id) ) %>%
+    group_by( !!rlang::sym(group_id) )%>%
+    summarise( !!rlang::sym(sample_id) := list( !!rlang::sym(sample_id)) ) %>%
+    ungroup
+
+  type_of_grouping <- temp_type_of_grouping %>% pull (!!rlang::sym(sample_id))
+  names( type_of_grouping) <- temp_type_of_grouping %>% pull (!!rlang::sym(group_id))
+
+  return(type_of_grouping )
+
+}
+
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#' Analyse one contrast (e.g. compare a pair of experimental groups) and output the q-values per protein.
+#' Compare a pair of experimental groups and output the log fold-change and q-values per protein.
 #'@param ID List of protein accessions / row names.
-#'@param data
-#'@param tests
-#'@param sample_columns
-#'@param sample_rows_list
-#'@param type_of_grouping
+#'@param data Data frame containing the log (base 2) protein abundance values where each column represents a sample and each row represents a protein group, and proteins as rows. The data is preferably median-scaled, with missing values imputed, and batch-effects removed.
+#'@param test_pairs Input file with a table listing all the pairs of experimental groups to compare. First column represents group A and second column represents group B. Linear model comparisons (e.g. Contrasts) would be group B minus group A.
+#'@param sample_columns A vector of column names (e.g. strings) representing samples which would be used in the statistical tests. Each column contains protein abundance values.
+#'@param sample_rows_list A list, the name of each element is the sample ID and each element is a vector containing the protein accessions (e.g. row_id) with enough number of values. It is usually the output from the function \code{get_rows_to_keep_list}.
+#'@param type_of_grouping A list where each element name is the name of a treatment group and each element is a vector containing the sample IDs within the treatment group. It is usually the output from the function \code{get_type_of_grouping}.
 #'@param design_matrix A data frame with a column containing the sample ID (as per the sample_id param) and the experimental group (as per the group param). Each row as the sample ID as row name in the data frame.
 #'@param formula_string A formula string representing the experimental design. e.g. ("~ 0 + group")
 #'@param contrast_variable String representing the contrast variable, which is also used in the formula string. (e.g. "group")
 #'@param weights Numeric matrix for adjusting each sample and gene.
-#'@results A list of data frames, the name of each element represents each pairwise comparison. Each data frame has the following columns:
+#'@return A list of data frames, the name of each element represents each pairwise comparison. Each data frame has the following columns:
 #' row.names = the protein accessions
 #' comparison A string showing log({group B's name}) minus log({group A's name})
 #' meanA     mean of the normalized log abundance value of the gene across samples from experimental group A
@@ -624,10 +640,12 @@ runTest <- function(ID, A, B, group_A, group_B, design_matrix, formula_string,
 #' pmod      moderated t-test p-value
 #' qval      t-test q-value
 #' q.mod     moderated t-test q-value
+#' @seealso \code{\link{get_rows_to_keep_list}}
+#' @seealso \code{\link{get_type_of_grouping}}
 #'@export
-runTests <- function(ID, data, tests, sample_columns, sample_rows_list = NA, type_of_grouping, design_matrix, formula_string, contrast_variable="group",  weights=NA) {
+runTests <- function(ID, data, test_pairs, sample_columns, sample_rows_list = NA, type_of_grouping, design_matrix, formula_string, contrast_variable="group",  weights=NA) {
   r <- list()
-  for (i in 1:nrow(tests)) {
+  for (i in 1:nrow(test_pairs)) {
 
     rows_to_keep <- rownames(data )
 
@@ -635,20 +653,20 @@ runTests <- function(ID, data, tests, sample_columns, sample_rows_list = NA, typ
     if( length( sample_rows_list) > 0) {
       if(    !is.na( sample_rows_list ) &
              #  Check that sample group exists as names inside sample_rows_list
-             length(which( c( tests[i, "A"],  tests[i, "B"] ) %in% names( sample_rows_list) )) > 0    ) {
+             length(which( c( test_pairs[i, "A"],  test_pairs[i, "B"] ) %in% names( sample_rows_list) )) > 0    ) {
 
 
-        rows_to_keep <- unique( sample_rows_list[[ tests[[i, "A"]]]],
-                                sample_rows_list[[ tests[[i, "B"]]]] )
+        rows_to_keep <- unique( sample_rows_list[[ test_pairs[[i, "A"]]]],
+                                sample_rows_list[[ test_pairs[[i, "B"]]]] )
       }
     }
 
     tmp  <- data[rows_to_keep, sample_columns]
     rep <- colnames(tmp)
 
-    # print( paste( tests[i,]$A, tests[i,]$B) )
-    A <- tmp[,type_of_grouping[tests[i,]$A][[1]]]
-    B <- tmp[,type_of_grouping[tests[i,]$B][[1]]]
+    # print( paste( test_pairs[i,]$A, test_pairs[i,]$B) )
+    A <- tmp[,type_of_grouping[test_pairs[i,]$A][[1]]]
+    B <- tmp[,type_of_grouping[test_pairs[i,]$B][[1]]]
 
     subset_weights <- NA
 
@@ -659,11 +677,11 @@ runTests <- function(ID, data, tests, sample_columns, sample_rows_list = NA, typ
     # print(colnames(A))
     # print(colnames(B))
     tmp <- unname(cbind(A,B))
-    Aname <- paste(tests[i,]$A, 1:max(1,ncol(A)), sep = "_")
-    Bname <- paste(tests[i,]$B, 1:max(1,ncol(B)), sep = "_")
+    Aname <- paste(test_pairs[i,]$A, 1:max(1,ncol(A)), sep = "_")
+    Bname <- paste(test_pairs[i,]$B, 1:max(1,ncol(B)), sep = "_")
     colnames(tmp) <- c(Aname,Bname)
 
-    selected_sample_ids <- c(type_of_grouping[tests[i,]$A][[1]], type_of_grouping[tests[i,]$B][[1]])
+    selected_sample_ids <- c(type_of_grouping[test_pairs[i,]$A][[1]], type_of_grouping[test_pairs[i,]$B][[1]])
     design_matrix_subset <- design_matrix[ selected_sample_ids, , drop=FALSE]
 
     # print("My design matrix 1")
@@ -671,8 +689,8 @@ runTests <- function(ID, data, tests, sample_columns, sample_rows_list = NA, typ
     # print(design_matrix)
     # print( dim(design_matrix))
 
-    group_A <- tests[i,]$A
-    group_B <- tests[i,]$B
+    group_A <- test_pairs[i,]$A
+    group_B <- test_pairs[i,]$B
 
     x <- runTest(ID, A, B, group_A, group_B, design_matrix=design_matrix_subset,
                  formula_string=formula_string, contrast_variable=contrast_variable,
@@ -683,6 +701,63 @@ runTests <- function(ID, data, tests, sample_columns, sample_rows_list = NA, typ
     r[[comparison]] <- list(results= x$table, counts=t( cbind(A, B)), fit.eb=x$fit.eb )
   }
   r
+}
+
+## -----------
+
+#' Run the linear model fitting and statistical tests for a set of contrasts, then adjust with Empirical Bayes function
+#'@param data Data frame containing the log (base 2) protein abundance values where each column represents a sample and each row represents a protein group, and proteins as rows. The data is preferably median-scaled, with missing values imputed, and batch-effects removed.
+#'@param contrast_strings Input file with a table listing all the experimental contrasts to analyse. It will be in the format required for the function \code{makeContrasts} in the limma package.
+#'The contrast string consists of variable that each consist of concatenating the column name (e.g. group) and the string representing the group type (e.g. A) in the design matrix.
+#'@param design_matrix A data frame with a column containing the sample ID (as per the sample_id param) and the experimental group (as per the group param). Each row as the sample ID as row name in the data frame.
+#'@param formula_string A formula string representing the experimental design. e.g. ("~ 0 + group")
+#' @param p_value_column The name of the raw p-value column (tidyverse style).
+#' @param q_value_column The name of the q-value column (tidyverse style).
+#'@return A list containing two elements. $results returns a list of tables containing logFC and q-values. $fit.eb returns the Empiracle Bayes output object.
+#'@export
+runTests_contrasts <- function( data,
+                                contrast_strings,
+                                design_matrix,
+                                formula_string,
+                                p_value_column = p.mod,
+                                q_value_column = q.mod,
+                                weights=NA ) {
+
+  ff <- as.formula(formula_string)
+  mod_frame <- model.frame( ff, design_matrix)
+  design_m <- model.matrix( ff, mod_frame)
+
+  ## Make contrasts
+  contr.matrix <- makeContrasts( contrasts = contrast_strings,
+                                 levels = colnames(design_m))
+
+  ## Attach weights
+  if( !is.na(weights)  ) {
+    if( nrow(weights) == nrow(design_m) ) {
+      design_m <- cbind(design_m, weights)
+    } else {
+      stop("Stop: nrow(weights) should be equal to nrow(design_m)")
+    }
+
+  }
+
+  fit <-   lmFit(data, design=design_m)
+
+  cfit <-  contrasts.fit(fit, contrasts=contr.matrix)
+
+  eb.fit <-   eBayes(cfit)
+
+  result_tables <- purrr::map( contrast_strings,
+                                function(contrast) {
+                                  de_tbl <- topTreat(eb.fit, coef=contrast,  n=Inf) %>%
+                                    mutate( {{q_value_column}} := qvalue(P.Value)$q) %>%
+                                    dplyr::rename( {{p_value_column}} := P.Value)} )
+
+  names(result_tables) <- contrast_strings
+
+
+  return( list( results = result_tables,
+                fit.eb = eb.fit) )
 }
 
 
@@ -801,12 +876,16 @@ get_control_genes <- function( data,
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-#'@param group_column The name of the column with the experimental group, as a string.
+#' Identify negative control proteins for use in removal of unwanted variation, using an ANOVA test.
+#' @param data_matrix A matrix containing the log (base 2) protein abundance values where each column represents a sample and each row represents a protein group, and proteins as rows. The row ID are the protein accessions. The data is preferably median-scaled with missing values imputed.
+#' @param group_column The name of the column with the experimental group, as a string.
+#' @param num_neg_ctrl The number of negative control genes to select. Typically the number of genes with the highest q-value (e.g. least statistically significant).
+#' @param q_val_thresh The q-value threshold. No proteins with q-values lower than this value are included in the list of negative control proteins. This means the number of negative control proteins could be less than the number specified in \code{num_neg_ctrl} when some were excluded by this threshold.
+#' @return A boolean vector which indicates which row in the input data matrix is a control gene. The row is included if the value is TRUE. The names of each element is the row ID / protein accessions of the input data matrix.
 #'@export
-get_control_genes_anova <- function(data_matrix, design_matrix, group_column= "group", num_neg_ctrl = 500, q_val_thresh = 0.05) {
+get_neg_ctrl_prot_anova <- function(data_matrix, design_matrix, group_column= "group", num_neg_ctrl = 500, q_val_thresh = 0.05) {
 
-  ## inspired from matANOVA function from PhosR package
+  ## Inspired by matANOVA function from PhosR package: http://www.bioconductor.org/packages/release/bioc/html/PhosR.html
 
   grps <- design_matrix[colnames(data_matrix), group_column]
 
@@ -822,7 +901,7 @@ get_control_genes_anova <- function(data_matrix, design_matrix, group_column= "g
 
   control_genes <- names( sort( filtered_list, decreasing=TRUE )[1:list_size]  )
 
-  nrow(data_matrix) - length(control_genes)
+  #nrow(data_matrix) - length(control_genes)
   control_genes_index <- rownames( data_matrix)  %in%  control_genes
   names( control_genes_index ) <- rownames( data_matrix)
 
@@ -908,6 +987,40 @@ batch_query_evidence <- function(uniprot_acc_tbl, uniprot_acc_column,  uniprot_h
   return(all_uniprot_evidence )
 }
 
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#' Convert a list of Gene Ontology IDs to their respective human readable name (e.g. GO term).
+#' @param A string consisting of a list of Gene Ontology ID, separated by a delimiter
+#' @param goterms Output from running \code{goterms <- Term(GOTERM)} from the GO.db library.
+#' @param gotypes Output from running \code{gotypes <- Ontology(GOTERM)} from the GO.db library.
+#' @return A table with three columns. go_biological_process, go_celluar_compartment, and go_molecular_function. Each column is a list of gene ontology terms, separated by '; '.
+#' @export
+#' @example
+#' go_string <- "GO:0016021; GO:0030659; GO:0031410; GO:0035915; GO:0042742; GO:0045087; GO:0045335; GO:0050829; GO:0050830"
+#' go_id_to_term(go_string)
+go_id_to_term <- function( go_string, sep="; ", goterms, gotypes) {
+
+  if( !is.na(go_string)) {
+    go_string_tbl <- data.frame( go_id = go_string) %>%
+      separate_rows( go_id, sep=sep) %>%
+      mutate( go_term = purrr::map_chr( go_id, function(x){ if( x %in% names(goterms) ) { return(goterms[[x]]) }; return(NA) }   )) %>%
+      mutate( go_type = purrr::map_chr( go_id, function(x){ if( x %in% names(gotypes) ) { return(gotypes[[x]]) }; return(NA) } )) %>%
+      group_by(go_type) %>%
+      summarise( go_term = paste(go_term, collapse="; ") ) %>%
+      ungroup() %>%
+      mutate( go_type = case_when ( go_type == "BP" ~ "go_biological_process",
+                                    go_type == "CC" ~ "go_cellular_compartment",
+                                    go_type == "MF" ~ "go_molecular_function")) %>%
+      pivot_wider( names_from = go_type,
+                   values_from = go_term)
+
+    return(  go_string_tbl )
+  }
+  return(NA)
+}
+
+# go_string <- "GO:0016021; GO:0030659; GO:0031410; GO:0035915; GO:0042742; GO:0045087; GO:0045335; GO:0050829; GO:0050830"
+# go_id_to_term(go_string)
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
