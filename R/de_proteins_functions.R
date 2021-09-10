@@ -995,7 +995,7 @@ batch_query_evidence <- function(uniprot_acc_tbl, uniprot_acc_column,  uniprot_h
 #' @param gotypes Output from running \code{gotypes <- Ontology(GOTERM)} from the GO.db library.
 #' @return A table with three columns. go_biological_process, go_celluar_compartment, and go_molecular_function. Each column is a list of gene ontology terms, separated by '; '.
 #' @export
-#' @example
+#' @examples
 #' go_string <- "GO:0016021; GO:0030659; GO:0031410; GO:0035915; GO:0042742; GO:0045087; GO:0045335; GO:0050829; GO:0050830"
 #' go_id_to_term(go_string)
 go_id_to_term <- function( go_string, sep="; ", goterms, gotypes) {

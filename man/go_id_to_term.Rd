@@ -19,3 +19,7 @@ A table with three columns. go_biological_process, go_celluar_compartment, and g
 \description{
 Convert a list of Gene Ontology IDs to their respective human readable name (e.g. GO term).
 }
+\examples{
+go_string <- "GO:0016021; GO:0030659; GO:0031410; GO:0035915; GO:0042742; GO:0045087; GO:0045335; GO:0050829; GO:0050830"
+go_id_to_term(go_string)
+}
