@@ -1,0 +1,310 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+
+options(knitr.duplicate.label = "allow")
+
+
+#Test if BioManager is installed 
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+   BiocManager::install(version = "3.12")
+}
+
+# load pacman package manager
+if(!require(pacman)){
+    install.packages("pacman")
+    library(pacman)
+}
+p_load(optparse)
+p_load(tictoc)
+```
+```{r}
+tic()
+```
+
+
+```{r}
+p_load(tidyverse)
+p_load(vroom)
+p_load(magrittr)
+p_load(rlang)
+p_load(UniProt.ws)
+p_load(biomaRt)
+p_load(GO.db)
+p_load(ProteomeRiver)
+```
+
+
+```{r}
+list_of_sp_columns <- c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH", "ENSEMBL", "GO-ID", "KEYWORDS")
+```
+
+```{r}
+
+group_pattern <- "RPE"
+## Directories management 
+base_dir <- here::here()
+data_dir <- file.path( base_dir, "Data", "ALPK1")
+results_dir <- file.path(base_dir, "Results", "ALPK1", group_pattern,  "Proteins")
+source_dir <- file.path(base_dir, "Source")
+
+```
+
+## Command to convert the R markdown file to a R file for use in command line. 
+knitr::purl( file.path(  source_dir, "ALPK1",  "annot_proteins_cmd.Rmd"), 
+             output=file.path( source_dir,  "ALPK1",   "annot_proteins_cmd.R") ) 
+       
+
+```{r}
+
+input_wide_file <- file.path(results_dir, "de_proteins_wider.tsv" ) 
+input_long_file <- file.path(results_dir, "de_proteins_longer.tsv" ) 
+output_long_file <- file.path(results_dir, "de_proteins_longer_annot.tsv" ) 
+output_wide_file <- file.path(results_dir, "de_proteins_wider_annot.tsv" ) 
+
+command_line_options <- commandArgs(trailingOnly = TRUE)
+if( length(command_line_options ) > 0 ) {
+  parser <- OptionParser(add_help_option =TRUE)
+
+  
+  parser <- add_option(parser, c( "--output-dir"), type="character", default="", dest = "results_dir",
+                       help="Directory path for all results files.",
+                       metavar="string")   
+  
+  parser <- add_option(parser, c("--input-wide"), type="character", default="", dest = "input_wide_file",
+                       help="Results table with values in wider format.",
+                       metavar="string")   
+  
+  parser <- add_option(parser, c("--input-long"), type="character", default="", dest = "input_long_file",
+                       help="Results table with values in longer format.",
+                       metavar="string") 
+  
+  
+  parser <- add_option(parser, c( "--output-wide"), type="character", default="", dest = "output_wide_file",
+                       help="Results table with values in wider format.",
+                       metavar="string")   
+  
+  parser <- add_option(parser, c( "--output-long"), type="character", default="", dest = "output_long_file",
+                       help="Results table with values in longer format.",
+                       metavar="string")   
+
+
+  print(command_line_options)
+  
+  cmd_arguments <- parse_args(parser)
+  
+  print(cmd_arguments)  
+
+  input_wide_file <- cmd_arguments$input_wide_file
+  input_long_file <- cmd_arguments$input_long_file
+  output_wide_file <- cmd_arguments$output_wide_file
+  output_long_file <- cmd_arguments$output_long_file
+  results_dir <- cmd_arguments$results_dir
+  
+  if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
+  if( group_pattern == "" ) { stop("No value for --group-pattern was supplied.") }
+  if( input_wide_file == "" ) { stop("No value for --input-wide was supplied. ") }
+  if( input_long_file == "" ) { stop("No value for --input-long was supplied. ") }
+  if( output_wide_file == "" ) { stop("No value for --output-wide was supplied. ") }
+  if( output_long_file == "" ) { stop("No value for --output-long was supplied. ") }
+  
+}
+
+de_proteins_wider <- vroom::vroom( input_wide_file ) 
+de_proteins_longer <- vroom::vroom( input_long_file ) 
+
+```
+## Download Reactome annotation file 
+```{r}
+
+print("Download Reactome UniProt to pathways file.")
+temp_file <- tempfile()
+
+reactome_file <- download.file(url="https://reactome.org/download/current/UniProt2Reactome.txt", destfile=temp_file)
+
+reactome_map <- vroom::vroom( temp_file , 
+                              col_names = c("uniprot_acc", "reactome_id", "url", "reactome_term", "evidence", "organism") )
+
+
+```
+
+
+
+```{r}
+
+print("Get the best UniProt accession per row.")
+  uniprot_acc_tbl <- de_proteins_wider %>%
+    mutate( best_uniprot_acc = purrr::map_chr( uniprot_acc, ~str_split(  ., ":" )[[1]][1] )) %>%
+    dplyr::select(best_uniprot_acc) %>%
+    distinct(best_uniprot_acc)
+
+
+```
+
+
+```{r}
+
+print("Download information from UniProt.")
+uniprot_dat <- NA
+if( ! file.exists( file.path(results_dir, "uniprot_data.RDS"))) {
+  
+  if(  !"up" %in% ls()) {
+    up <- UniProt.ws(taxId=10090 )
+  } 
+
+ # keytypes(up)
+  
+  uniprot_dat <- batch_query_evidence(uniprot_acc_tbl, best_uniprot_acc, uniprot_handle=up, 
+                                      uniprot_columns = list_of_sp_columns)
+  
+  saveRDS( uniprot_dat, file.path(results_dir, "uniprot_data.RDS"))
+  
+} else {
+  uniprot_dat <- readRDS( file.path(results_dir, "uniprot_data.RDS"))
+}
+
+```
+
+
+```{r eval=FALSE}
+ # uniprot_dat <- batch_query_evidence(uniprot_acc_tbl %>% head(100), best_uniprot_acc, uniprot_handle=up, 
+ #                                      uniprot_columns = list_of_sp_columns)
+```
+
+```{r}
+
+print("Merge with Gene Ontology terms.")
+goterms <- Term(GOTERM)
+gotypes <- Ontology(GOTERM)
+
+uniprot_dat_cln <- uniprot_dat %>%
+  mutate( go_mapping =  purrr::map( `GO-ID`, ~go_id_to_term(., sep="; ", goterms, gotypes) )) %>%
+  unnest(go_mapping) %>%
+  dplyr::select(-go_mapping)
+
+```
+
+
+```{r}
+print("Add reactome pathways annotation.")
+reactome_term_tbl <- uniprot_acc_tbl %>%
+  left_join( reactome_map, by=c("best_uniprot_acc" = "uniprot_acc") )   %>%
+  group_by(best_uniprot_acc) %>%
+  summarise( reactome_term = paste(reactome_term, collapse="; ") ) %>%
+  ungroup()  %>%
+  dplyr::filter(reactome_term != "NA" )
+
+```
+
+
+```{r}
+print("Output wider format results table with protein annotation.")
+de_proteins_wider_annot <- de_proteins_wider %>% 
+    mutate( best_uniprot_acc = purrr::map_chr( uniprot_acc, ~str_split(  ., ":" )[[1]][1] )) %>%
+  left_join( uniprot_dat_cln, by = c("best_uniprot_acc" = "UNIPROTKB") ) %>%
+  left_join( reactome_term_tbl, by = c("best_uniprot_acc" = "best_uniprot_acc"))
+
+head( de_proteins_wider_annot ) 
+
+vroom::vroom_write(de_proteins_wider_annot, path=output_wide_file ) 
+
+```
+
+
+```{r}
+print("Output longer format results table with protein annotation.")
+de_proteins_longer_annot <- de_proteins_longer %>% 
+  mutate( best_uniprot_acc = purrr::map_chr( uniprot_acc, ~str_split(  ., ":" )[[1]][1] )) %>%
+  left_join( uniprot_dat_cln, by = c("best_uniprot_acc" = "UNIPROTKB") ) %>%
+  left_join( reactome_term_tbl, by = c("best_uniprot_acc" = "best_uniprot_acc"))
+
+head( de_proteins_longer_annot )
+
+vroom::vroom_write(de_proteins_longer_annot, path=output_long_file ) 
+
+```
+
+```{r}
+toc()
+sessionInfo()
+```
+
+
+## Available uniprot keys
+[1] "AARHUS/GHENT-2DPAGE"        "AGD"                        "ALLERGOME"                  "ARACHNOSERVER"              "BIOCYC"                     "CGD"                       
+ [7] "CLEANEX"                    "CONOSERVER"                 "CYGD"                       "DICTYBASE"                  "DIP"                        "DISPROT"                   
+[13] "DMDM"                       "DNASU"                      "DRUGBANK"                   "ECHOBASE"                   "ECO2DBASE"                  "ECOGENE"                   
+[19] "EGGNOG"                     "EMBL/GENBANK/DDBJ"          "EMBL/GENBANK/DDBJ_CDS"      "ENSEMBL"                    "ENSEMBL_GENOMES"            "ENSEMBL_GENOMES PROTEIN"   
+[25] "ENSEMBL_GENOMES TRANSCRIPT" "ENSEMBL_PROTEIN"            "ENSEMBL_TRANSCRIPT"         "ENTREZ_GENE"                "EUHCVDB"                    "EUPATHDB"                  
+[31] "FLYBASE"                    "GENECARDS"                  "GENEFARM"                   "GENEID"                     "GENENAME"                   "GENETREE"                  
+[37] "GENOLIST"                   "GENOMEREVIEWS"              "GENOMERNAI"                 "GERMONLINE"                 "GI_NUMBER*"                 "H-INVDB"                   
+[43] "HGNC"                       "HOGENOM"                    "HPA"                        "HSSP"                       "KEGG"                       "KO"                        
+[49] "LEGIOLIST"                  "LEPROMA"                    "MAIZEGDB"                   "MEROPS"                     "MGI"                        "MIM"                       
+[55] "MINT"                       "NEXTBIO"                    "NEXTPROT"                   "OMA"                        "ORPHANET"                   "ORTHODB"                   
+[61] "PATRIC"                     "PDB"                        "PEROXIBASE"                 "PHARMGKB"                   "PHOSSITE"                   "PIR"                       
+[67] "POMBASE"                    "PPTASEDB"                   "PROTCLUSTDB"                "PSEUDOCAP"                  "REACTOME"                   "REBASE"                    
+[73] "REFSEQ_NUCLEOTIDE"          "REFSEQ_PROTEIN"             "RGD"                        "SGD"                        "TAIR"                       "TCDB"                      
+[79] "TIGR"                       "TUBERCULIST"                "UCSC"                       "UNIPARC"                    "UNIPATHWAY"                 "UNIPROTKB"                 
+[85] "UNIPROTKB_ID"               "UNIREF100"                  "UNIREF50"                   "UNIREF90"                   "VECTORBASE"                 "WORLD-2DPAGE"              
+[91] "WORMBASE"                   "WORMBASE_PROTEIN"           "WORMBASE_TRANSCRIPT"        "XENBASE"                    "ZFIN"          
+
+
+## Available uniprot data columns
+  [1] "3D"                         "AARHUS/GHENT-2DPAGE"        "AGD"                        "ALLERGOME"                  "ARACHNOSERVER"              "BIOCYC"                    
+  [7] "CGD"                        "CITATION"                   "CLEANEX"                    "CLUSTERS"                   "COMMENTS"                   "CONOSERVER"                
+ [13] "CYGD"                       "DATABASE(PDB)"              "DATABASE(PFAM)"             "DICTYBASE"                  "DIP"                        "DISPROT"                   
+ [19] "DMDM"                       "DNASU"                      "DOMAIN"                     "DOMAINS"                    "DRUGBANK"                   "EC"                        
+ [25] "ECHOBASE"                   "ECO2DBASE"                  "ECOGENE"                    "EGGNOG"                     "EMBL/GENBANK/DDBJ"          "EMBL/GENBANK/DDBJ_CDS"     
+ [31] "ENSEMBL"                    "ENSEMBL_GENOMES"            "ENSEMBL_GENOMES PROTEIN"    "ENSEMBL_GENOMES TRANSCRIPT" "ENSEMBL_PROTEIN"            "ENSEMBL_TRANSCRIPT"        
+ [37] "ENTREZ_GENE"                "ENTRY-NAME"                 "EUHCVDB"                    "EUPATHDB"                   "EXISTENCE"                  "FAMILIES"                  
+ [43] "FEATURES"                   "FLYBASE"                    "FUNCTION"                   "GENECARDS"                  "GENEFARM"                   "GENEID"                    
+ [49] "GENENAME"                   "GENES"                      "GENETREE"                   "GENOLIST"                   "GENOMEREVIEWS"              "GENOMERNAI"                
+ [55] "GERMONLINE"                 "GI_NUMBER*"                 "GO"                         "GO-ID"                      "H-INVDB"                    "HGNC"                      
+ [61] "HOGENOM"                    "HPA"                        "HSSP"                       "ID"                         "INTERACTOR"                 "INTERPRO"                  
+ [67] "KEGG"                       "KEYWORD-ID"                 "KEYWORDS"                   "KO"                         "LAST-MODIFIED"              "LEGIOLIST"                 
+ [73] "LENGTH"                     "LEPROMA"                    "MAIZEGDB"                   "MEROPS"                     "MGI"                        "MIM"                       
+ [79] "MINT"                       "NEXTBIO"                    "NEXTPROT"                   "OMA"                        "ORGANISM"                   "ORGANISM-ID"               
+ [85] "ORPHANET"                   "ORTHODB"                    "PATHWAY"                    "PATRIC"                     "PDB"                        "PEROXIBASE"                
+ [91] "PHARMGKB"                   "PHOSSITE"                   "PIR"                        "POMBASE"                    "PPTASEDB"                   "PROTCLUSTDB"               
+ [97] "PROTEIN-NAMES"              "PSEUDOCAP"                  "REACTOME"                   "REBASE"                     "REFSEQ_NUCLEOTIDE"          "REFSEQ_PROTEIN"            
+[103] "REVIEWED"                   "RGD"                        "SCORE"                      "SEQUENCE"                   "SGD"                        "SUBCELLULAR-LOCATIONS"     
+[109] "TAIR"                       "TAXONOMIC-LINEAGE"          "TCDB"                       "TIGR"                       "TOOLS"                      "TUBERCULIST"               
+[115] "UCSC"                       "UNIPARC"                    "UNIPATHWAY"                 "UNIPROTKB"                  "UNIPROTKB_ID"               "UNIREF100"                 
+[121] "UNIREF50"                   "UNIREF90"                   "VECTORBASE"                 "VERSION"                    "VIRUS-HOSTS"                "WORLD-2DPAGE"              
+[127] "WORMBASE"                   "WORMBASE_PROTEIN"           "WORMBASE_TRANSCRIPT"        "XENBASE"                    "ZFIN"    
+
+
+# ```{r}
+# # dataset="hsapiens_gene_ensembl"
+# # listEnsembl()
+# # mart<- useEnsembl(biomart="genes")
+# # listDatasets(mart)
+# # searchDatasets(mart = mart, pattern = "hsapiens")
+# # searchAttributes(mart = mart, pattern = "uniprot")
+# # listFilters(mart)
+# # listAttributes(mart)
+# 
+# mart<- useEnsembl(biomart="genes", dataset="mmusculus_gene_ensembl")
+# 
+# 
+# 	
+# 	sp_annot <- getBM(filters= c( "uniprotswissprot"),
+# 						attributes= c("uniprotswissprot", "ensembl_gene_id", "go_id", "kegg_enzyme", "reactome"),
+# 						values= uniprot_acc_tbl %>% pull(uniprot_acc),
+# 						mart= mart)
+# 
+# 
+# 	trembl_annot <- getBM(filters= c( "uniprotsptrembl"),
+# 						attributes= c("uniprotsptrembl", "ensembl_gene_id", "go_id", "kegg_enzyme", "reactome"),
+# 						values= uniprot_acc_tbl %>% pull(uniprot_acc),
+# 						mart= mart)
+# 	
+# 	
+# 	sp_annot %>%
+# 	  distinct(uniprotsptrembl)
+# ```
