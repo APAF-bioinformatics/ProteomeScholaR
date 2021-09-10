@@ -234,7 +234,7 @@ evidence_tbl_filt <- vroom::vroom( counts_table_file)
 ## Remove peptides without abundance values at all 
 ```{r}
 print("Remove empty proteins without abundance data.")
-cln_dat_wide <- remove_empty_rows( evidence_tbl_filt, group_pattern, !!rlang::sym(my_row_id))
+cln_dat_wide <- ProteomeRiver::remove_empty_rows( evidence_tbl_filt, col_pattern=group_pattern, row_id=!!rlang::sym(my_row_id))
 
 ```
 ### Create an ID column,

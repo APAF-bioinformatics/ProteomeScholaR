@@ -34,14 +34,11 @@ p_load(optparse)
 p_load(seqinr)
 p_load(ProteomeRiver)
 p_load(janitor)
+p_load(tictoc)
 
+tic()
 ```
 
-## Command to convert the R markdown file to a R file for use in command line. 
-knitr::purl( file.path(  source_dir, "ALPK1",  "clean_proteins_cmd.Rmd"), 
-             output=file.path( source_dir,  "ALPK1",   "clean_proteins_cmd.R") ) 
-     
-## ****** Need to deal with case where expt_group is "" empty!!! ******8
 ## Parameters
 ```{r}
 expt_group <- "RPE" 
@@ -58,7 +55,7 @@ fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta"
 raw_counts_file <- file.path(data_dir, "ALPK1-set1proteinGroups.txt")
 column_pattern_input <- "Reporter intensity corrected"
 output_counts_file <- "counts_table_cleaned.tab"  
-
+fasta_meta_file <- "aa_seq_tbl.RDS"
 
 razor_unique_peptides_group_thresh <- 0
 unique_peptides_group_thresh <- 1
@@ -89,11 +86,18 @@ if( length(command_line_options ) > 0 ) {
   
   parser <- add_option(parser, c("--r-u-count"), type="integer", default=0, dest = "razor_unique_peptides_group_thresh",
                        help="Number of razor and unique peptides for the specified experiemtal group needs to be higher than this threshold for the protein to be included for the analysis.",
-                       metavar="string")   
+                       metavar="integer")   
   
   parser <- add_option(parser, c("--u-count"), type="integer", default=1, dest = "unique_peptides_group_thresh",
-                       help="Number of unique peptides for the specified experiemtal group needs to be higher than this threshold for the protein to be included for the analysis.",
+                       help="Number of unique peptides for the specified experiemtal group needs to be higher than this threshold for the protein to be included for the analysis. The file will be saved in the results directory",
+                       metavar="integer")   
+  
+  
+  parser <- add_option(parser, c("--fasta-save"), type="character", default="aa_seq_tbl.RDS", dest = "fasta_meta_file",
+                       help="R object storage file that records all the sequence and header information in the FASTA file.",
                        metavar="string")   
+    
+    
 
   print(command_line_options)
   
@@ -108,77 +112,101 @@ if( length(command_line_options ) > 0 ) {
   column_pattern_input <- cmd_arguments$column_pattern_input
   razor_unique_peptides_group_thresh <- cmd_arguments$razor_unique_peptides_group_thresh
   unique_peptides_group_thresh <- cmd_arguments$unique_peptides_group_thresh
+  fasta_meta_file <- cmd_arguments$fasta_meta_file
 
   if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
   if( fasta_file == "" ) { stop("No value for --fasta was supplied.") }
   if( raw_counts_file == "" ) { stop("No value for -raw-counts was supplied.") }
   if( output_counts_file == "" ) { stop("No value for -output-counts was supplied.") }
-  if( column_pattern_input == "" ) { stop("No value for --column-pattern was supplied.") }
   if( razor_unique_peptides_group_thresh == "" ) { stop("No value for --r-u-count was supplied.") }
   if( unique_peptides_group_thresh == "" ) { stop("No value for --u-count was supplied.") }
+  if( fasta_meta_file == "" ) { stop("No value for --fasta-save was supplied.") }
 
 }
 
 
 ```
 
-## Clean up the regular expression pattern to extract relevant abundance data columns
-```{r}
-  column_pattern <- paste0(make_clean_names(column_pattern_input),  paste("_\\d+", tolower(expt_group), sep="_")) 
-
-  extract_replicate_group <- paste0(make_clean_names(column_pattern_input),  paste0("_(\\d+)_(", tolower(expt_group), ")")) 
-
-```
-
+## Command to convert the R markdown file to a R file for use in command line. 
+knitr::purl( file.path(  source_dir, "ALPK1",  "clean_proteins_cmd.Rmd"), 
+             output=file.path( source_dir,  "ALPK1",   "clean_proteins_cmd.R") ) 
+     
 
 ## Create directories
 ```{r}
+print( "Step 1: Create results directory.")
+
 create_dir_if_not_exists( results_dir)
 
 ```
 
 ## Read input file 
 ```{r}
+print( "Step 2: Reading the counts file.")
 
 dat_tbl <- vroom::vroom( raw_counts_file )
 
 ```
 ## Clean the column names 
 ```{r}
+print("Step 3: Clean counts table header name.")
 dat_cln <-  janitor::clean_names(dat_tbl)
 
 colnames(dat_cln) <- str_replace(colnames(dat_cln), "_i_ds", "_ids" )
 
 ```
 
+## Clean up the regular expression pattern to extract relevant abundance data columns
 ```{r}
-## Read fasta file 
-# colnames(aa_seq_tbl)
-print( "Step 1: Reading the fasta file.")
+print("Step 4: Prepare regular expressions to select counts data columns.")
 
-if(!file.exists( file.path( results_dir, "aa_seq_tbl.RDS"))) {
-  aa_seq_tbl <- parse_fasta_file( fasta_file)
-  saveRDS( aa_seq_tbl,  file.path( results_dir, "aa_seq_tbl.RDS"))
-} else {
-  aa_seq_tbl <- readRDS( file.path( results_dir, "aa_seq_tbl.RDS"))
+pattern_suffix <- "_\\d+"
+if( expt_group !="") {
+   pattern_suffix <- paste("_\\d+", tolower(expt_group), sep="_")
 }
 
-## Add the row id column and create a column containing the cleaned  peptide
-print("Step 2: Get row ID and get cleaned peptide sequence.")
-evidence_tbl<- dat_cln %>% 
-  mutate( evidence_id = row_number()) 
-```    
+extract_patt_suffix <- "_(\\d+)"
+if( expt_group !="") {
+   extract_patt_suffix <- paste0("_(\\d+)_(", tolower(expt_group), ")")
+}
+
+column_pattern <- paste0(make_clean_names(column_pattern_input), pattern_suffix ) 
+
+extract_replicate_group <- paste0(make_clean_names(column_pattern_input), extract_patt_suffix ) 
+
+```
 ## Clean column names asociated with razor and unique peptide counts filter specific to the experimental group
 ```{r}
+print("Step 5: Prepare column names associated with peptide counts.")
 
 razor_unique_peptides_group_col <-  paste0( "razor_unique_peptides_", tolower(expt_group)  ) 
 unique_peptides_group_col <-  paste0("unique_peptides_", tolower(expt_group)  )
 
 ```
     
+
+```{r}
+## Read fasta file 
+# colnames(aa_seq_tbl)
+print( "Step 6: Reading the FASTA file and saving the meta-data file.")
+
+if(!file.exists( file.path( results_dir, fasta_meta_file))) {
+  aa_seq_tbl <- parse_fasta_file( fasta_file)
+  saveRDS( aa_seq_tbl,  file.path( results_dir, fasta_meta_file))
+} else {
+  aa_seq_tbl <- readRDS( file.path( results_dir, fasta_meta_file))
+}
+
+## Add the row id column and create a column containing the cleaned  peptide
+print("Step 7: Get row ID and get cleaned peptide sequence.")
+evidence_tbl<- dat_cln %>% 
+  mutate( evidence_id = row_number()) 
+```    
+
     
 ## Filtering by number of peptides available, remove decoy peptides and common protein contaminants
 ```{r}
+print( "Step 8: Filtering counts table by number of peptides available, remove decoy proteins and protein contaminants.")
 
 peptides_count_helper <- evidence_tbl %>%
   dplyr::select( evidence_id, 
@@ -208,9 +236,11 @@ evidence_tbl_cleaned <- peptides_count_helper %>%
 ```
   
   
-## Get best accession per entry, work out peptides mapped to multiple genes
-
+## Get best accession per entry
 ```{r}  
+print( "Step 9: Identify best UniProt accession per entry, extract sample number and simplify column header")
+
+
   accession_gene_name_tbl <- choose_best_protein_accession( input_tbl = evidence_tbl_cleaned, 
                                                     acc_detail_tab = aa_seq_tbl, 
                                                     accessions_column = protein_ids , 
@@ -223,7 +253,7 @@ evidence_tbl_filt <- evidence_tbl_cleaned %>%
   dplyr::select(uniprot_acc, contains(expt_group), -contains(c("razor", "unique"))) %>%
   distinct
 
-colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\U\\2")  %>% 
+colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2")  %>% 
   toupper( ) %>%
   str_replace_all( "UNIPROT_ACC", "uniprot_acc") 
   
@@ -231,8 +261,13 @@ colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), ext
 
 ## Write out the clean counts file 
 ```{r}
+print("Step 10: Save the cleaned counts data into a file.")
 vroom::vroom_write( evidence_tbl_filt, file.path(results_dir, output_counts_file) ) 
 ```
 
 
+```{r}
+toc()
+sessionInfo()
+```
 

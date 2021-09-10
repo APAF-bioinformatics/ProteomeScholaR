@@ -31,14 +31,26 @@ Rscript --vanilla de_proteins_cmd.R \
  --group-id=group \
  --row-id=uniprot_acc
  
- 
-
 Rscript --vanilla annot_proteins_cmd.R \
  --output-dir=$RESULTS_DIR \
  --input-wide=$RESULTS_DIR/de_proteins_longer.tsv \
  --input-long=$RESULTS_DIR/de_proteins_wider.tsv \
  --output-wide=$RESULTS_DIR/de_proteins_wider_annot.tsv \
  --output-long=$RESULTS_DIR/de_proteins_longer_annot.tsv
+ 
+## Clean phosphorylation data  
+Rscript --vanilla clean_phos_cmd.R \
+ --output-dir=$BASE_DIR/Results/ALPK1/Multiphos_Evidence/Not_Git \
+ --fasta=$DATA_DIR/ALPK1-set1MusMusculus20201226CanIso.fasta \
+ --fasta-save=$RESULTS_DIR/aa_seq_tbl.RDS  \
+ --raw-counts=$DATA_DIR/ALPK1-set1evidence.txt \
+ --site-prob=0.75 \
+ --recover-prob=0.5 \
+ --column-pattern="Reporter intensity corrected" \
+ --add-columns="experiment"
+ 
+ 
+ 
  
  
  

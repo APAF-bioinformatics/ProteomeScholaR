@@ -1,0 +1,248 @@
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#Test if BioManager is installed 
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+   BiocManager::install(version = "3.13")
+}
+
+# load pacman package manager
+if(!require(pacman)){
+    install.packages("pacman")
+    library(pacman)
+}
+
+p_load(tidyverse)
+p_load(vroom)
+p_load(ggplot2)
+p_load(knitr)
+p_load(furrr)
+p_load(seqinr)
+p_load(seqinr)
+p_load(here)
+p_load(rlang)
+p_load(glue)
+p_load(ProteomeRiver)
+p_load(optparse)
+p_load(tictoc)
+
+tic()
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+base_dir <- here::here()
+data_dir <- file.path( base_dir, "Data", "ALPK1")
+source_dir <- file.path(base_dir, "Source", "ALPK1")
+fasta_output_dir <- file.path(base_dir, "Results", "ALPK1", "RPE", "Proteins")
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+results_dir <- file.path(base_dir, "Results", "ALPK1", "Multiphos_Evidence", "Not_Git") 
+fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta")
+fasta_meta_file <-  file.path( fasta_output_dir, "aa_seq_tbl.RDS") 
+raw_counts_file <- file.path( data_dir, "ALPK1-set1evidence.txt") 
+site_prob_threshold <- 0.75 # phosphosite probability threshold
+recover_site_prob_thresh <- 0.5
+col_pattern_string <- "Reporter intensity corrected"
+add_cols_string <- "experiment"
+
+
+command_line_options <- commandArgs(trailingOnly = TRUE)
+if( length(command_line_options ) > 0 ) {
+  parser <- OptionParser(add_help_option =TRUE)
+  
+  parser <- add_option(parser, c( "--output-dir"), type="character", default="", dest = "results_dir",
+                       help="Directory path for all results files.",
+                       metavar="string")   
+  
+  parser <- add_option(parser, c("--fasta"), type="character", default="", dest = "fasta_file",
+                       help="Input protein sequence FASTA file with UniProt FASTA header format.",
+                       metavar="string")   
+  
+  parser <- add_option(parser, c("--fasta-save"), type="character", default="aa_seq_tbl.RDS", dest = "fasta_meta_file",
+                       help="R object storage file that records all the sequence and header information in the FASTA file.",
+                       metavar="string")   
+  
+   parser <- add_option(parser, c("--raw-counts"), type="character", default="", dest = "raw_counts_file",
+                       help="Input file with the peptide abundance data.",
+                       metavar="string")    
+  
+   parser <- add_option(parser, c("--site-prob"), type="numeric", default=0.75, dest = "site_prob_threshold",
+                       help="Numeric value representing the probability threshold for accepting a primary modification site.",
+                       metavar="string")      
+
+  parser <- add_option(parser, c("--recover-prob"), type="numeric", default=0.5, dest = "recover_site_prob_thresh",
+                       help="Numeric value representing the probability threshold for recovering the abundance data for a lower quality modification site, if the same site has already been found as high probability site.",
+                       metavar="string")  
+    
+  parser <- add_option(parser, c("--column-pattern"), type="character", default="corrected", dest = "col_pattern_string",
+                       help="String pattern that matches the abundance data columns. It also facilitate the ID of the sample to be extracted.",
+                       metavar="string")   
+
+  parser <- add_option(parser, c("--add-columns"), type="character", default="corrected", dest = "add_cols_string",
+                       help="A string listing all the additional columns to be included (e.g. experiment group column). Each column is separated by a comma.",
+                       metavar="string")      
+
+  print(command_line_options)
+  
+  cmd_arguments <- parse_args(parser)
+  
+  print(cmd_arguments)  
+
+  results_dir <- cmd_arguments$results_dir
+  fasta_file <- cmd_arguments$fasta_file
+  fasta_meta_file <- cmd_arguments$fasta_meta_file
+  raw_counts_file <- cmd_arguments$raw_counts_file
+  site_prob_threshold <- cmd_arguments$site_prob_threshold
+  recover_site_prob_thresh <- cmd_arguments$recover_site_prob_thresh
+  col_pattern_string <- cmd_arguments$col_pattern_string
+  add_cols_string <- cmd_arguments$add_cols_string
+  
+  
+  if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
+  if( fasta_file == "" ) { stop("No value for --fasta was supplied.") }
+  if( fasta_meta_file == "" ) { stop("No value for --fasta-save was supplied.") }
+  if( raw_counts_file == "" ) { stop("No value for --raw-counts was supplied.") }
+  if( col_pattern_string == "" ) { stop("No value for --column-pattern was supplied.") }
+  if( add_cols_string == "" ) { stop("No value for --add-columns was supplied.") }
+
+  additional_cols <- str_split(  add_cols_string, ",")[[1]] 
+  col_pattern <- janitor::make_clean_names( col_pattern_string)
+}
+
+create_dir_if_not_exists(results_dir)
+
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+evidence_tbl <- vroom::vroom( raw_counts_file) 
+evidence_janitor <- janitor::clean_names(evidence_tbl)
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ## Read fasta file 
+  
+  print( "Step 1: Reading the fasta file.")
+if(!file.exists( file.path( fasta_meta_file))) {
+  aa_seq_tbl <- parse_fasta_file( fasta_file)
+  saveRDS( aa_seq_tbl,  file.path( fasta_meta_file))
+} else {
+  aa_seq_tbl <- readRDS( file.path( fasta_meta_file))
+}
+
+  
+  ## Add the row id column and create a column containing the cleaned  peptide
+  print("Step 2: Get row ID and get cleaned peptide sequence.")
+  evidence_tbl_cleaned <- add_columns_to_evidence_tbl( evidence_janitor ) 
+  
+  
+  ## Get best accession per entry, work out peptides mapped to multiple genes
+  print("Step 3: Use decision tree to get best accession per phosphosite evidence entry")
+  accession_gene_name_tbl <- choose_best_accession( evidence_tbl_cleaned, 
+                                                    aa_seq_tbl, 
+                                                    leading_proteins , 
+                                                    evidence_id)
+  
+  ## Remove peptides without abundance values at all 
+  print("Step 4: Remove peptides without abundance values at all")
+  evidence_tbl_filt <- remove_peptides_without_abundances(evidence_tbl_cleaned, col_pattern)
+
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ## For all the multi-phosphosites peptide extract their intensity, filter peptide with no intensity across all samples, extract site probabilities
+  print("Step 5: Filter peptides with no intensity across all samples, extract intensity data, extract sites")
+  sites_probability_tbl <- filter_peptide_and_extract_probabilities (evidence_tbl_filt , 
+                                                                       accession_gene_name_tbl,
+                                                                       col_pattern,
+                                                                       accession_col = leading_proteins,
+                                                                      phospho_site_prob_col = phospho_sty_probabilities,
+                                                     num_phospho_site_col = phospho_sty ) 
+  
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ## Get the peptide start and end position for each peptide 
+  print("Step 6: Add peptide start and end position")
+  peptide_start_and_end <- add_peptide_start_and_end( sites_probability_tbl , aa_seq_tbl )
+
+  
+  ## Get the phosphosites position string 
+  print("Step 7: Add string listing the positions of phosphosites")
+  phosphosite_pos_string_tbl <- add_phosphosites_positions_string(peptide_start_and_end )
+  
+  ## Get the string listing all the 15-mer sequences, each sequence has the phosphorylation site in the middle
+  print("Step 8: Add string listing all 15-mer sequences, each sequence has phosphosite in the center")
+  get_15_mer_tbl <- add_X_mer_strings( phosphosite_pos_string_tbl,  padding_length=7) 
+  
+  ## Get peptides with at least one phosphosite over threshold. Find all peptides with same sites as another peptides that contained at least one phosphosies >= threshold.
+  print("Step 9: Get high conf. peptides (e.g. phosphosites >= threshold). Get peptide W/ same sites as high conf. peptide.")
+  get_15_mer_tbl_filt <- filter_by_score_and_get_similar_peptides( get_15_mer_tbl, 
+                                                                   site_prob_threshold, 
+                                                                   recover_site_prob_thresh)
+
+  ## Pivot the phosphosites to a longer table 
+  print("Step 10: Pivot phosphosites/phosphopeptide table to long format")
+  all_phos_sites_long_tbl <- all_phosphosites_pivot_longer( get_15_mer_tbl_filt,
+                                                            additional_cols ,                                                            
+                                                            col_pattern  )
+  
+  #colnames(all_phos_sites_long_tbl)
+  
+  ## Group peptides from paralog proteins 
+  print("Step 11: Group peptides from paralog proteins ")
+  paralog_sites_long <- group_paralog_peptides ( all_phos_sites_long_tbl, additional_cols )
+  
+  ## Pivot the phosphosites data to a wide format
+  print("Step 12: Pivot phosphosites/phosphopeptide table to wide format")
+  all_phos_sites_wide_tbl <- all_phosphosites_pivot_wider( paralog_sites_long, 
+                                                           additional_cols )
+  
+  ## Summarise the abundance values for each unique phosphosites (mean, median, sum), return table in long format
+  print("Step 13: Summarise abundance values for each unique phosphosites, long format")
+  summarised_long_tbl_list <- unique_phosphosites_summarise_long_list( paralog_sites_long, 
+                                                                       additional_cols ) 
+  
+  ## Summarise the abundance values for each unique phosphosites (mean, median, sum), return table in wide format
+  print("Step 14: Summarise abundance values for each unique phosphosites, wide format")
+  summarised_wide_tbl_list <- unique_phosphosites_summarise_wide_list( summarised_long_tbl_list, 
+                                                                       additional_cols)
+  
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+results_list  <- list( summarised_wide_list = summarised_wide_tbl_list, 
+                summarised_long_list = summarised_long_tbl_list, 
+                all_phos_sites_wide  = all_phos_sites_wide_tbl, 
+                all_phos_sites_long  = all_phos_sites_long_tbl )
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+output_files <- map_chr( list(  "mean", "median", "sum"), 
+                         ~file.path(results_dir, paste0(., "_phoshpsites.tsv" )  ) ) 
+
+walk2(  results_list$summarised_wide_list, 
+       output_files,
+       ~vroom::vroom_write( .x, .y))
+
+vroom::vroom_write( results_list$all_phos_sites_wide, 
+         file.path(results_dir, "all_phos_sites_wide_tbl.tsv" ))
+
+saveRDS( results_list$summarised_long_list, 
+         file.path(results_dir, "summarised_long_tbl_list.RDS" ))
+
+saveRDS( results_list$summarised_wide_list, 
+         file.path(results_dir, "summarised_wide_tbl_list.RDS" ))
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+toc()
+sessionInfo()
+

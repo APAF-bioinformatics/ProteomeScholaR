@@ -37,4 +37,5 @@ Imports:
     qvalue,
     ruv,
     mixOmics,
-    UniProt.ws
+    UniProt.ws,
+    janitor

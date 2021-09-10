@@ -38,7 +38,7 @@ abundance_threshold <- 0
 column_pattern <- "Reporter intensity corrected \\d+ RPE"
 ## q-value threshold (protein logFC's q-value must be below this value to be included in further analysis)
 q_val_thresh <- 0.05
-ruv_k <- 7
+ruv_k <- 4
 num_neg_ctrl <- 500 
 ruv_method <- "ruv3"
 design_matrix_file <- file.path(results_dir, "design_matrix_cleaned.tab")
@@ -374,7 +374,7 @@ save_de_protein_list(myRes_rnorm.log.quant,
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Find the list of negative control genes using ANOVA.")
-control_genes_index <- get_control_genes_anova( counts_rnorm.log.quant, 
+control_genes_index <- get_neg_ctrl_prot_anova( counts_rnorm.log.quant, 
                                                 design_matrix = design_mat_cln, 
                                                 group_column = "group", 
                                                 num_neg_ctrl = num_neg_ctrl, 
@@ -414,10 +414,8 @@ ggsave( plot=cancorplot_r1, filename=file.path(results_dir, "cancor_plot_round_1
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Run RUVIII on the input counts table.")
-ruvIII_adj_dat <- my_RUVfit( counts_rnorm.log.quant, X=ruv_groups$group, control_genes_index, Z = 1, k = ruv_k, 
+counts_rnorm.log.ruvIII_v1 <- my_RUVfit( counts_rnorm.log.quant, X=ruv_groups$group, control_genes_index, Z = 1, k = ruv_k, 
                              method = ruv_method, M=ruvIII_replicates_matrix )  %>% t()
-
-counts_rnorm.log.ruvIII_v1 <- ruvIII_adj_dat
 
 vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>% 
                      as.data.frame %>% 
@@ -497,10 +495,17 @@ selected_data <- get_significant_data(  list_of_de_tables = list( myRes_rnorm.lo
                                         row_id = uniprot_acc, 
                                         p_value_column = p.mod, 
                                         q_value_column = q.mod, 
+                                        log_q_value_column = lqm,
                                         log_fc_column = logFC, 
                                         comparison_column = comparison, 
+                                        expression_column = expression,
                                         facet_column = analysis_type, 
                                         q_val_thresh = 0.05) 
+
+## Write all the results in one single table 
+selected_data %>% 
+  dplyr:::select(- colour, -lqm) %>%
+  vroom::vroom_write(path=file.path(results_dir, "lfc_qval_long.tsv" ) ) 
 
 
 
@@ -569,6 +574,98 @@ ggsave( filename = file.path( results_dir, "p_values_distn.svg" ),
         plot=pvalhist,
         height = 10, 
         width = 7)
+
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
+  as.data.frame  %>%
+  set_colnames(  paste0( colnames( counts_rnorm.log.ruvIII_v1 ), ".norm") ) %>%
+  rownames_to_column("uniprot_acc")
+
+
+raw_counts <- counts_filt  %>%
+  as.data.frame  %>%
+  set_colnames(  paste0( colnames( counts_filt ), ".raw") ) %>%
+  rownames_to_column("uniprot_acc")
+
+de_proteins_wider <- selected_data %>%
+  dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
+  dplyr::select(-lqm, -colour, -analysis_type) %>%
+  pivot_wider( id_cols = c(uniprot_acc ),
+               names_from = c(comparison) ,
+               names_sep = ":",
+               values_from = c( logFC, q.mod, p.mod))  %>%
+  left_join( norm_counts, by="uniprot_acc") %>%
+  left_join( raw_counts, by="uniprot_acc")
+
+head(de_proteins_wider)
+
+vroom::vroom_write(de_proteins_wider, path=file.path(results_dir, "de_proteins_wider.tsv" ) ) 
+
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
+  as.data.frame  %>%
+  rownames_to_column("uniprot_acc") %>%
+  pivot_longer( cols=contains(group_pattern),
+                names_to="Sample_ID",
+                values_to="norm") %>%
+  left_join( design_mat_cln, by="Sample_ID" ) %>%
+  mutate( temp_id = Sample_ID ) %>%
+  separate( temp_id, sep="_", into=c("sample_number", "group_pattern")) %>%
+  group_by(uniprot_acc, group) %>%
+  arrange(uniprot_acc, group, sample_number) %>%
+  mutate( replicate_number = paste0("norm.", row_number()) ) %>%
+  ungroup %>%
+  pivot_wider(id_cols=c(uniprot_acc, group),
+              names_from =replicate_number, 
+              values_from= norm)
+
+
+raw_counts <- counts_filt  %>%
+  as.data.frame  %>%
+  rownames_to_column("uniprot_acc") %>%
+  pivot_longer( cols=contains(group_pattern),
+                names_to="Sample_ID",
+                values_to="norm") %>%
+  left_join( design_mat_cln, by="Sample_ID" ) %>%
+  mutate( temp_id = Sample_ID ) %>%
+  separate( temp_id, sep="_", into=c("sample_number", "group_pattern")) %>%
+  group_by(uniprot_acc, group) %>%
+  arrange(uniprot_acc, group, sample_number) %>%
+  mutate( replicate_number = paste0("raw.", row_number()) ) %>%
+  ungroup %>%
+  pivot_wider(id_cols=c(uniprot_acc, group),
+              names_from =replicate_number, 
+              values_from= norm)
+
+
+
+de_proteins_longer <-  selected_data %>%
+  dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
+  dplyr::select(-lqm, -colour, -analysis_type) %>%
+  dplyr::mutate( expression = str_replace_all(expression, "group", "")) %>%
+  separate( expression, sep="-", into=c("left_group", "right_group")) %>%
+  left_join( norm_counts, by=c("uniprot_acc" = "uniprot_acc", 
+                               "left_group" = "group")) %>%
+  left_join( norm_counts, by=c("uniprot_acc" = "uniprot_acc", 
+                               "right_group" = "group"),
+               suffix=c(".left", ".right") ) %>%
+  left_join( raw_counts, by=c("uniprot_acc" = "uniprot_acc", 
+                               "left_group" = "group")) %>%
+  left_join( raw_counts, by=c("uniprot_acc" = "uniprot_acc", 
+                               "right_group" = "group"),
+               suffix=c(".left", ".right") )
+
+
+head( de_proteins_longer ) 
+
+
+vroom::vroom_write(de_proteins_longer, path=file.path(results_dir, "de_proteins_longer.tsv" ) ) 
 
 
 
