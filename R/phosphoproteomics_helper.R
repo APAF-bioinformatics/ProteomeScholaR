@@ -401,7 +401,7 @@ all_phosphosites_pivot_longer <- function( get_15_mer_tbl,
 
   cols_to_use <- usual_columns
 
-  if ( !is.na( additional_cols) ) {
+  if ( !is.na( additional_cols) & additional_cols != "") {
     cols_to_use <- c( usual_columns, additional_cols)
   }
 
@@ -437,7 +437,7 @@ group_paralog_peptides <- function( all_sites_long,
                            as_name(enquo( phospho_site_prob_col)),
                            as_name(enquo( num_phospho_site_col)))
 
-  if ( !is.na( additional_cols) ) {
+  if ( !is.na( additional_cols) & additional_cols != "" ) {
     grouping_variables <- c( grouping_variables, additional_cols)
   }
 
@@ -447,7 +447,7 @@ group_paralog_peptides <- function( all_sites_long,
                            as_name(enquo( phospho_site_prob_col)),
                            as_name(enquo( num_phospho_site_col)) )
 
-  if ( !is.na( additional_cols) ) {
+  if ( !is.na( additional_cols)  & additional_cols != "" ) {
     final_select_var <- c( final_select_var,
                            additional_cols )
   }
@@ -477,7 +477,7 @@ all_phosphosites_pivot_wider <- function( all_phos_sites_long_tbl,
                                            num_phospho_site_col = phospho_sty ) {
  cols_to_use <- "replicate"
 
-  if ( !is.na( additional_cols) ) {
+  if ( !is.na( additional_cols) & additional_cols != "" ) {
     cols_to_use <-c( additional_cols, "replicate")
   }
 
@@ -508,7 +508,7 @@ unique_phosphosites_summarise_long_list <- function( all_phos_sites_long_tbl,
 
     cols_to_use <- usual_columns
 
-    if ( !is.na( additional_cols) ) {
+    if ( !is.na( additional_cols) & additional_cols != "" ) {
       cols_to_use <- c( usual_columns, additional_cols)
     }
 
@@ -536,7 +536,7 @@ unique_phosphosites_summarise_wide_list <- function( summarised_long_tbl_list,
 
       cols_to_use <- c("replicate")
 
-    if ( !is.na( additional_cols) ) {
+    if ( !is.na( additional_cols) & additional_cols != "" ) {
       cols_to_use <- c( "replicate", additional_cols)
     }
 
