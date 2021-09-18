@@ -917,6 +917,7 @@ get_neg_ctrl_prot_anova <- function(data_matrix, design_matrix, group_column= "g
 # columns(up)
 # test <- batch_query_evidence(subset_tbl, Proteins)
 
+#'@export
 clean_isoform_number <- function( string ) {
   # "Q8K4R4-2"
    str_replace( string, "-\\d+$", "")
@@ -990,7 +991,7 @@ batch_query_evidence <- function(uniprot_acc_tbl, uniprot_acc_column,  uniprot_h
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #' Convert a list of Gene Ontology IDs to their respective human readable name (e.g. GO term).
-#' @param A string consisting of a list of Gene Ontology ID, separated by a delimiter
+#' @param go_string A string consisting of a list of Gene Ontology ID, separated by a delimiter
 #' @param goterms Output from running \code{goterms <- Term(GOTERM)} from the GO.db library.
 #' @param gotypes Output from running \code{gotypes <- Ontology(GOTERM)} from the GO.db library.
 #' @return A table with three columns. go_biological_process, go_celluar_compartment, and go_molecular_function. Each column is a list of gene ontology terms, separated by '; '.
@@ -1021,6 +1022,51 @@ go_id_to_term <- function( go_string, sep="; ", goterms, gotypes) {
 
 # go_string <- "GO:0016021; GO:0030659; GO:0031410; GO:0035915; GO:0042742; GO:0045087; GO:0045335; GO:0050829; GO:0050830"
 # go_id_to_term(go_string)
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' @param uniprot_dat  a table with uniprot accessions and a column with GO-ID
+#' @param goterms Output from running \code{goterms <- Term(GOTERM)} from the GO.db library.
+#' @param gotypes Output from running \code{gotypes <- Ontology(GOTERM)} from the GO.db library.
+#' @return A table with three columns. go_biological_process, go_celluar_compartment, and go_molecular_function. Each column is a list of gene ontology terms, separated by '; '.
+#' @export
+uniprot_go_id_to_term <- function( uniprot_dat, sep="; ", goterms, gotypes  )  {
+
+
+
+  uniprot_acc_to_go_id <- uniprot_dat %>%
+    dplyr::distinct( UNIPROTKB, `GO-ID`) %>%
+    separate_rows( `GO-ID`, sep=sep) %>%
+    dplyr::distinct(UNIPROTKB, `GO-ID`) %>%
+    dplyr::filter( !is.na(`GO-ID`))
+
+  go_term_temp <- uniprot_acc_to_go_id %>%
+    dplyr::distinct( `GO-ID`) %>%
+    mutate( go_term = purrr::map_chr( `GO-ID`, function(x){ if( x %in% names(goterms) ) { return(goterms[[x]]) }; return(NA) } )) %>%
+    mutate( go_type = purrr::map_chr( `GO-ID`, function(x){ if( x %in% names(gotypes) ) { return(gotypes[[x]]) }; return(NA) } )) %>%
+    mutate( go_type = case_when ( go_type == "BP" ~ "go_biological_process",
+                                  go_type == "CC" ~ "go_cellular_compartment",
+                                  go_type == "MF" ~ "go_molecular_function"))
+
+  uniprot_acc_to_go_term  <- uniprot_acc_to_go_id  %>%
+    left_join( go_term_temp, by=c("GO-ID" = "GO-ID" ) )  %>%
+    dplyr::filter(!is.na(go_term )) %>%
+    group_by(UNIPROTKB, go_type) %>%
+    summarise( go_term = paste(go_term, collapse="; ") ) %>%
+    ungroup()  %>%
+    pivot_wider( id_cols = "UNIPROTKB",
+                 names_from = go_type,
+                 values_from = go_term)
+
+
+  output_uniprot_dat <- uniprot_dat %>%
+    left_join( uniprot_acc_to_go_term, by=c("UNIPROTKB" = "UNIPROTKB")) %>%
+    relocate(KEYWORDS, .before= "GO-ID" )
+
+  return( output_uniprot_dat)
+
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1225,6 +1271,7 @@ run_enricher   <- function( index_name, contrast_name,  list_of_de_proteins, lis
 merge_with_entrez_id <- function( input_table, lookup_table  ) {
 
   de_prot_for_camera_helper <- input_table %>%
+    mutate( protein_id = row_number()) %>%
     inner_join( lookup_table %>% dplyr::filter(!is.na(ENTREZ_GENE)), by=c("uniprot_acc" = "UNIPROTKB") )
 
   without_entrez_id <- input_table %>%
@@ -1264,11 +1311,8 @@ merge_with_entrez_id <- function( input_table, lookup_table  ) {
     dplyr::arrange( comparison, q.mod)
 
   de_prot_for_camera_tab <- de_prot_for_camera_cleaned %>%
-    dplyr::select(-protein_id, -uniprot_acc) %>%
-    relocate( ENTREZ_GENE, .before=comparison) %>%
-    group_by( comparison) %>%
-    nest() %>%
-    ungroup()
+    dplyr::select(-protein_id ) %>%
+    relocate( ENTREZ_GENE, .before=comparison)
 
   return( list( de_proteins=de_prot_for_camera_tab,
                 without_entrez_id=without_entrez_id,

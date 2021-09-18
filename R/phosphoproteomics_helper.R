@@ -4,7 +4,7 @@
 #' @export
 add_columns_to_evidence_tbl <- function( evidence_tbl, phospho_site_prob_col = phospho_sty_probabilities) {
   evidence_tbl_cleaned <- evidence_tbl %>%
-      mutate( evidence_id = row_number()) %>%
+      mutate( evidence_id = (row_number() - 1))  %>%
       # dplyr:::select(one_of(c("evidence_id", evidence_col_to_use %>% pull(Columns)))) %>%
       mutate( cleaned_peptide = str_replace_all({{phospho_site_prob_col}}, "[\\(\\)0-9\\.]", ""))
 
@@ -516,7 +516,7 @@ unique_phosphosites_summarise_long_list <- function( all_phos_sites_long_tbl,
       group_by( across({{ cols_to_use }}) ) %>%
       # uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, experiment, replicate
       summarise( value =  method( value) ,
-                 evidence_ids= paste0(evidence_id, collapse=";") ) %>%
+                 maxquant_row_ids= paste0(evidence_id, collapse=";") ) %>%
       ungroup
   }
 
@@ -541,9 +541,14 @@ unique_phosphosites_summarise_wide_list <- function( summarised_long_tbl_list,
     }
 
   summarised_wide_tbl_list <- purrr::map( summarised_long_tbl_list, ~{
-    pivot_wider(., id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq"),
+    pivot_wider(., id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
                   names_from = all_of(cols_to_use),
-                  values_from=c("value") )  }    )
+                  values_from=c("value") )%>%
+                  unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
+
+
+
+
 
 
   return( summarised_wide_tbl_list)

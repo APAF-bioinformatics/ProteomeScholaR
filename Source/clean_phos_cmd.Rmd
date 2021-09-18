@@ -39,7 +39,7 @@ tic()
 ```{r}
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "ALPK1")
-source_dir <- file.path(base_dir, "Source", "ALPK1")
+source_dir <- file.path(base_dir, "Source",  "Shared")
 fasta_output_dir <- file.path(base_dir, "Results", "ALPK1", "RPE", "Proteins")
 ```
 
@@ -141,6 +141,7 @@ evidence_janitor <- janitor::clean_names(evidence_tbl)
   ## Read fasta file 
   
   print( "Step 1: Reading the fasta file.")
+aa_seq_tbl <-NA
 if(!file.exists( file.path( fasta_meta_file))) {
   aa_seq_tbl <- parse_fasta_file( fasta_file)
   saveRDS( aa_seq_tbl,  file.path( fasta_meta_file))

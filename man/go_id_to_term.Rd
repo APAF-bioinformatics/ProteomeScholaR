@@ -7,11 +7,11 @@
 go_id_to_term(go_string, sep = "; ", goterms, gotypes)
 }
 \arguments{
+\item{go_string}{A string consisting of a list of Gene Ontology ID, separated by a delimiter}
+
 \item{goterms}{Output from running \code{goterms <- Term(GOTERM)} from the GO.db library.}
 
 \item{gotypes}{Output from running \code{gotypes <- Ontology(GOTERM)} from the GO.db library.}
-
-\item{A}{string consisting of a list of Gene Ontology ID, separated by a delimiter}
 }
 \value{
 A table with three columns. go_biological_process, go_celluar_compartment, and go_molecular_function. Each column is a list of gene ontology terms, separated by '; '.
