@@ -1,4 +1,4 @@
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 options(knitr.duplicate.label = "allow")
 
@@ -29,26 +29,40 @@ p_load(tictoc)
 tic()
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 group_pattern <- "RPE" 
 
 ## Directories management 
 base_dir <- here::here()
-data_dir <- file.path( base_dir, "Data", "Abundance_Data", "P90")
-results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
+data_dir <- file.path( base_dir, "Data", "Abundance_Data", "Part_1")
+results_dir <- file.path(base_dir, "Results", "Part_1",  "Proteins", "DE_Analysis")
 source_dir <- file.path(base_dir, "Source")
 
 # Minimum number of samples per experimental group for the protein to be accepted for analysis 
 
-fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta")
-raw_counts_file <- file.path(data_dir, "ALPK1-set1proteinGroups.txt")
-column_pattern_input <- "Reporter intensity corrected"
-output_counts_file <- "counts_table_cleaned.tab"  
-accession_record_file <- "cleaned_accession_to_protein_group.tab"
-fasta_meta_file <- "aa_seq_tbl.RDS"
+# fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta")
+# raw_counts_file <- file.path(data_dir, "ALPK1-set1proteinGroups.txt")
+# column_pattern_input <- "Reporter intensity corrected"
+# output_counts_file <- "counts_table_cleaned.tab"  
+# accession_record_file <- "cleaned_accession_to_protein_group.tab"
+# fasta_meta_file <- "aa_seq_tbl.RDS"
+# 
+# razor_unique_peptides_group_thresh <- 0
+# unique_peptides_group_thresh <- 1
 
-razor_unique_peptides_group_thresh <- 0
-unique_peptides_group_thresh <- 1
+
+
+results_dir <-  "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis"
+accession_record_file <-  "cleaned_accession_to_protein_group.tab"
+fasta_file <-  file.path( data_dir,  "Human_CanIso20210719.fasta") 
+raw_counts_file <-   file.path( data_dir,  "proteinGroups.txt" )
+output_counts_file <-  "counts_table_cleaned.tab"
+column_pattern_input <-  "Reporter intensity corrected"
+group_pattern <-  ""
+razor_unique_peptides_group_thresh <-  0
+unique_peptides_group_thresh <-  1
+fasta_meta_file <-  "aa_seq_tbl.RDS"
+
 
 command_line_options <- commandArgs(trailingOnly = TRUE)
 if( length(command_line_options ) > 0 ) {
@@ -121,29 +135,29 @@ if( length(command_line_options ) > 0 ) {
   if( razor_unique_peptides_group_thresh == "" ) { stop("No value for --r-u-count was supplied.") }
   if( unique_peptides_group_thresh == "" ) { stop("No value for --u-count was supplied.") }
   if( fasta_meta_file == "" ) { stop("No value for --fasta-save was supplied.") }
-  if( group_pattern== "") { stop("No value for --group-pattern was supplied.") }
-  if( accession_record_file== "") { stop("No value for --ids was supplied.") }
+  if( group_pattern== "") { warnings("No value for --group-pattern was supplied.") }
+  if( accession_record_file == "") { stop("No value for --ids was supplied.") }
 
 }
 
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Step 1: Create results directory.")
 
 create_dir_if_not_exists( results_dir)
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Step 2: Reading the counts file.")
 
 dat_tbl <- vroom::vroom( raw_counts_file )
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Step 3: Clean counts table header name.")
 dat_cln <-  janitor::clean_names(dat_tbl)
 
@@ -151,7 +165,7 @@ colnames(dat_cln) <- str_replace(colnames(dat_cln), "_i_ds", "_ids" )
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Step 4: Prepare regular expressions to select counts data columns.")
 
 pattern_suffix <- "_\\d+"
@@ -170,15 +184,21 @@ extract_replicate_group <- paste0(make_clean_names(column_pattern_input), extrac
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Step 5: Prepare column names associated with peptide counts.")
 
-razor_unique_peptides_group_col <-  paste0( "razor_unique_peptides_", tolower(group_pattern)  ) 
-unique_peptides_group_col <-  paste0("unique_peptides_", tolower(group_pattern)  )
+razor_unique_peptides_group_col <- "razor_unique_peptides"
+unique_peptides_group_col <- "unique_peptides"
+
+if ( group_pattern != "") {
+  
+  razor_unique_peptides_group_col <-  paste0( "razor_unique_peptides_", tolower(group_pattern)  ) 
+  unique_peptides_group_col <-  paste0("unique_peptides_", tolower(group_pattern)  )    
+} 
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Read fasta file 
 # colnames(aa_seq_tbl)
 print( "Step 6: Reading the FASTA file and saving the meta-data file.")
@@ -196,7 +216,7 @@ evidence_tbl<- dat_cln %>%
   mutate( evidence_id = id) 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Step 8: Filtering counts table by number of peptides available, remove decoy proteins and protein contaminants.")
 
 peptides_count_helper <- evidence_tbl %>%
@@ -226,7 +246,7 @@ evidence_tbl_cleaned <- peptides_count_helper %>%
 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Step 9: Identify best UniProt accession per entry, extract sample number and simplify column header")
 
 
@@ -241,28 +261,49 @@ print( "Step 9: Identify best UniProt accession per entry, extract sample number
     left_join( evidence_tbl %>% dplyr::select( evidence_id, protein_ids), by=c("evidence_id"))
   
 
-evidence_tbl_filt <- evidence_tbl_cleaned %>%
+evidence_tbl_filt <- NA 
+ 
+if( group_pattern != "") {
+  
+  evidence_tbl_filt <- evidence_tbl_cleaned %>%
   inner_join( accession_gene_name_tbl %>% 
                 dplyr::select(evidence_id, uniprot_acc), by="evidence_id") %>%
   dplyr::select(uniprot_acc, contains(group_pattern), -contains(c("razor", "unique"))) %>%
   distinct
-
-colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2")  %>% 
+  
+  colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2")  %>% 
   toupper( ) %>%
   str_replace_all( "UNIPROT_ACC", "uniprot_acc") 
   
+} else {
+  
+  evidence_tbl_filt <- evidence_tbl_cleaned %>%
+  inner_join( accession_gene_name_tbl %>% 
+                dplyr::select(evidence_id, uniprot_acc), by="evidence_id") %>%
+  dplyr::select(uniprot_acc, matches(column_pattern), -contains(c("razor", "unique"))) %>%
+  distinct
+  
+    colnames( evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1")  %>% 
+  toupper( ) %>%
+  str_replace_all( "UNIPROT_ACC", "uniprot_acc") 
+  
+}
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  
+
+
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Step 10: Save the cleaned counts data into a file.")
 vroom::vroom_write( evidence_tbl_filt, file.path(results_dir, output_counts_file) ) 
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 vroom::vroom_write( accession_gene_name_tbl_record, file.path(results_dir, accession_record_file))
 
 
-## --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 toc()
 sessionInfo()
 

@@ -10,14 +10,20 @@
 #' @export
 remove_empty_rows <- function(input_table, col_pattern, row_id) {
 
-  sites_to_accept <- input_table %>%
-    mutate( across( matches(col_pattern, perl=TRUE), ~.==0 )) %>%
+  temp_col_name <-  paste0("temp_",  quo_name(enquo(row_id)) )
+
+  temp_input_table <- input_table %>%
+    dplyr::mutate( !!rlang::sym(temp_col_name) := row_number()   )
+
+  sites_to_accept <- temp_input_table %>%
+    mutate( across( matches(col_pattern, perl=TRUE), ~{(is.na(.) | .==0)} )) %>%
     dplyr::filter( !if_all( matches(col_pattern, perl=TRUE), ~. ==TRUE )) %>%
-    dplyr::select( {{row_id}})
+    dplyr::select( {{temp_col_name}})
 
   ## Removing entries where all the "Reporter intensity corrected" rows are zero
-  filtered_table <- input_table %>%
-    inner_join(sites_to_accept, by=quo_name(enquo(row_id)))
+  filtered_table <- temp_input_table %>%
+    inner_join(sites_to_accept, by=temp_col_name ) %>%
+    dplyr::select( -temp_col_name )
 
   return( filtered_table )
 }
