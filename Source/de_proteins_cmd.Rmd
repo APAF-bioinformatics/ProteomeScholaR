@@ -4,6 +4,13 @@ output:
   html_document:
     df_print: paged
 ---
+```{r}
+#! /usr/bin/env Rscript
+
+# Author(s): Ignatius Pang
+# Email: ipang@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
+```
 
 To investigate if RUV will overfit data.
 
@@ -45,45 +52,46 @@ results_dir <- file.path(base_dir, "Results", paste0( analysis_type, "90") ,  "P
 source_dir <- file.path(base_dir, "Source")
 
 # Minimum number of samples per experimental group for the protein to be accepted for analysis 
-# min_num_samples_per_group <- 4 
-# abundance_threshold <- 0 
-# column_pattern <- "Reporter intensity corrected \\d+ RPE"
-# ## q-value threshold (protein logFC's q-value must be below this value to be included in further analysis)
-# q_val_thresh <- 0.05
-# ruv_k <- 4
-# num_neg_ctrl <- 500 
-# ruv_method <- "ruv3"
-# design_matrix_file <- file.path(results_dir, "design_matrix_cleaned.tab")
-# counts_table_file <- file.path(results_dir, "counts_table_cleaned.tab")
-# # X is the control for Y and A is the control for B because of the different mouse strains used as WTs, but it might be useful just to compare everything to everything.
-# test_pairs_file <- file.path( data_dir, "test_pairs.tab")
-# contrasts_file <- file.path( data_dir, "contrast_strings_RPE.tab")  
-# formula_string <- "~ 0 + group "
-# my_sample_id <- "Sample_ID"
-# my_group_id <- "group"
-# my_row_id <- "uniprot_acc"
-# limma_method <- "contrasts" # pairs or contrasts
-
-
 min_num_samples_per_group <- 4
 abundance_threshold <- 0
-column_pattern <- "Reporter intensity corrected \\d+"
-group_pattern <- ""
+column_pattern <- "Reporter intensity corrected \\d+ RPE"
+## q-value threshold (protein logFC's q-value must be below this value to be included in further analysis)
 q_val_thresh <- 0.05
 ruv_k <- 4
 num_neg_ctrl <- 500
 ruv_method <- "ruv3"
-counts_table_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis/counts_table_cleaned.tab"
-test_pairs_file <- ""
-contrasts_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Data/Abundance_Data/Part_1/contrast_strings.tab"
+design_matrix_file <- file.path(results_dir, "design_matrix_cleaned.tab")
+counts_table_file <- file.path(results_dir, "counts_table_cleaned.tab")
+# X is the control for Y and A is the control for B because of the different mouse strains used as WTs, but it might be useful just to compare everything to everything.
+test_pairs_file <- file.path( data_dir, "test_pairs.tab")
+contrasts_file <- file.path( data_dir, "contrast_strings_RPE.tab")
 formula_string <- "~ 0 + group "
-design_matrix_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis/design_matrix.tab"
-results_dir <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis"
 my_sample_id <- "Sample_ID"
 my_group_id <- "group"
 my_row_id <- "uniprot_acc"
-limma_method <- "contrasts"
-  
+limma_method <- "contrasts" # pairs or contrasts
+file_prefix <- "de_proteins"
+
+
+# min_num_samples_per_group <- 4
+# abundance_threshold <- 0
+# column_pattern <- "Reporter intensity corrected \\d+"
+# group_pattern <- ""
+# q_val_thresh <- 0.05
+# ruv_k <- 4
+# num_neg_ctrl <- 500
+# ruv_method <- "ruv3"
+# counts_table_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis/raw_counts_table_cleaned.tab"
+# test_pairs_file <- ""
+# contrasts_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Data/Abundance_Data/Part_1/contrast_strings.tab"
+# formula_string <- "~ 0 + group "
+# design_matrix_file <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis/design_matrix.tab"
+# results_dir <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/Proteins/DE_Analysis"
+# my_sample_id <- "Sample_ID"
+# my_group_id <- "group"
+# my_row_id <- "uniprot_acc"
+# limma_method <- "contrasts"
+# file_prefix <- "de_proteins"
 
 command_line_options <- commandArgs(trailingOnly = TRUE)
 if( length(command_line_options ) > 0 ) {
@@ -162,6 +170,10 @@ if( length(command_line_options ) > 0 ) {
                        help="A string to select which strategy is employed to use limma.",
                        metavar="string")
   
+  parser <- add_option( parser, c("--prefix"), type="character", default="de_proteins", dest = "file_prefix",
+                       help="A string to indicate the type of analysis and is used in the file name of the output results table.",
+                       metavar="string")
+  
   print(commandArgs(trailingOnly = TRUE))
   
   cmd_arguments <- parse_args(parser)
@@ -186,6 +198,7 @@ if( length(command_line_options ) > 0 ) {
   my_group_id               <- cmd_arguments$my_group_id
   my_row_id                 <- cmd_arguments$my_row_id
   limma_method              <- cmd_arguments$limma_method
+  file_prefix               <- cmd_arguments$file_prefix
   
   if(limma_method != "pairs" & limma_method != "contrasts") { stop("The variable --limma-method must be 'pairs' or 'contrasts'.") }
   if( group_pattern == "") { warning("No --group-pattern variable supplied."); 
@@ -254,6 +267,7 @@ if( limma_method == "contrasts" &  contrasts_file != "") {
 }
 
 ```
+
 ```{r}
 
 print("Read file with counts table.")
@@ -286,7 +300,7 @@ print("Assign the indexing row names to the data frame.")
 counts_filt <- cln_dat_wide %>%
   column_to_rownames(my_row_id)
 
-vroom::vroom_write( cln_dat_wide, file.path( results_dir, "counts_after_removing_rows.tsv"))
+vroom::vroom_write( cln_dat_wide, file.path( results_dir, "raw_counts_after_removing_empty_rows.tsv"))
 
 
 ```
@@ -372,7 +386,7 @@ counts_na.log.quant <- normalizeBetweenArrays(counts_na.log,  method="scale")
 
 vroom::vroom_write( as.data.frame(counts_na.log.quant) %>% 
                       rownames_to_column(my_row_id), 
-                    file.path( results_dir, "counts_after_median_scaling_before_impuatation.tsv"))
+                    file.path( results_dir, "counts_after_median_scaling_before_imputation.tsv"))
 
 
 ```
@@ -395,7 +409,7 @@ counts_rnorm.is_nan <- counts_rnorm.log.quant %>%
 
 vroom::vroom_write( as.data.frame(counts_rnorm.log.quant) %>% 
                       rownames_to_column(my_row_id), 
-                    file.path( results_dir, "counts_after_median_scaling_and_impuatation.tsv"))
+                    file.path( results_dir, "counts_after_median_scaling_and_imputation.tsv"))
 
 
 ```
@@ -503,7 +517,7 @@ counts_rnorm.log.ruvIII_v1 <- my_RUVfit( counts_rnorm.log.quant, X=ruv_groups$gr
 vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>% 
                      as.data.frame %>% 
                      rownames_to_column(my_row_id), 
-                   file.path(results_dir, "ruv_cleaned_counts_round1.tsv"  ) )
+                   file.path(results_dir, "normalized_counts_after_ruv.tsv"  ) )
 
 ```
 
@@ -560,7 +574,7 @@ rle_pca_plots_arranged <- rle_pca_plot_list( list_of_data_matrix=list(counts_rno
                                              design_matrix = design_mat_cln, 
                                sample_id_column=!!rlang::sym(my_sample_id), 
                                group_column=!!rlang::sym(my_group_id),
-                               list_of_descriptions=list( "Before RUVIII", "After 1st round RUVIII") )
+                               list_of_descriptions=list( "Before RUVIII", "After RUVIII") )
 
 
 
@@ -689,7 +703,7 @@ raw_counts <- counts_filt  %>%
   set_colnames(  paste0( colnames( counts_filt ), ".raw") ) %>%
   rownames_to_column(my_row_id)
 
-de_proteins_wider <- selected_data %>%
+de_proteins_wide <- selected_data %>%
   dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
   pivot_wider( id_cols = c( !!sym(my_row_id) ),
@@ -699,9 +713,9 @@ de_proteins_wider <- selected_data %>%
   left_join( norm_counts, by=my_row_id) %>%
   left_join( raw_counts, by=my_row_id)
 
-head(de_proteins_wider)
+head(de_proteins_wide)
 
-vroom::vroom_write(de_proteins_wider, path=file.path(results_dir, "de_proteins_wider.tsv" ) ) 
+vroom::vroom_write(de_proteins_wide, path=file.path(results_dir, paste0(file_prefix, "_wide.tsv" ) ) )
 
 ```
 
@@ -750,7 +764,7 @@ left_join_columns <- rlang::set_names( c(my_row_id, "group")  ,
 right_join_columns <- rlang::set_names( c(my_row_id,  "group")  ,
                                        c(my_row_id, "right_group"))
 
-de_proteins_longer <-  selected_data %>%
+de_proteins_long <-  selected_data %>%
   dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
   dplyr::mutate( expression = str_replace_all(expression, "group", "")) %>%
@@ -763,10 +777,10 @@ de_proteins_longer <-  selected_data %>%
                suffix=c(".left", ".right") )
 
 
-head( de_proteins_longer ) 
+head( de_proteins_long ) 
 
 
-vroom::vroom_write(de_proteins_longer, path=file.path(results_dir, "de_proteins_longer.tsv" ) ) 
+vroom::vroom_write(de_proteins_long, path=file.path(results_dir, paste0(file_prefix, "_long.tsv" ) ) ) 
 
 ```
 
@@ -775,8 +789,22 @@ vroom::vroom_write(de_proteins_longer, path=file.path(results_dir, "de_proteins_
 ```{r}
 sessionInfo()
 
-toc()
+stop_time <- toc()
 ```
+
+
+```{r}
+sink(file.path(results_dir, paste0(file_prefix, "_cmd.log")))
+print(date())
+print(stop_time)
+print(cmd_arguments)
+tools::md5sum( c(file.path(results_dir, paste0(file_prefix, "_wide.tsv" ) ) , 
+          file.path(results_dir, paste0(file_prefix, "_long.tsv" ) ) ,
+          file.path(results_dir, paste0("normalized_counts_after_ruv.tsv"))
+          ))
+sink()
+```
+
 
 
 

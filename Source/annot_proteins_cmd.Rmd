@@ -2,7 +2,13 @@
 title: "R Notebook"
 output: html_notebook
 ---
+```{r}
+#! /usr/bin/env Rscript
 
+# Author(s): Ignatius Pang
+# Email: ipang@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
+```
 
 ```{r}
 
@@ -63,8 +69,8 @@ knitr::purl( file.path(  source_dir, "Shared",  "annot_proteins_cmd.Rmd"),
 
 ```{r}
 
-input_wide_file <- file.path(results_dir, "de_proteins_wider.tsv" ) 
-input_long_file <- file.path(results_dir, "de_proteins_longer.tsv" ) 
+input_wide_file <- file.path(results_dir, "de_proteins_wide.tsv" ) 
+input_long_file <- file.path(results_dir, "de_proteins_long.tsv" ) 
 output_long_file <- file.path(results_dir, "de_proteins_longer_annot.tsv" ) 
 output_wide_file <- file.path(results_dir, "de_proteins_wider_annot.tsv" ) 
 ids_file <- file.path( results_dir, "cleaned_accession_to_protein_group.tab")
@@ -263,7 +269,7 @@ de_proteins_wider_annot <- de_proteins_wider %>%
   left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
-  left_join( dat_cln, by=c("evidence_id" = "id",
+  left_join( dat_cln, by=c("maxquant_row_id" = "id",
                            "protein_ids" = "protein_ids"))
 
 head( de_proteins_wider_annot ) 
@@ -279,7 +285,7 @@ de_proteins_longer_annot <- de_proteins_longer %>%
   left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
-  left_join( dat_cln, by=c("evidence_id" = "id",
+  left_join( dat_cln, by=c("maxquant_row_id" = "id",
                            "protein_ids" = "protein_ids"))
 
 head( de_proteins_longer_annot )

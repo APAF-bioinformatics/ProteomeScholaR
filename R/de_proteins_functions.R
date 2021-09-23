@@ -1,4 +1,6 @@
-
+# Author(s): Ignatius Pang
+# Email: ipang@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #'Remove rows in the table where the columns specified by the column regular expression pattern are all zero or NA value.

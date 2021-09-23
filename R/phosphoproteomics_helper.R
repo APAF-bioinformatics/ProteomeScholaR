@@ -1,4 +1,6 @@
-
+# Author(s): Ignatius Pang
+# Email: ipang@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #' @export
@@ -416,10 +418,6 @@ all_phosphosites_pivot_longer <- function( get_15_mer_tbl,
                                            "\\1") %>%
                      map_int(as.integer) ) %>%
     mutate( value = value )
-
-
-
-
 
   return(all_sites_long)
 }

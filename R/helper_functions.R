@@ -1,3 +1,7 @@
+# Author(s): Ignatius Pang
+# Email: ipang@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
+
 ##################################################################################################################
 
 ### Function: create_id_to_attribute_hash
