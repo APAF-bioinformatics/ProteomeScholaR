@@ -54,8 +54,16 @@ base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "Abundance_Data", "Part_1")
 results_dir <- file.path(base_dir, "Results", "Part_1",  "Proteins", "DE_Analysis")
 source_dir <- file.path(base_dir, "Source")
+```
 
-# Minimum number of samples per experimental group for the protein to be accepted for analysis 
+
+## Command to convert the R markdown file to a R file for use in command line. 
+knitr::purl( file.path(  source_dir, "Shared",  "clean_proteins_cmd.Rmd"), 
+             output=file.path( source_dir,  "Shared",   "clean_proteins_cmd.R") ) 
+     
+
+
+```{r}
 
 # fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta")
 # raw_counts_file <- file.path(data_dir, "ALPK1-set1proteinGroups.txt")
@@ -154,11 +162,6 @@ if( length(command_line_options ) > 0 ) {
 
 
 ```
-
-## Command to convert the R markdown file to a R file for use in command line. 
-knitr::purl( file.path(  source_dir, "Shared",  "clean_proteins_cmd.Rmd"), 
-             output=file.path( source_dir,  "Shared",   "clean_proteins_cmd.R") ) 
-     
 
 ## Create directories
 ```{r}

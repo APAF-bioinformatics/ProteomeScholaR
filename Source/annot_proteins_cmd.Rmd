@@ -142,6 +142,7 @@ if( length(command_line_options ) > 0 ) {
   
 }
 
+create_dir_if_not_exists(results_dir)
 de_proteins_wider <- vroom::vroom( input_wide_file ) 
 de_proteins_longer <- vroom::vroom( input_long_file ) 
 ids_tbl <- vroom::vroom( ids_file ) 

@@ -50,7 +50,16 @@ base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "Abundance_Data", "P90")
 results_dir <- file.path(base_dir, "Results", paste0( analysis_type, "90") ,  "Proteins", "DE_Analysis")
 source_dir <- file.path(base_dir, "Source")
+```
 
+
+## Command to convert the R markdown file to a R file for use in command line. 
+knitr::purl( file.path(  source_dir, "Shared",  "de_proteins_cmd.Rmd"), 
+             output=file.path( source_dir,  "Shared",   "de_proteins_cmd.R") ) 
+       
+
+
+```{r}
 # Minimum number of samples per experimental group for the protein to be accepted for analysis 
 min_num_samples_per_group <- 4
 abundance_threshold <- 0
@@ -217,11 +226,6 @@ if( length(command_line_options ) > 0 ) {
 if( group_pattern == "") {    group_pattern <- "\\d+"}
 
 ```
-
-## Command to convert the R markdown file to a R file for use in command line. 
-knitr::purl( file.path(  source_dir, "Shared",  "de_proteins_cmd.Rmd"), 
-             output=file.path( source_dir,  "Shared",   "de_proteins_cmd.R") ) 
-       
 
 ```{r}
 p_load(tidyverse)

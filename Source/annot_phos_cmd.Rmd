@@ -144,6 +144,7 @@ p_load(GO.db)
 ```
 
 ```{r}
+create_dir_if_not_exists(results_dir)
 ks_file <-  file.path( phosphosite_db_dir, "Kinase_Substrate_Dataset") 
 reg_sites_file <- file.path( phosphosite_db_dir, "Regulatory_sites" ) 
 disease_file <- file.path( phosphosite_db_dir, "Disease-associated_sites")
