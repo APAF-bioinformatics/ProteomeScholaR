@@ -54,8 +54,8 @@ source_dir <- file.path(base_dir, "Source")
 
 
 ## Command to convert the R markdown file to a R file for use in command line. 
-knitr::purl( file.path(  source_dir, "Shared",  "de_proteins_cmd.Rmd"), 
-             output=file.path( source_dir,  "Shared",   "de_proteins_cmd.R") ) 
+knitr::purl( file.path(  source_dir, "Shared",  "de_analysis_cmd.Rmd"), 
+             output=file.path( source_dir,  "Shared",   "de_analysis_cmd.R") ) 
        
 
 
@@ -70,7 +70,7 @@ ruv_k <- 4
 num_neg_ctrl <- 500
 ruv_method <- "ruv3"
 design_matrix_file <- file.path(results_dir, "design_matrix_cleaned.tab")
-counts_table_file <- file.path(results_dir, "counts_table_cleaned.tab")
+counts_table_file <- file.path(results_dir, "raw_counts_table.tab")
 # X is the control for Y and A is the control for B because of the different mouse strains used as WTs, but it might be useful just to compare everything to everything.
 test_pairs_file <- file.path( data_dir, "test_pairs.tab")
 contrasts_file <- file.path( data_dir, "contrast_strings_RPE.tab")
@@ -292,22 +292,12 @@ if( group_pattern != "" &
 ## Remove peptides without abundance values at all 
 ```{r}
 print("Remove empty proteins without abundance data.")
-cln_dat_wide <- ProteomeRiver::remove_empty_rows( evidence_tbl_filt, 
+cln_dat_wide_unsorted <- ProteomeRiver::remove_empty_rows( evidence_tbl_filt, 
                                                   col_pattern=group_pattern, 
                                                   row_id=!!rlang::sym(my_row_id))
 
 ```
-### Create an ID column,
-```{r}
 
-print("Assign the indexing row names to the data frame.")
-counts_filt <- cln_dat_wide %>%
-  column_to_rownames(my_row_id)
-
-vroom::vroom_write( cln_dat_wide, file.path( results_dir, "raw_counts_after_removing_empty_rows.tsv"))
-
-
-```
 
 ## Create the design matrix
 ```{r}
@@ -323,6 +313,40 @@ if(   length( which( c(my_sample_id, my_group_id ) %in% colnames( design_mat_cln
 }
 
 cols_for_analysis <- design_mat_cln %>% pull(as.name( my_sample_id))
+
+```
+
+### Create an ID column,
+```{r}
+
+if( length(cln_dat_wide_unsorted) - 1 != length(cols_for_analysis) |
+
+    length(cols_for_analysis) != length(intersect(colnames( cln_dat_wide_unsorted )[-1], cols_for_analysis )) ) {
+  stop("Column names in design matrix table not consistent with column names in abundance table.")
+}
+
+# Sort the columns in the abundance table according
+if(  length(which(colnames( cln_dat_wide_unsorted )[-1] == cols_for_analysis )) != length(cols_for_analysis ) ) {
+  warning("Sorting the order of the column of the abundance matrix according to the order in the design matrix.") 
+}
+
+cln_dat_wide <- cln_dat_wide_unsorted[,cols_for_analysis]
+
+print("Assign the indexing row names to the data frame.")
+counts_filt <- cln_dat_wide %>%
+  column_to_rownames(my_row_id)
+
+vroom::vroom_write( cln_dat_wide, file.path( results_dir, "raw_counts_after_removing_empty_rows.tsv"))
+
+
+```
+
+
+
+```{r}
+cols_for_analysis
+
+cln_dat_wide
 
 ```
 

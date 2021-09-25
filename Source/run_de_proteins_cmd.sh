@@ -23,7 +23,7 @@ Rscript --vanilla $TEMPLATE_DIR/clean_proteins_cmd.R \
 
 # If there are other variables to adjust the linear model (e.g. gender and age), 
 # include these as input in the design matrix and formula string.
-Rscript --vanilla $TEMPLATE_DIR/de_proteins_cmd.R \
+Rscript --vanilla $TEMPLATE_DIR/de_analysis_cmd.R \
  --limma-method="contrasts" \
  --min-samples=4 \
  --abundance-thresh=0 \

@@ -23,7 +23,7 @@ Rscript --vanilla $TEMPLATE_DIR/clean_phos_cmd.R \
  --column-pattern="Reporter intensity corrected" \
  --add-columns="experiment"
  
-Rscript --vanilla $TEMPLATE_DIR/de_proteins_cmd.R \
+Rscript --vanilla $TEMPLATE_DIR/de_analysis_cmd.R \
  --limma-method="contrasts" \
  --min-samples=4 \
  --abundance-thresh=0 \
