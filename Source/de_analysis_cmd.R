@@ -1,4 +1,4 @@
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #! /usr/bin/env Rscript
 
 # Author(s): Ignatius Pang
@@ -6,7 +6,7 @@
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 options(knitr.duplicate.label = "allow")
 
@@ -27,7 +27,7 @@ p_load(optparse)
 p_load(tictoc)
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 tic()
 group_pattern <- "RPE" 
@@ -41,9 +41,10 @@ results_dir <- file.path(base_dir, "Results", paste0( analysis_type, "90") ,  "P
 source_dir <- file.path(base_dir, "Source")
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Minimum number of samples per experimental group for the protein to be accepted for analysis 
-min_num_samples_per_group <- 4
+# min_num_samples_per_group <- 4
+max_num_samples_miss_per_group <- NA
 abundance_threshold <- 0
 column_pattern <- "Reporter intensity corrected \\d+ RPE"
 ## q-value threshold (protein logFC's q-value must be below this value to be included in further analysis)
@@ -54,13 +55,13 @@ ruv_method <- "ruv3"
 design_matrix_file <- file.path(results_dir, "design_matrix_cleaned.tab")
 counts_table_file <- file.path(results_dir, "raw_counts_table.tab")
 # X is the control for Y and A is the control for B because of the different mouse strains used as WTs, but it might be useful just to compare everything to everything.
-test_pairs_file <- file.path( data_dir, "test_pairs.tab")
+#test_pairs_file <- file.path( data_dir, "test_pairs.tab")
 contrasts_file <- file.path( data_dir, "contrast_strings_RPE.tab")
 formula_string <- "~ 0 + group "
 my_sample_id <- "Sample_ID"
 my_group_id <- "group"
 my_row_id <- "uniprot_acc"
-limma_method <- "contrasts" # pairs or contrasts
+#limma_method <- "contrasts" # pairs or contrasts
 file_prefix <- "de_proteins"
 
 
@@ -89,8 +90,12 @@ if( length(command_line_options ) > 0 ) {
   
   parser <- OptionParser(add_help_option =TRUE)
   
-  parser <- add_option(parser, c("-s", "--min-samples"), type="integer", default=4, dest = "min_num_samples_per_group",
-                       help="Minimum number of samples per experimental group for the protein to be accepted for analysis [default %default]",
+  # parser <- add_option(parser, c("-s", "--min-samples"), type="integer", default=4, dest = "min_num_samples_per_group",
+  #                      help="Minimum number of samples per experimental group for the protein to be accepted for analysis [default %default]",
+  #                      metavar="integer")
+  
+    parser <- add_option(parser, c( "--max-missing"), type="integer", default=NA, dest = "max_num_samples_miss_per_group",
+                       help="Remove protein if it exceeds this maximum number of samples with missing values per experimental group [default %default]",
                        metavar="integer")
   
   parser <- add_option(parser, c("-a", "--abundance-thresh"), type="integer", default=0, dest = "abundance_threshold",
@@ -157,10 +162,10 @@ if( length(command_line_options ) > 0 ) {
                        help="A string describing the row id.",
                        metavar="string") 
   
-  parser <- add_option( parser, c("--limma-method"), type="character", default="contrasts", dest = "limma_method",
-                       help="A string to select which strategy is employed to use limma.",
-                       metavar="string")
-  
+  # parser <- add_option( parser, c("--limma-method"), type="character", default="contrasts", dest = "limma_method",
+  #                      help="A string to select which strategy is employed to use limma.",
+  #                      metavar="string")
+
   parser <- add_option( parser, c("--prefix"), type="character", default="de_proteins", dest = "file_prefix",
                        help="A string to indicate the type of analysis and is used in the file name of the output results table.",
                        metavar="string")
@@ -172,6 +177,7 @@ if( length(command_line_options ) > 0 ) {
   print(cmd_arguments)
   
   min_num_samples_per_group <- cmd_arguments$min_num_samples_per_group
+  max_num_samples_miss_per_group <- cmd_arguments$max_num_samples_miss_per_group
   abundance_threshold       <- cmd_arguments$abundance_threshold
   column_pattern            <- cmd_arguments$column_pattern
   group_pattern             <- cmd_arguments$group_pattern
@@ -188,10 +194,10 @@ if( length(command_line_options ) > 0 ) {
   my_sample_id              <- cmd_arguments$my_sample_id
   my_group_id               <- cmd_arguments$my_group_id
   my_row_id                 <- cmd_arguments$my_row_id
-  limma_method              <- cmd_arguments$limma_method
+  # limma_method              <- cmd_arguments$limma_method
   file_prefix               <- cmd_arguments$file_prefix
   
-  if(limma_method != "pairs" & limma_method != "contrasts") { stop("The variable --limma-method must be 'pairs' or 'contrasts'.") }
+  # if(limma_method != "pairs" & limma_method != "contrasts") { stop("The variable --limma-method must be 'pairs' or 'contrasts'.") }
   if( group_pattern == "") { warning("No --group-pattern variable supplied."); 
     group_pattern <- "\\d+"}
   if( column_pattern == "") { stop("No --column-pattern variable supplied.") }
@@ -199,17 +205,16 @@ if( length(command_line_options ) > 0 ) {
   if( formula_string == "" ) { stop("No file --formula was supplied.") }
   if( counts_table_file == "" ) { stop("No value for --counts was supplied. It is a file with the abundance values for the proteins for each sample.") }
   if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
-  if( limma_method == "pairs" & test_pairs_file == "") { stop("No value for --test-pairs was supplied. It is a file listing all pairs of groups to compare.") }
-  if( limma_method == "contrasts" & contrasts_file=="" ) { stop("No value for --contrasts was supplied. It is a file listing all contrasts for analysis.") }
+  # if( limma_method == "pairs" & test_pairs_file == "") { stop("No value for --test-pairs was supplied. It is a file listing all pairs of groups to compare.") }
+  if( contrasts_file=="" ) { stop("No value for --contrasts was supplied. It is a file listing all contrasts for analysis.") }
   
 }
-
 
 if( group_pattern == "") {    group_pattern <- "\\d+"}
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 p_load(tidyverse)
 p_load(plotly)
 p_load(vroom)
@@ -229,30 +234,28 @@ p_load(ProteomeRiver)
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print ("Create results directory if it does not yet exists.")
 create_dir_if_not_exists( results_dir)
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-test_pairs <- NA
-if( limma_method == "pairs" & test_pairs_file != "") {
-  print("Read file with pairs of experimental groups to test.")
-  test_pairs <- vroom::vroom( test_pairs_file)
-}
+# test_pairs <- NA
+# if( limma_method == "pairs" & test_pairs_file != "") {
+#   print("Read file with pairs of experimental groups to test.")
+#   test_pairs <- vroom::vroom( test_pairs_file)
+# }
 
 
-contrasts_tbl <- NA
-if( limma_method == "contrasts" &  contrasts_file != "") {
+
   print("Read file with lists of experimental contrasts to test.")
   contrasts_tbl <- vroom::vroom( contrasts_file, delim="\t")
-}
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 print("Read file with counts table.")
 evidence_tbl_filt <- vroom::vroom( counts_table_file)  %>%
@@ -270,7 +273,7 @@ if( group_pattern != "" &
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Remove empty proteins without abundance data.")
 cln_dat_wide_unsorted <- ProteomeRiver::remove_empty_rows( evidence_tbl_filt, 
                                                   col_pattern=group_pattern, 
@@ -278,7 +281,7 @@ cln_dat_wide_unsorted <- ProteomeRiver::remove_empty_rows( evidence_tbl_filt,
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 design_mat_cln <- vroom::vroom(design_matrix_file) %>% as.data.frame() %>%
   dplyr::mutate( !!rlang::sym( my_sample_id) := as.character( !!rlang::sym( my_sample_id) ))
@@ -294,20 +297,41 @@ cols_for_analysis <- design_mat_cln %>% pull(as.name( my_sample_id))
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+cln_dat_wide_cleaned <- NA
+if( !is.na(max_num_samples_miss_per_group) ) {
+  print("Remove row with any missing values")
+  
+cln_dat_wide_cleaned <- remove_rows_with_missing_values( cln_dat_wide_unsorted, 
+                                            matches(group_pattern), 
+                                            design_mat_cln %>% 
+                                              dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
+                                            !!rlang::sym(my_sample_id), 
+                                            !!rlang::sym(my_row_id), 
+                                            !!rlang::sym(my_group_id), 
+                                            max_num_samples_miss_per_group, 
+                                            abundance_threshold)
 
-if( length(cln_dat_wide_unsorted) - 1 != length(cols_for_analysis) |
+} else {
+  cln_dat_wide_cleaned <- cln_dat_wide_unsorted
+}
 
-    length(cols_for_analysis) != length(intersect(colnames( cln_dat_wide_unsorted )[-1], cols_for_analysis )) ) {
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+if( length(cln_dat_wide_cleaned) - 1 != length(cols_for_analysis) |
+
+    length(cols_for_analysis) != length(intersect(colnames( cln_dat_wide_cleaned )[-1], cols_for_analysis )) ) {
   stop("Column names in design matrix table not consistent with column names in abundance table.")
 }
 
 # Sort the columns in the abundance table according
-if(  length(which(colnames( cln_dat_wide_unsorted )[-1] == cols_for_analysis )) != length(cols_for_analysis ) ) {
+if(  length(which(colnames( cln_dat_wide_cleaned )[-1] == cols_for_analysis )) != length(cols_for_analysis ) ) {
   warning("Sorting the order of the column of the abundance matrix according to the order in the design matrix.") 
 }
 
-cln_dat_wide <- cln_dat_wide_unsorted[,cols_for_analysis]
+cln_dat_wide <- cln_dat_wide_cleaned[, c(colnames(cln_dat_wide_cleaned)[1], cols_for_analysis)]
 
 print("Assign the indexing row names to the data frame.")
 counts_filt <- cln_dat_wide %>%
@@ -318,14 +342,7 @@ vroom::vroom_write( cln_dat_wide, file.path( results_dir, "raw_counts_after_remo
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-cols_for_analysis
-
-cln_dat_wide
-
-
-
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ruvIII_replicates_matrix <- get_ruvIII_replicate_matrix( design_mat_cln,  
                                                          !!rlang::sym(my_sample_id), 
@@ -334,23 +351,23 @@ ruvIII_replicates_matrix <- get_ruvIII_replicate_matrix( design_mat_cln,
 ruvIII_replicates_matrix
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide, 
-                                            matches(group_pattern), 
-                                            design_mat_cln %>% 
-                                              dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
-                                            !!rlang::sym(my_sample_id), 
-                                            !!rlang::sym(my_row_id), 
-                                            !!rlang::sym(my_group_id), 
-                                            min_num_samples_per_group, 
-                                            abundance_threshold)
+# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide, 
+#                                             matches(group_pattern), 
+#                                             design_mat_cln %>% 
+#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
+#                                             !!rlang::sym(my_sample_id), 
+#                                             !!rlang::sym(my_row_id), 
+#                                             !!rlang::sym(my_group_id), 
+#                                             min_num_samples_per_group, 
+#                                             abundance_threshold)
+# 
+# saveRDS(sample_rows_lists, file.path(results_dir, "keep_sample_rows_lists.RDS" ))
 
-saveRDS(sample_rows_lists, file.path(results_dir, "keep_sample_rows_lists.RDS" ))
 
 
-
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Count the number of missing values for each sample.")
 ## Count the total number of missing values in total
 table(is.infinite(data.matrix(log2(counts_filt))))
@@ -364,7 +381,7 @@ ggsave(filename=file.path(results_dir,  "num_missing_values.svg"), plot=plot_num
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Mark entries with zero values as NA, take log of values.")
 na_values_marker <- (counts_filt == 0)
 
@@ -375,7 +392,7 @@ counts_na[na_values_marker ] <- NA
 counts_na.log <- log2(counts_na)
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Median centering.")
 counts_na.log.quant <- normalizeBetweenArrays(counts_na.log,  method="scale")
 
@@ -387,7 +404,7 @@ vroom::vroom_write( as.data.frame(counts_na.log.quant) %>%
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 print("Missing value imputation")
 
@@ -409,7 +426,7 @@ vroom::vroom_write( as.data.frame(counts_rnorm.log.quant) %>%
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Run statistical tests without RUV.")
 
 ID <- rownames(counts_rnorm.log.quant)
@@ -419,16 +436,16 @@ type_of_grouping <- get_type_of_grouping( design_matrix=design_mat_cln, group_id
 list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
 
-if( limma_method == "pairs") {
-  
-  list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping, 
-                                  design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", my_group_id),
-                                  contrast_variable=my_group_id,
-                                  weights=NA) 
-  
-  myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
-
-} else if ( limma_method == "contrasts") {
+# if( limma_method == "pairs") {
+#   
+#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping, 
+#                                   design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", my_group_id),
+#                                   contrast_variable=my_group_id,
+#                                   weights=NA) 
+#   
+#   myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
+# 
+# } else if ( limma_method == "contrasts") {
   
 
   list_rnorm.log.quant.ruv.r0 <- runTests_contrasts( counts_rnorm.log.quant, 
@@ -438,23 +455,23 @@ if( limma_method == "pairs") {
                                                      weights=NA )  
   
   myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
-}
+# }
 
 
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print( "Save the list of differentially expressed proteins, without using RUV.")
-save_de_protein_list(myRes_rnorm.log.quant, 
-                     row_id="protein_id",
-                     sort_by_column =q.mod, 
-                     results_dir = results_dir, 
-                     file_suffix = "_without_ruv.tsv")
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# print( "Save the list of differentially expressed proteins, without using RUV.")
+# save_de_protein_list(myRes_rnorm.log.quant, 
+#                      row_id="protein_id",
+#                      sort_by_column =q.mod, 
+#                      results_dir = results_dir, 
+#                      file_suffix = "_without_ruv.tsv")
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Find the list of negative control genes using ANOVA.")
 control_genes_index <- get_neg_ctrl_prot_anova( counts_rnorm.log.quant, 
                                                 design_matrix = design_mat_cln, 
@@ -476,7 +493,7 @@ length( which(control_genes_index) )
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Draw canonical correlation plot.")
 ruv_groups <- data.frame( temp_column = colnames( counts_rnorm.log.quant)) %>%
   dplyr::rename( !!rlang::sym( my_sample_id) := "temp_column")  %>%
@@ -496,7 +513,7 @@ ggsave( plot=cancorplot_r1, filename=file.path(results_dir, "cancor_plot_round_1
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Run RUVIII on the input counts table.")
 counts_rnorm.log.ruvIII_v1 <- my_RUVfit( counts_rnorm.log.quant, X=ruv_groups$group, control_genes_index, Z = 1, k = ruv_k, 
                              method = ruv_method, M=ruvIII_replicates_matrix )  %>% t()
@@ -508,23 +525,23 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
 
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
-if( limma_method == "pairs") {
-  list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,  
-                                           cols_for_analysis, sample_rows_lists,
-                                           type_of_grouping, 
-                                           design_matrix = design_mat_cln, 
-                                           formula_string= "~ 0 + group ",
-                                           contrast_variable="group",
-                                           weights=NA)
-  
-  myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-
-} else if ( limma_method == "contrasts") {
+# if( limma_method == "pairs") {
+#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,  
+#                                            cols_for_analysis, sample_rows_lists,
+#                                            type_of_grouping, 
+#                                            design_matrix = design_mat_cln, 
+#                                            formula_string= "~ 0 + group ",
+#                                            contrast_variable="group",
+#                                            weights=NA)
+#   
+#   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
+# 
+# } else if ( limma_method == "contrasts") {
 
   list_rnorm.log.quant.ruv.r1 <- runTests_contrasts( counts_rnorm.log.ruvIII_v1, 
                                                      contrast_strings = contrasts_tbl[,1][[1]], 
@@ -534,31 +551,29 @@ if( limma_method == "pairs") {
   
  myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
-}
+# }
 
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
-save_de_protein_list(myRes_rnorm.log.quant.ruv.r1, 
-                     row_id="protein_id",
-                     sort_by_column =q.mod, 
-                     results_dir = results_dir, 
-                     file_suffix = "_round_1_ruv.tsv")
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
+# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1, 
+#                      row_id="protein_id",
+#                      sort_by_column =q.mod, 
+#                      results_dir = results_dir, 
+#                      file_suffix = "_round_1_ruv.tsv")
 
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Draw the RLE and PCA plots.")
 rle_pca_plots_arranged <- rle_pca_plot_list( list_of_data_matrix=list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1), 
                                              design_matrix = design_mat_cln, 
                                sample_id_column=!!rlang::sym(my_sample_id), 
                                group_column=!!rlang::sym(my_group_id),
                                list_of_descriptions=list( "Before RUVIII", "After RUVIII") )
-
-
 
 rle_pca_plots_arranged
 
@@ -570,12 +585,12 @@ dev.off()
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Prepare data for drawing the volcano plots")
 selected_data <- get_significant_data(  list_of_de_tables = list( myRes_rnorm.log.quant,  
                                                                   myRes_rnorm.log.quant.ruv.r1),
                                         list_of_descriptions = list("No RUV",  
-                                                                    "Yes round 1 RUV" ), 
+                                                                    "RUV applied" ), 
                                         row_id = !!sym(my_row_id), 
                                         p_value_column = p.mod, 
                                         q_value_column = q.mod, 
@@ -594,7 +609,7 @@ selected_data %>%
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 print("Print the volcano plots")
 
@@ -612,13 +627,13 @@ ggsave(  filename=file.path( results_dir, "volplot_gg.all.svg"), plot=volplot_gg
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Count the number of up or down significnat differentially expressed proteins.")
 
 num_sig_de_genes<- print_count_de_genes_table(  list_of_de_tables = list( myRes_rnorm.log.quant,  
                                                                                    myRes_rnorm.log.quant.ruv.r1), 
                                                          list_of_descriptions = list("No RUV",  
-                                                                                     "Yes round 1 RUV" ), 
+                                                                                     "RUV applied" ), 
                                                          formula_string="analysis_type ~ comparison" )
 
 num_sig_de_genes$plot
@@ -627,7 +642,6 @@ ggsave( filename = file.path( results_dir, "num_de_genes_barplot.png" ),
         plot=num_sig_de_genes$plot,
         height = 10, 
         width = 7)
-
 
 ggsave( filename = file.path( results_dir, "num_de_genes_barplot.svg" ), 
         plot=num_sig_de_genes$plot,
@@ -642,7 +656,7 @@ vroom::vroom_write( num_sig_de_genes$table,
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Print p-values distribution figure")
 pvalhist <- print_p_values_distribution(selected_data, 
                                         p_value_column = p.mod, 
@@ -662,7 +676,7 @@ ggsave( filename = file.path( results_dir, "p_values_distn.svg" ),
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame  %>%
@@ -676,7 +690,7 @@ raw_counts <- counts_filt  %>%
   rownames_to_column(my_row_id)
 
 de_proteins_wide <- selected_data %>%
-  dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
+  dplyr::filter( analysis_type == "RUV applied") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
   pivot_wider( id_cols = c( !!sym(my_row_id) ),
                names_from = c(comparison) ,
@@ -691,7 +705,7 @@ vroom::vroom_write(de_proteins_wide, path=file.path(results_dir, paste0(file_pre
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame  %>%
@@ -735,7 +749,7 @@ right_join_columns <- rlang::set_names( c(my_row_id,  "group")  ,
                                        c(my_row_id, "right_group"))
 
 de_proteins_long <-  selected_data %>%
-  dplyr::filter( analysis_type == "Yes round 1 RUV") %>%
+  dplyr::filter( analysis_type == "RUV applied") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
   dplyr::mutate( expression = str_replace_all(expression, "group", "")) %>%
   separate( expression, sep="-", into=c("left_group", "right_group")) %>%
@@ -754,13 +768,13 @@ vroom::vroom_write(de_proteins_long, path=file.path(results_dir, paste0(file_pre
 
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 sessionInfo()
 
 stop_time <- toc()
 
 
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 sink(file.path(results_dir, paste0(file_prefix, "_cmd.log")))
 print(date())
 print(stop_time)
@@ -769,5 +783,6 @@ tools::md5sum( c(file.path(results_dir, paste0(file_prefix, "_wide.tsv" ) ) ,
           file.path(results_dir, paste0(file_prefix, "_long.tsv" ) ) ,
           file.path(results_dir, paste0("normalized_counts_after_ruv.tsv"))
           ))
+sessionInfo()
 sink()
 

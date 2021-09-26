@@ -263,7 +263,21 @@ filter_peptide_and_extract_probabilities <- function(evidence_tbl_cleaned, acces
                    {{num_phospho_site_col}}
                    )
 
-  return(sites_probability_tbl )
+
+  number_of_rows_without_uniprot_acc <- sites_probability_tbl %>%
+    dplyr::filter( is.na(uniprot_acc) ) %>%
+    nrow()
+
+
+  if( length(number_of_rows_without_uniprot_acc) > 0) {
+    warnings( paste("There are", number_of_rows_without_uniprot_acc, "proteins do not have sequence information in FASTA file. Removing them from analysis"))
+  }
+
+  sites_probability_filt <- sites_probability_tbl %>%
+    dplyr::filter( !is.na(uniprot_acc) )
+
+
+  return(sites_probability_filt )
 
 }
 
@@ -276,8 +290,8 @@ add_peptide_start_and_end <- function( sites_probability_tbl, aa_seq_tbl ) {
   peptide_start_and_end <- sites_probability_tbl %>%
   left_join( aa_seq_tbl %>% dplyr::select(uniprot_acc, seq), by=c("uniprot_acc" = "uniprot_acc")) %>%
   mutate( peptide_location =  str_locate_all(seq, cleaned_peptide)) %>%
-  mutate( pep_start  = map_chr ( peptide_location, ~paste(.[,"start"], collapse=";" )     )   ) %>%
-  mutate( pep_end  = map_chr ( peptide_location, ~paste(.[,"end"], collapse=";" )     )   )
+  mutate( pep_start  = map_chr ( peptide_location, ~paste(.[,"start"], collapse="|" )     )   ) %>%
+  mutate( pep_end  = map_chr ( peptide_location, ~paste(.[,"end"], collapse="|" )     )   )
 
   return( peptide_start_and_end)
 
@@ -349,9 +363,9 @@ filter_by_score_and_get_similar_peptides <- function( get_15_mer_tbl, site_prob_
                               function(x, y) {  return( length(which( x >= site_prob_threshold)) >=  y) }  ) )  %>%
     dplyr::select( uniprot_acc, protein_site_positions) %>%
     distinct() %>%
-    dplyr::mutate( protein_site_positions = str_split(protein_site_positions, ";")  )   %>%
+    dplyr::mutate( protein_site_positions = str_split(protein_site_positions, "[;\\|]")  )   %>%
     unnest( protein_site_positions) %>%
-    dplyr::mutate( protein_site_positions = as.integer( protein_site_positions)) %>%
+    dplyr::mutate( protein_site_positions = as.integer( str_replace_all( protein_site_positions, "\\(|\\)", "")  )) %>%
     distinct() %>%
     arrange( uniprot_acc, protein_site_positions) %>%
     group_by(uniprot_acc) %>%
@@ -366,7 +380,9 @@ filter_by_score_and_get_similar_peptides <- function( get_15_mer_tbl, site_prob_
                               function(x, y) {  return(  length(which( x >  secondary_site_prob_threshold)) >= y  ) }  ) )  %>%
     dplyr::select( uniprot_acc, protein_site_positions) %>%
     distinct() %>%
-    dplyr::mutate( protein_site_positions = str_split(protein_site_positions, ";")  )
+    dplyr::mutate( protein_site_positions = str_split(protein_site_positions, "[;\\|]")  ) %>%
+    dplyr::mutate( protein_site_positions = purrr::map( protein_site_positions, ~{ str_replace_all( ., "\\(|\\)", "") %>% purrr::map_int(as.integer) }   )   ) %>%
+    distinct()
 
 
   all_filtered_peptide <- peptide_and_pos_pass_filt %>%
@@ -380,8 +396,12 @@ filter_by_score_and_get_similar_peptides <- function( get_15_mer_tbl, site_prob_
   ## Check that all sites in peptide has been found at least one in set "all_peptide_and_sites_pass_filter"
   # Keep peptide if there is another peptide that has >0.75 at all of these sites and secondary site with highest probability in the same position.
   get_15_mer_tbl_filt <- get_15_mer_tbl %>%
+    dplyr::mutate( temp_protein_site_positions = purrr::map_chr( protein_site_positions,
+                                                            ~{ str_replace_all(., "\\(|\\)", "") %>%
+                                                               str_replace_all( "\\|", ";" ) }  )) %>%
     dplyr::inner_join( all_filtered_peptide, by =c( "uniprot_acc" = "uniprot_acc",
-                                                         "protein_site_positions" = "protein_site_positions"))
+                                                         "temp_protein_site_positions" = "protein_site_positions")) %>%
+    dplyr::select(-temp_protein_site_positions)
 
   return( get_15_mer_tbl_filt)
 
@@ -409,8 +429,8 @@ all_phosphosites_pivot_longer <- function( get_15_mer_tbl,
 
   all_sites_long <- get_15_mer_tbl %>%
     dplyr::select( {{cols_to_use}},
-                   matches(col_pattern, perl = TRUE) ) %>%
-    pivot_longer( cols = matches(c(col_pattern), perl = TRUE) ,
+                   matches( paste0(janitor::make_clean_names(col_pattern), "_\\d+" ), perl = TRUE) ) %>%
+    pivot_longer( cols = matches(c( paste0(janitor::make_clean_names(col_pattern), "_\\d+" )), perl = TRUE) ,
                   names_to = "replicate",
                   values_to = "value") %>%
     dplyr::mutate( replicate = str_replace(replicate,

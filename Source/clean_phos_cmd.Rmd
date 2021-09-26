@@ -44,9 +44,9 @@ tic()
 ## Directories management for testing
 ```{r}
 base_dir <- here::here()
-data_dir <- file.path( base_dir, "Data", "ALPK1")
+data_dir <- file.path( base_dir, "Data", "PLoS_Biology_2019")
 source_dir <- file.path(base_dir, "Source",  "Shared")
-fasta_output_dir <- file.path(base_dir, "Results", "ALPK1", "RPE", "Proteins")
+fasta_output_dir <- file.path(base_dir, "Results", "PLoS_Biology_2019", "Phosphopeptides")
 ```
 
 
@@ -55,14 +55,14 @@ knitr::purl( file.path( source_dir,  "clean_phos_cmd.Rmd"),
       
 ## Parameters
 ```{r}
-results_dir <- file.path(base_dir, "Results", "RPE90", "Phosphopeptides", "Abundance_Tables") 
-fasta_file <- file.path( data_dir,   "ALPK1-set1MusMusculus20201226CanIso.fasta")
+results_dir <- file.path(base_dir, "Results", "PLoS_Biology_2019", "Phosphopeptides") 
+fasta_file <- file.path( data_dir,   "16May2017uniprot-RattusIso.fasta")
 fasta_meta_file <-  file.path( fasta_output_dir, "aa_seq_tbl.RDS") 
-raw_counts_file <- file.path( data_dir, "ALPK1-set1evidence.txt") 
+raw_counts_file <- file.path( data_dir, "evidence.txt") 
 site_prob_threshold <- 0.75 # phosphosite probability threshold
 recover_site_prob_thresh <- 0.5
-col_pattern_string <- "Reporter intensity corrected"
-add_cols_string <- "experiment"
+col_pattern_string <- "Reporter intensity"
+add_cols_string <- ""
 
 
 command_line_options <- commandArgs(trailingOnly = TRUE)
@@ -138,6 +138,7 @@ col_pattern <- janitor::make_clean_names( col_pattern_string)
 
 evidence_tbl <- vroom::vroom( raw_counts_file) 
 evidence_janitor <- janitor::clean_names(evidence_tbl)
+colnames(evidence_janitor) <- str_replace(colnames(evidence_janitor), "_i_ds", "_ids" )
 
 ```
 

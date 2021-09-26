@@ -24,8 +24,7 @@ Rscript --vanilla $TEMPLATE_DIR/clean_proteins_cmd.R \
 # If there are other variables to adjust the linear model (e.g. gender and age), 
 # include these as input in the design matrix and formula string.
 Rscript --vanilla $TEMPLATE_DIR/de_analysis_cmd.R \
- --limma-method="contrasts" \
- --min-samples=4 \
+ --max-missing=0 \
  --abundance-thresh=0 \
  --q-value-thresh=0.05 \
  --group-pattern="RPE" \
@@ -52,10 +51,3 @@ Rscript --vanilla $TEMPLATE_DIR/annot_proteins_cmd.R \
  --output-long=$RESULTS_DIR/DE_Analysis/de_proteins_long_annot.tsv \
  --ids=$RESULTS_DIR/DE_Analysis/cleaned_accession_to_protein_group.tab \
  --raw-counts=$DATA_DIR/ALPK1-set1proteinGroups.txt 
-
- 
- 
- 
- 
- 
- 

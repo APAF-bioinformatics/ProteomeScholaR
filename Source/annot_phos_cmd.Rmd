@@ -225,7 +225,6 @@ ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   temp_vec[length(temp_vec)] } )) %>%
   dplyr::mutate( ptm = str_replace_all( ptm, "_site_dataset", ""))
 
-
 ```
 
 ## Find nearby PTM + or - five residues apart 
@@ -233,8 +232,10 @@ ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
 print( paste0("Find other PTM nearby +/- ", near_ptm_num_residues, " amino acid wihtin the phosphorylation sites.") )
 get_nearby_ptm <- de_phos_long  %>% 
   dplyr::distinct( sites_id, uniprot_acc,  position) %>%
-  separate_rows( uniprot_acc, position,  sep="\\:") %>%
+  separate_rows( uniprot_acc, position, sep="\\:") %>%
+  separate_rows( uniprot_acc, position, sep="\\|") %>%  
   separate_rows( uniprot_acc, position, sep=";") %>%  
+  mutate( position = str_replace_all( position, "\\(|\\)", "") %>% purrr::map_int(as.integer)) %>%
   mutate( residue_window =  purrr::map(position,  ~seq( from=as.integer( .)-near_ptm_num_residues, to= as.integer( .)+near_ptm_num_residues, by=1 )) ) %>%
   unnest( residue_window) %>%
   left_join(ptm_tbl %>% 
@@ -283,21 +284,26 @@ num_phos_sites <- de_phos_long  %>%
 phosphosite_plus_tbl <- de_phos_long  %>% 
   dplyr::distinct( sites_id, uniprot_acc, residue, position, sequence) %>%
   separate_rows( uniprot_acc, position, sequence, residue, sep="\\:") %>%
+  separate_rows( uniprot_acc, position, sequence, residue, sep="\\|") %>%  
   separate_rows( uniprot_acc, position, sequence, residue, sep=";") %>%  
+  mutate( position = str_replace_all( position, "\\(|\\)", "") %>% purrr::map_int(as.integer)) %>%
   left_join (reg_sites_tbl %>%
-               dplyr::filter(ptm_type == "p"), 
+               dplyr::filter(ptm_type == "p") %>%
+               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
              by=c("uniprot_acc" = "ACC_ID",
                                  "residue" = "residue",
                                  "position" = "position"
                                  )) %>%
   left_join( ks_tbl %>%
                dplyr::rename(KINASE_GENE = "GENE") %>%
-               dplyr::select(-DOMAIN, - `SITE_+/-7_AA`), 
+               dplyr::select(-DOMAIN, - `SITE_+/-7_AA`) %>%
+               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
              by=c("uniprot_acc" = "SUB_ACC_ID",
                           "residue"="residue",
                           "position" = "position", 
                           "SITE_GRP_ID" = "SITE_GRP_ID"))   %>%
-  left_join( disease_tbl, 
+  left_join( disease_tbl %>%
+               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
              by=c( "uniprot_acc" = "ACC_ID",
                                  "residue" = "residue",
                                  "position" = "position")) %>%
@@ -419,26 +425,28 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 
 ```
 
+
+## Commented out as output file is too large
 ```{r}
-print("Output wider format results table with protein annotation.")
-de_phos_wide_annot <- de_phos_wide %>%
-  left_join( num_phos_sites, by =c("sites_id" = "sites_id")) %>%
-  left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
-  left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
-  left_join( phosphosite_plus_tbl %>%
-               dplyr::select(-uniprot_acc, -position, -residue, -sequence), 
-             by=c("sites_id" = "sites_id")) %>%
-  left_join(  abundance_tbl %>%
-   dplyr::select( sites_id, maxquant_row_ids ), 
-   by=c("sites_id" = "sites_id")) %>%
-  relocate(maxquant_row_ids, .after="sites_id") %>%
-  left_join( get_nearby_ptm, 
-             by=c("sites_id" = "sites_id")) %>%
-  distinct()
-
-head( de_phos_wide_annot ) 
-
-vroom::vroom_write(de_phos_wide_annot, path=output_wide_file ) 
+# print("Output wider format results table with protein annotation.")
+# de_phos_wide_annot <- de_phos_wide %>%
+#   left_join( num_phos_sites, by =c("sites_id" = "sites_id")) %>%
+#   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
+#   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
+#   left_join( phosphosite_plus_tbl %>%
+#                dplyr::select(-uniprot_acc, -position, -residue, -sequence), 
+#              by=c("sites_id" = "sites_id")) %>%
+#   left_join(  abundance_tbl %>%
+#    dplyr::select( sites_id, maxquant_row_ids ), 
+#    by=c("sites_id" = "sites_id")) %>%
+#   relocate(maxquant_row_ids, .after="sites_id") %>%
+#   left_join( get_nearby_ptm, 
+#              by=c("sites_id" = "sites_id")) %>%
+#   distinct()
+# 
+# head( de_phos_wide_annot ) 
+# 
+# vroom::vroom_write(de_phos_wide_annot, path=output_wide_file ) 
 
 ```
 
@@ -464,9 +472,6 @@ head( de_phos_long_annot )
 
 vroom::vroom_write(de_phos_long_annot, path=output_long_file ) 
 
-```
-```{r}
-nearby_ptm_count
 ```
 
 

@@ -263,19 +263,19 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 
 ```
 
-
+## Commented out because output file is too large
 ```{r}
-print("Output wider format results table with protein annotation.")
-de_proteins_wider_annot <- de_proteins_wider %>%
-  left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
-  left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
-  left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
-  left_join( dat_cln, by=c("maxquant_row_id" = "id",
-                           "protein_ids" = "protein_ids"))
-
-head( de_proteins_wider_annot ) 
-
-vroom::vroom_write(de_proteins_wider_annot, path=output_wide_file ) 
+# print("Output wider format results table with protein annotation.")
+# de_proteins_wider_annot <- de_proteins_wider %>%
+#   left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
+#   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
+#   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
+#   left_join( dat_cln, by=c("maxquant_row_id" = "id",
+#                            "protein_ids" = "protein_ids"))
+# 
+# head( de_proteins_wider_annot ) 
+# 
+# vroom::vroom_write(de_proteins_wider_annot, path=output_wide_file ) 
 
 ```
 

@@ -24,8 +24,7 @@ Rscript --vanilla $TEMPLATE_DIR/clean_phos_cmd.R \
  --add-columns="experiment"
  
 Rscript --vanilla $TEMPLATE_DIR/de_analysis_cmd.R \
- --limma-method="contrasts" \
- --min-samples=4 \
+ --max-missing=0 \
  --abundance-thresh=0 \
  --q-value-thresh=0.05 \
  --group-pattern="RPE" \

@@ -38,7 +38,7 @@ p_load(knitr)
 
 p_load(magrittr)
 p_load(optparse)
-
+p_load(ProteomeRiver)
 ```
 ```{r}
 tic()
@@ -140,7 +140,7 @@ phospho_cln
 print ("Read proteomics abundance data.")
 
 
-proteins_tbl_orig <-  vroom::vroom( proteins_file) 
+proteins_tbl_orig <-  vroom::vroom( proteins_file, delim="\t") 
 
 
 proteins_tbl <- proteins_tbl_orig %>%

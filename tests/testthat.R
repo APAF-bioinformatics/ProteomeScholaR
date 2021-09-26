@@ -67,7 +67,7 @@ a <- list(140,166,179	)
 b <- list( 5,9)
 
 test_that( "get_pos_string function ",  {expect_that( get_pos_string(a, b),
-                                                      equals( "(144;148):(170;174):(183;187)" ))} )
+                                                      equals( "(144;148)|(170;174)|(183;187)" ))} )
 
 a <- list(140	)
 b <- list( 5,9)

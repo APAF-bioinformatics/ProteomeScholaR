@@ -55,6 +55,46 @@ get_plot_num_missing_vales <- function(input_table) {
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#' For each experimental group, identify proteins that have more than accepted number of missing values per group.
+#'@param input_table An input table with a column containing the row ID and the rest of the columns representing abundance values for each sample.
+#'@param cols A tidyselect command to select the columns. This includes the functions starts_with(), ends_with(), contains(), matches(), and num_range()
+#'@param design_matrix A data frame with a column containing the sample ID (as per the sample_id param) and the experimental group (as per the group param). Each row as the sample ID as row name in the data frame.
+#'@param sample_id The name of the column in design_matrix table that has the sample ID.
+#'@param row_id A unique ID for each row of the 'input_table' variable.
+#'@param group_column The name of the column in design_matrix table that has the experimental group.
+#'@param max_num_samples_miss_per_group An integer representing the maximum number of samples with missing values per group.
+#'@param abundance_threshold Abundance threshold in which the protein in the sample must be above for it to be considered for inclusion into data analysis.
+#'@return A list, the name of each element is the sample ID and each element is a vector containing the protein accessions (e.g. row_id) with enough number of values.
+#'@export
+remove_rows_with_missing_values <- function( input_table, cols, design_matrix, sample_id, row_id, group_column, max_num_samples_miss_per_group, abundance_threshold) {
+
+  abundance_long <- input_table %>%
+    pivot_longer( cols={{cols}},
+                  names_to = quo_name(enquo(sample_id)),
+                  values_to = "Abundance") %>%
+    left_join( design_matrix, by=quo_name(enquo(sample_id))   )
+
+
+  count_values_per_group <- abundance_long %>%
+    mutate(has_value = ifelse( !is.na(Abundance) & Abundance > abundance_threshold, 0, 1 )) %>%
+    group_by({{row_id}}, {{group_column}}) %>%
+    summarise( num_values = sum( has_value)) %>%
+    ungroup()
+
+
+  remove_rows_temp <- count_values_per_group %>%
+    dplyr::filter( max_num_samples_miss_per_group < num_values   ) %>%
+    dplyr::select(-num_values, -{{group_column}}) %>%
+    distinct( {{row_id}} )
+
+  filtered_tbl <- input_table %>%
+    dplyr::anti_join(  remove_rows_temp, by=quo_name(enquo(row_id)) )
+
+  return( filtered_tbl )
+
+}
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #' For each experimental group, identify proteins that does have enough number of samples with abundance values.
 #'@param input_table An input table with a column containing the row ID and the rest of the columns representing abundance values for each sample.
 #'@param cols A tidyselect command to select the columns. This includes the functions starts_with(), ends_with(), contains(), matches(), and num_range()
@@ -662,7 +702,6 @@ runTests <- function(ID, data, test_pairs, sample_columns, sample_rows_list = NA
       if(    !is.na( sample_rows_list ) &
              #  Check that sample group exists as names inside sample_rows_list
              length(which( c( test_pairs[i, "A"],  test_pairs[i, "B"] ) %in% names( sample_rows_list) )) > 0    ) {
-
 
         rows_to_keep <- unique( sample_rows_list[[ test_pairs[[i, "A"]]]],
                                 sample_rows_list[[ test_pairs[[i, "B"]]]] )
