@@ -36,6 +36,5 @@ Imports:
     limma,
     qvalue,
     ruv,
-    mixOmics,
     UniProt.ws,
     janitor

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bin
 
 # Author(s): Ignatius Pang
 # Email: ipang@cmri.org.au

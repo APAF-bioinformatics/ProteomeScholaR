@@ -1,5 +1,4 @@
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#! /usr/bin/env Rscript
+#!/usr/bin/env Rscript
 
 # Author(s): Ignatius Pang
 # Email: ipang@cmri.org.au
@@ -52,7 +51,7 @@ group_pattern <- "NR"
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "Abundance_Data", "P90")
 results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
-source_dir <- file.path(base_dir, "Source")
+source_dir <- file.path(base_dir, "..")
 
 
 

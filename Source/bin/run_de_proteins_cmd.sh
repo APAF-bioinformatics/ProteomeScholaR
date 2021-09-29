@@ -1,13 +1,74 @@
-#!/bin/bash
+#!/bin/bin
 
-# Author(s): Ignatius Pang
+# Author(s): Ignatius Pang, Pablo Galaviz
 # Email: ipang@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
-BASE_DIR=/home/ignatius/PostDoc/2021/ALPK1_2021
+E_BADARGS=65
+
+#Help string
+basename="$(basename $0)"
+help_string="Usage: $basename --template_dir TEMPLATE_DIR --data_dir DATA_DIR --results_dir RESULTS_DIR \n
+Runs the proteome river pipeline. \n
+\n
+  -h,  --help\t\t\t Show help options \n
+  -t,  --template_dir TEMPLATE_DIR Path to ProteomeRiver's scripts [Default: /opt/ProteomeRiver/Source] \n
+  -d,  --data_dir DATA_DIR\t Path to input data (required) \n
+  -r,  --results_dir\t\t Path to results [Default: $PWD]\n
+ \n"
+
+#Default values:
 TEMPLATE_DIR=$BASE_DIR/Source/Shared
-DATA_DIR=$BASE_DIR/Data/Abundance_Data/P90
-RESULTS_DIR="$BASE_DIR/Results/RPE90/Proteins"
+RESULTS_DIR=$PWD
+
+#Argument parsing
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+	-h | --help)
+	    HELP=TRUE
+	    shift # past argument
+	    ;;
+	-t | --template_dir)
+	    TEMPLATE_DIR="$2"
+	    shift # past argument
+	    shift # past value
+	    ;;
+	-d | --data_dir)
+	    DATA_DIR="$2"
+	    shift # past argument
+	    shift # past value
+	    ;;
+	-r | --results_dir)
+	    RESULTS_DIR="$2"
+	    shift # past argument
+	    shift # past value
+	    ;;
+	*)    # unknown option
+	    POSITIONAL+=("$1") # save it in an array for later
+	    shift # past argument
+	    ;;
+    esac
+done
+
+#test help flag
+if [  $HELP ];
+then
+    echo -e "$help_string"
+  exit 0
+fi
+
+#test mandatory arguments
+if [  -z "$DATA_DIR" ];
+then
+    echo -e "Error: -d,--data_dir is required.\n\n"
+    echo -e  $help_string
+  exit $E_BADARGS
+fi
+
 
 Rscript --vanilla $TEMPLATE_DIR/clean_proteins_cmd.R \
  --output-dir=$RESULTS_DIR/DE_Analysis \

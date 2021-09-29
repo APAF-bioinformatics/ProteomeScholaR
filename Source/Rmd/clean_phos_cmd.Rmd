@@ -1,12 +1,16 @@
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
 #! /usr/bin/env Rscript
 
 # Author(s): Ignatius Pang
 # Email: ipang@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 #Test if BioManager is installed 
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
@@ -36,16 +40,21 @@ p_load(tictoc)
 
 tic()
 
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```
+## Directories management for testing
+```{r}
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "PLoS_Biology_2019")
-source_dir <- file.path(base_dir, "Source",  "Shared")
+source_dir <- file.path(base_dir, "..", "Shared")
 fasta_output_dir <- file.path(base_dir, "Results", "PLoS_Biology_2019", "Phosphopeptides")
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+knitr::purl( file.path( source_dir,  "clean_phos_cmd.Rmd"), 
+             output=file.path(source_dir, "clean_phos_cmd.R") ) 
+      
+## Parameters
+```{r}
 results_dir <- file.path(base_dir, "Results", "PLoS_Biology_2019", "Phosphopeptides") 
 fasta_file <- file.path( data_dir,   "16May2017uniprot-RattusIso.fasta")
 fasta_meta_file <-  file.path( fasta_output_dir, "aa_seq_tbl.RDS") 
@@ -122,17 +131,19 @@ create_dir_if_not_exists(results_dir)
 additional_cols <- str_split(  add_cols_string, ",")[[1]] 
 col_pattern <- janitor::make_clean_names( col_pattern_string)
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 evidence_tbl <- vroom::vroom( raw_counts_file) 
 evidence_janitor <- janitor::clean_names(evidence_tbl)
 colnames(evidence_janitor) <- str_replace(colnames(evidence_janitor), "_i_ds", "_ids" )
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
   ## Read fasta file 
   
   print( "Step 1: Reading the fasta file.")
@@ -162,9 +173,9 @@ if(!file.exists( file.path( fasta_meta_file))) {
   evidence_tbl_filt <- remove_peptides_without_abundances(evidence_tbl_cleaned, col_pattern)
 
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
   ## For all the multi-phosphosites peptide extract their intensity, filter peptide with no intensity across all samples, extract site probabilities
   print("Step 5: Filter peptides with no intensity across all samples, extract intensity data, extract sites")
   sites_probability_tbl <- filter_peptide_and_extract_probabilities (evidence_tbl_filt , 
@@ -174,9 +185,10 @@ if(!file.exists( file.path( fasta_meta_file))) {
                                                                       phospho_site_prob_col = phospho_sty_probabilities,
                                                      num_phospho_site_col = phospho_sty ) 
   
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
   ## Get the peptide start and end position for each peptide 
   print("Step 6: Add peptide start and end position")
   peptide_start_and_end <- add_peptide_start_and_end( sites_probability_tbl , aa_seq_tbl )
@@ -223,16 +235,17 @@ if(!file.exists( file.path( fasta_meta_file))) {
   summarised_wide_tbl_list <- unique_phosphosites_summarise_wide_list( summarised_long_tbl_list, 
                                                                        additional_cols)
   
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 results_list  <- list( summarised_wide_list = summarised_wide_tbl_list, 
                 summarised_long_list = summarised_long_tbl_list, 
                 all_phos_sites_wide  = all_phos_sites_wide_tbl, 
                 all_phos_sites_long  = all_phos_sites_long_tbl )
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Output files 
+```{r}
 output_files <- map_chr( list(  "mean", "median", "sum"), 
                          ~file.path(results_dir, paste0(., "_phoshpsites.tsv" )  ) ) 
 
@@ -249,9 +262,13 @@ saveRDS( results_list$summarised_long_list,
 saveRDS( results_list$summarised_wide_list, 
          file.path(results_dir, "summarised_wide_tbl_list.RDS" ))
 
+```
+
+git reset --soft HEAD~1
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 toc()
 sessionInfo()
+```
 

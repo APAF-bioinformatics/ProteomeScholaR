@@ -1,12 +1,16 @@
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+title: "Annotate phosphorylation sites "
+output: html_notebook
+---
+```{r}
 #! /usr/bin/env Rscript
 
 # Author(s): Ignatius Pang
 # Email: ipang@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 options(knitr.duplicate.label = "allow")
 
@@ -24,25 +28,28 @@ if(!require(pacman)){
 }
 p_load(optparse)
 p_load(tictoc)
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```
+```{r}
 tic()
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 group_pattern <- "RPE"
 ## Directories management 
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data")
 results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
-source_dir <- file.path(base_dir, "Source")
+source_dir <- file.path(base_dir, "..")
 
 phosphosite_db_dir <- file.path(   data_dir,  "PhosphositePlus", "20210730")
 
+```
+## Command to convert the R markdown file to a R file for use in command line. 
+knitr::purl( file.path(  source_dir, "Shared",  "annot_phos_cmd.Rmd"), 
+             output=file.path( source_dir,  "Shared",   "annot_phos_cmd.R") ) 
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 input_long_file <- file.path( results_dir, "de_phos_long.tsv" ) 
 input_wide_file  <- file.path( results_dir, "de_phos_wide.tsv" ) 
@@ -122,9 +129,9 @@ if( length(command_line_options ) > 0 ) {
 
 }
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 p_load(tidyverse)
 p_load(vroom)
 p_load(magrittr)
@@ -134,16 +141,16 @@ p_load(ProteomeRiver)
 p_load(UniProt.ws)
 p_load(biomaRt)
 p_load(GO.db)
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 create_dir_if_not_exists(results_dir)
 ks_file <-  file.path( phosphosite_db_dir, "Kinase_Substrate_Dataset") 
 reg_sites_file <- file.path( phosphosite_db_dir, "Regulatory_sites" ) 
 disease_file <- file.path( phosphosite_db_dir, "Disease-associated_sites")
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Read abundance table.")
 abundance_tbl <- vroom::vroom(raw_counts_file)
 
@@ -161,16 +168,17 @@ de_phos_wide <- vroom::vroom( input_wide_file) %>%
   mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
   dplyr::relocate(residue, .before="position")
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Read PhosphoSitePlus (PSP) kinase-substrate table.")
 ks_tbl <- vroom::vroom( ks_file, skip=3 ) %>%
   mutate( SUB_MOD_RSD_CLN = str_replace_all(SUB_MOD_RSD, "([A-Z])(\\d+)", "\\1 \\2")) %>%
   separate( SUB_MOD_RSD_CLN, into=c("residue", "position")) 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Read PSP regulatory sites table.")
 reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
       mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
@@ -180,9 +188,9 @@ reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
       dplyr::rename( REG_SITES_PMIDs = "PMIDs") %>%
       dplyr::rename( REG_SITES_NOTES = "NOTES")
   
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print( "Read PSP disease table")
 disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
   dplyr::select( ACC_ID, MOD_RSD, DISEASE, ALTERATION, NOTES ) %>%
@@ -190,9 +198,11 @@ disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
   separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
   dplyr::rename( DISEASE_NOTES = "NOTES") %>%
   dplyr::select(-MOD_RSD, -ptm_type) 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Read PTM tables
+```{r}
 
 print("Read PSP post-translational modification (PTM) tables")
 list_of_ptm_file_names <- c("Acetylation_site_dataset",
@@ -215,9 +225,10 @@ ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   temp_vec[length(temp_vec)] } )) %>%
   dplyr::mutate( ptm = str_replace_all( ptm, "_site_dataset", ""))
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Find nearby PTM + or - five residues apart 
+```{r}
 print( paste0("Find other PTM nearby +/- ", near_ptm_num_residues, " amino acid wihtin the phosphorylation sites.") )
 get_nearby_ptm <- de_phos_long  %>% 
   dplyr::distinct( sites_id, uniprot_acc,  position) %>%
@@ -249,9 +260,10 @@ nearby_ptm_count <- get_nearby_ptm %>%
                names_prefix = paste0("nearby_+/-", near_ptm_num_residues, "_") )
 
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Get number of phosphosites on the peptide, is it multiply phosphorylated
+```{r}
 num_phos_sites <- de_phos_long  %>% 
   dplyr::distinct( sites_id, position) %>%
   dplyr::mutate( num_sites =   str_split(position, ":") %>% 
@@ -263,9 +275,10 @@ num_phos_sites <- de_phos_long  %>%
   dplyr::select(-position)
 
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 # de_phos_long %>% dplyr::filter( str_detect( uniprot_acc, "[^[:alnum:]]+" ) )
 
 phosphosite_plus_tbl <- de_phos_long  %>% 
@@ -308,9 +321,11 @@ phosphosite_plus_tbl <- de_phos_long  %>%
 # de_phos_long_annot %>%
 #   dplyr::filter( !is.na(ptm_type) | !is.na( KINASE))
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Download Reactome annotation file 
+```{r}
 
 print("Download Reactome UniProt to pathways file.")
 
@@ -324,9 +339,9 @@ reactome_map <- vroom::vroom( temp_file ,
 
 
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 print("Get the best UniProt accession per row.")
 
@@ -340,9 +355,10 @@ uniprot_acc_tbl <- de_phos_long %>%
   ungroup
 
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Download information from UniProt.")
 uniprot_dat <- NA
 up <- NA
@@ -364,14 +380,15 @@ if( ! file.exists( file.path(results_dir, "uniprot_data.RDS"))) {
   uniprot_dat <- readRDS( file.path(results_dir, "uniprot_data.RDS"))
 }
 
+```
 
 
-## ----eval=FALSE--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-##  # uniprot_dat <- batch_query_evidence(uniprot_acc_tbl %>% head(100), best_uniprot_acc, uniprot_handle=up,
-##  #                                      uniprot_columns = list_of_sp_columns)
+```{r eval=FALSE}
+ # uniprot_dat <- batch_query_evidence(uniprot_acc_tbl %>% head(100), best_uniprot_acc, uniprot_handle=up, 
+ #                                      uniprot_columns = list_of_sp_columns)
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 
 print("Merge with Gene Ontology terms.")
 goterms <- Term(GOTERM)
@@ -391,9 +408,9 @@ uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
 
 uniprot_dat_multiple_acc
 
+```
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Add reactome pathways annotation.")
 reactome_term_tbl <- uniprot_acc_tbl %>%
   left_join( reactome_map, by=c("join_uniprot_acc" = "uniprot_acc") )   %>%
@@ -406,9 +423,11 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
   summarise( reactome_term = paste(reactome_term, collapse=":") ) %>%
   ungroup()   
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Commented out as output file is too large
+```{r}
 # print("Output wider format results table with protein annotation.")
 # de_phos_wide_annot <- de_phos_wide %>%
 #   left_join( num_phos_sites, by =c("sites_id" = "sites_id")) %>%
@@ -429,9 +448,10 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 # 
 # vroom::vroom_write(de_phos_wide_annot, path=output_wide_file ) 
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 print("Output longer format results table with protein annotation.")
 de_phos_long_annot <- de_phos_long %>%
   left_join( num_phos_sites, by =c("sites_id" = "sites_id")) %>%
@@ -452,8 +472,10 @@ head( de_phos_long_annot )
 
 vroom::vroom_write(de_phos_long_annot, path=output_long_file ) 
 
+```
 
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
 toc()
+```
 

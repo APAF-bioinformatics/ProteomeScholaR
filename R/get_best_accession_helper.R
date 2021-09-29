@@ -160,8 +160,8 @@ choose_best_accession <- function( input_tbl, acc_detail_tab, accessions_column,
   join_names <- set_names( c(quo_name(my_group_id), "ranking", "gene_name" ) ,
                            c(quo_name(my_group_id), "ranking", "gene_name" ) )
 
-  group_gene_names_and_uniprot_accs <- score_isoforms |>
-    distinct( {{group_id}}, gene_name, ranking ) |>
+  group_gene_names_and_uniprot_accs <- score_isoforms %>%
+    distinct( {{group_id}}, gene_name, ranking ) %>%
     dplyr::filter( ranking == 1) %>%
     left_join( score_isoforms %>%
                  dplyr::select( {{group_id}}, ranking, gene_name, uniprot_acc),
@@ -181,4 +181,3 @@ choose_best_accession <- function( input_tbl, acc_detail_tab, accessions_column,
   return( group_gene_names_and_uniprot_accs )
 
 }
-

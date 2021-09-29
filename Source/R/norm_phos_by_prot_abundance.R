@@ -1,17 +1,12 @@
----
-title: "R Notebook"
-output: html_notebook
----
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #! /usr/bin/env Rscript
 
 # Author(s): Ignatius Pang
 # Email: ipang@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
-```
 
-## Packages installation and loading
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #Test if BioManager is installed 
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
@@ -39,32 +34,25 @@ p_load(knitr)
 p_load(magrittr)
 p_load(optparse)
 p_load(ProteomeRiver)
-```
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 tic()
-```
 
 
-
-## Directories management 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 group_pattern <- "RPE"
 ## Directories management 
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data")
 phos_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
-source_dir <- file.path(base_dir, "Source")
+source_dir <- file.path(base_dir, "..")
 prot_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
 results_dir <- phos_results_dir
 
-```
 
-## Command to convert the R markdown file to a R file for use in command line. 
-knitr::purl( file.path(  source_dir, "Shared",  "norm_phos_by_prot_abundance.Rmd"), 
-             output=file.path( source_dir,  "Shared",   "norm_phos_by_prot_abundance.R") ) 
-    
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 proteins_file <- file.path( prot_results_dir, "de_proteins_long_annot.tsv" ) 
 phospho_file  <- file.path(   phos_results_dir, "de_phos_long_annot.tsv" ) 
@@ -101,21 +89,14 @@ if( length(command_line_options ) > 0 ) {
 
 }
 
-```
 
-Meaning of separators
-* ; semi-colon - multiple phosphorylation sites on the same peptide
-* | pipe - the same phosphopeptide maps to multiple locations on the protein
-* : colon - the same phosphopeptide maps to multiple genes 
-* ! exclamation mark - sites_id column, field separator for different types of data (e.g. uniprot accession, phosphosite position, phosphosite centered 15-mer sequence)
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print ("Create results directory if it does not yet exists.")
 create_dir_if_not_exists(results_dir)
-```
 
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print ("Read phosphopeptides abundance data.")
 
 phospho_tbl_orig <- vroom::vroom(phospho_file) 
@@ -132,11 +113,9 @@ phospho_cln <- phospho_tbl %>%
 
 phospho_cln
 
-```
 
 
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print ("Read proteomics abundance data.")
 
 
@@ -150,13 +129,9 @@ proteins_tbl <- proteins_tbl_orig %>%
 proteins_cln <- proteins_tbl  %>%
   mutate( uniprot_acc_copy = uniprot_acc) %>%
   separate_rows(uniprot_acc_copy, sep="[\\:;]") 
-```
 
-## RPE
-proteins 3021
-phosphoproteins 4242
-intersect proteins and phosphoproteins 631
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc_copy) %>% pull(uniprot_acc_copy) 
 phospho_uniprot_list <- phospho_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
@@ -167,16 +142,9 @@ proteins_uniprot_list %>% length()
 phospho_uniprot_list %>% length()
 prot_phos_uniprot_list %>% length()
 
-```
-
-## Normalisation of the phosphoproteome with the proteome 
-
-We did all the usual processing, global normalization, imputation, etc, taking the data pretty much to the end and then he SUBTRACTED the proteome log2FC data from the phosphoproteome log2FC data.
-
-We just left alone the phosphoproteome data that didn’t have underlying proteome data. i.e. kept it.  
 
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print( "Normalisation of the phosphopeptide abundance with the protein abundance.")
 basic_data_shared <- proteins_cln %>%
   inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",  
@@ -206,10 +174,9 @@ nrow(basic_data) == nrow(phospho_cln)
 
 vroom::vroom_write( basic_data, file.path( results_dir,  "norm_phosphosite_lfc_minus_protein_lfc_basic.tsv"))
 
-```
 
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Join normalized phosphopeptide abundance table with phosphosite annotations")
 annotation_from_phospho_tbl <- phospho_tbl_orig %>%
   dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc)
@@ -223,11 +190,9 @@ annotated_phos_tbl <- basic_data %>%
 vroom::vroom_write( annotated_phos_tbl, file.path( results_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
 
 
-```
 
 
-## Compare before and after normalization with protein abundance 
-```{r}
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Compare before and after normalization with protein abundance")
 before_prot_norm <- phospho_cln %>%
   dplyr::filter( q.mod < 0.05) %>%
@@ -269,10 +234,9 @@ compare_before_and_after <- before_prot_norm %>%
  ggsave( plot=cmp_before_after_plot, file.path(results_dir, "compare_before_and_after_norm_by_prot_abundance.png"), width = 14, height=7 )
 
  
-```
 
-## Volcano Plot
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Create Volcano Plot")
 qm.threshold <- 0.05
 logFC.threshold <- 1
@@ -307,12 +271,8 @@ ggsave(  filename=file.path( results_dir, "volplot_gg_phos_vs_prot.all.svg"), pl
 
 ggplotly(basic_data_volcano_plot)
 
-```
-```{r}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 toc()
 sessionInfo()
-```
-
-
-
 

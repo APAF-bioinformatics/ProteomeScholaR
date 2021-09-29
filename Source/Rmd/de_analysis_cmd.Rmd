@@ -49,7 +49,7 @@ analysis_type <-  group_pattern # "RPE_Test_RUV" #
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "Abundance_Data", "P90")
 results_dir <- file.path(base_dir, "Results", paste0( analysis_type, "90") ,  "Proteins", "DE_Analysis")
-source_dir <- file.path(base_dir, "Source")
+source_dir <- file.path(base_dir, "..")
 ```
 
 

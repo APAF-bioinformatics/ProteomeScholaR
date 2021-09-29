@@ -32,7 +32,7 @@ group_pattern <- "RPE"
 base_dir <- here::here()
 data_dir <- file.path( base_dir, "Data", "ALPK1")
 results_dir <- file.path(base_dir, "Results", "ALPK1", group_pattern, "Proteins")
-source_dir <- file.path(base_dir, "Source")
+source_dir <- file.path(base_dir, "..")
 
 ```
 
