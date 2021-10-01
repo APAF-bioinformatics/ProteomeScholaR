@@ -1,2 +1,2 @@
 PREFIX := $(HOME)/opt
-RPATH := /usr/bin
+REXEC := /usr/bin/R

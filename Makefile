@@ -8,7 +8,7 @@ include config.mk
 # Directories
 # ---------------------------------------------------------------
 BASE = $(shell /bin/pwd)
-SCRIPS = $(BASE)/Source
+SCRIPTS = $(BASE)/Source
 TEST = $(BASE)/tests
 SRCD = $(BASE)/R
 
@@ -24,9 +24,9 @@ intro:
 	@echo ''
 
 setdirs:
-	@mkdir -p $(PREFIX)/$(PROJECT)/Source
+	@mkdir -p $(PREFIX)/$(PROJECT)/Source/R
+	@mkdir -p $(PREFIX)/$(PROJECT)/Source/shell
 	@mkdir -p $(PREFIX)/$(PROJECT)/test
-	@mkdir -p $(PREFIX)/$(PROJECT)/R
 
 
 
@@ -65,12 +65,12 @@ install:intro setdirs
 	@echo '-----------------------------------'
 	@echo '	'
 	@Rscript -e 'devtools::document()'
-	@R CMD INSTALL ./
-	@cp -r $(SCRIPS)/* $(PREFIX)/$(PROJECT)/Source/
+	@$(RPATH)/R CMD INSTALL ./
+	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
+	@cp -r $(SCRIPTS)/shell/* $(PREFIX)/$(PROJECT)/Source/shell
 	@chmod +x $(PREFIX)/$(PROJECT)/Source/R/*
-	@chmod +x $(PREFIX)/$(PROJECT)/Source/bin/*
+	@chmod +x $(PREFIX)/$(PROJECT)/Source/shell/*
 	@cp -r $(TEST)/* $(PREFIX)/$(PROJECT)/test/
-	@cp -r $(SRCD)/* $(PREFIX)/$(PROJECT)/R/
 	@echo '	'
 	@echo 'append $(PREFIX)/$(PROJECT)/Source/R to your PATH environment variable'
 	@echo "export PATH=$(PREFIX)/$(PROJECT)/Source/R:\$$PATH"
