@@ -5,7 +5,7 @@ Authors@R:
     person(given = "Ignatius",
            family = "Pang",
            role = c("aut", "cre"),
-           email = "ipang@cmri.org.au",
+           email = "cmri-bioinformatics@cmri.org.au",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: Tools for Proteomics and Phosphoproteomics analysis.
 License: LGPL (>= 3)

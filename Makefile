@@ -1,3 +1,6 @@
+# Author(s): Pablo Galaviz
+# Email: cmri-bioinformatics@cmri.org.au
+# Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 
 PROJECT := ProteomeRiver
@@ -64,8 +67,8 @@ install:intro setdirs
 	@echo 'Installing $(PROJECT) on $(PREFIX)'
 	@echo '-----------------------------------'
 	@echo '	'
-	@Rscript -e 'devtools::document()'
-	@$(RPATH)/R CMD INSTALL ./
+	@$(RSCRIPTEXEC) -e 'devtools::document()'
+	@$(REXEC) CMD INSTALL ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
 	@cp -r $(SCRIPTS)/shell/* $(PREFIX)/$(PROJECT)/Source/shell
 	@chmod +x $(PREFIX)/$(PROJECT)/Source/R/*

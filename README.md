@@ -53,7 +53,7 @@ Ignatius Pang
 
 Pablo Galaviz 
 
-Contact:  ipang@cmri.org.au 
+Contact:  cmri-bioinformatics@cmri.org.au
 
 
 **Children’s Medical Research Institute, finding cures for childhood genetic diseases**  

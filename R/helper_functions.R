@@ -57,6 +57,7 @@ convert_key_to_attribute <- function(key, hash) {
 
 ##################################################################################################################
 
+#TODO: Move to an Rpackage RCMRI with common functions. It may be a dependency for each CMRI's project.
 #' @export
 create_directory_if_not_exists <- function(file_path, mode = "0777") {
 
