@@ -55,7 +55,7 @@ parser <- add_option(parser, c("-c","--config"), type = "character", default = "
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "output", dest = "output_dir",
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "clean_proteins", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -64,39 +64,39 @@ parser <- add_option(parser, c("-l","--log_file"), type = "character", default =
                      metavar = "string")
 
 #Options without a default value have the following priority: configuration file < command line argument
-parser <- add_option(parser, c("--accession_record_file"), type = "character", dest = "accession_record_file",
+parser <- add_option(parser, "--accession_record_file", type = "character", dest = "accession_record_file",
                      help = "File to link the cleaned list of accessions to the original list of protein groups from MaxQuant file. Also, contains the MaxQuant output ID.",
                      metavar = "string")
 
-parser <- add_option(parser, c("--fasta_file"), type = "character", dest = "fasta_file",
+parser <- add_option(parser, "--fasta_file", type = "character", dest = "fasta_file",
                      help = "Input protein sequence FASTA file with UniProt FASTA header format.",
                      metavar = "string")
 
-parser <- add_option(parser, c("--raw_counts_file"), type = "character", dest = "raw_counts_file",
+parser <- add_option(parser, "--raw_counts_file", type = "character", dest = "raw_counts_file",
                      help = "Input file with the protein abundance data.",
                      metavar = "string")
 
-parser <- add_option(parser, c("--output_counts_file"), type = "character", dest = "output_counts_file",
+parser <- add_option(parser, "--output_counts_file", type = "character", dest = "output_counts_file",
                      help = "String representing the name of the output counts data file which will be saved in the directory specified with the --output-dir flag.",
                      metavar = "string")
 
-parser <- add_option(parser, c("--column_pattern_input"), type = "character", dest = "column_pattern_input",
+parser <- add_option(parser, "--column_pattern_input", type = "character", dest = "column_pattern_input",
                      help = "String pattern, together with the experimental group pattern, that matches the abundance data columns.",
                      metavar = "string")
 
-parser <- add_option(parser, c("--group_pattern"), type = "character", dest = "group_pattern",
+parser <- add_option(parser, "--group_pattern", type = "character", dest = "group_pattern",
                      help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, c("--razor_unique_peptides_group_thresh"), type = "integer", dest = "razor_unique_peptides_group_thresh",
+parser <- add_option(parser, "--razor_unique_peptides_group_thresh", type = "integer", dest = "razor_unique_peptides_group_thresh",
                      help = "Number of razor and unique peptides for the specified experiemtal group needs to be higher than this threshold for the protein to be included for the analysis.",
                      metavar = "integer")
 
-parser <- add_option(parser, c("--unique_peptides_group_thresh"), type = "integer", dest = "unique_peptides_group_thresh",
+parser <- add_option(parser, "--unique_peptides_group_thresh", type = "integer", dest = "unique_peptides_group_thresh",
                      help = "Number of unique peptides for the specified experiemtal group needs to be higher than this threshold for the protein to be included for the analysis.\nThe file will be saved in the results directory",
                      metavar = "integer")
 
-parser <- add_option(parser, c("--fasta_meta_file"), type = "character", dest = "fasta_meta_file",
+parser <- add_option(parser, "--fasta_meta_file", type = "character", dest = "fasta_meta_file",
                      help = "R object storage file that records all the sequence and header information in the FASTA file.",
                      metavar = "string")
 
@@ -182,8 +182,17 @@ for (v in names(args))
 }
 loginfo("----------------------------------------------------")
 
-test_required_files(c(args$fasta_file,args$raw_counts_file))
-test_required_arguments(args,c("output_counts_file","razor_unique_peptides_group_thresh","unique_peptides_group_thresh","fasta_meta_file","group_pattern","accession_record_file"))
+test_required_files(c(
+  args$fasta_file
+  ,args$raw_counts_file))
+test_required_arguments(args,c(
+  "output_counts_file"
+  ,"razor_unique_peptides_group_thresh"
+  ,"unique_peptides_group_thresh"
+  ,"fasta_meta_file"
+  ,"group_pattern"
+  ,"accession_record_file"
+))
 
 
 
@@ -191,6 +200,7 @@ test_required_arguments(args,c("output_counts_file","razor_unique_peptides_group
 loginfo("Reading the counts file.")
 
 dat_tbl <- vroom::vroom(args$raw_counts_file)
+
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Clean counts table header name.")
@@ -211,6 +221,7 @@ extract_patt_suffix <- "_(\\d+)"
 if (args$group_pattern != "") {
   extract_patt_suffix <- paste0("_(\\d+)_(", tolower(args$group_pattern), ")")
 }
+
 
 column_pattern <- paste0(make_clean_names(args$column_pattern), pattern_suffix)
 
@@ -272,6 +283,7 @@ peptides_count_helper <- evidence_tbl %>%
                   !!rlang::sym(razor_unique_peptides_group_col),
                   !!rlang::sym(unique_peptides_group_col)))
 
+
 evidence_tbl_cleaned <- NA
 
 evidence_tbl_cleaned <- peptides_count_helper %>%
@@ -296,7 +308,9 @@ accession_gene_name_tbl_record <- accession_gene_name_tbl %>%
 
 evidence_tbl_filt <- NA
 
+#TODO: This part need improvement. There is potential for bugs.
 if (args$group_pattern != "") {
+
 
   evidence_tbl_filt <- evidence_tbl_cleaned %>%
     inner_join(accession_gene_name_tbl %>%
