@@ -102,77 +102,21 @@ parser <- add_option(parser, "--fasta_meta_file", type = "character", dest = "fa
 
 #parse comand line arguments first.
 args <- parse_args(parser)
-#TODO: create an Rpackage RCMRI with common functions. It may be a dependency for each CMRI's project.
-#=====================================================================================================
-create_output_dir<-function(output_dir,no_backup) {
-  if(output_dir==""){
-    logerror("output_dir is an empty string")
-    q()
-  }
-  if (dir.exists(output_dir)) {
-    if (no_backup) {
-      unlink(output_dir, recursive = TRUE)
-    }
-    else {
-      backup_name <- paste(output_dir, "_prev", sep = "")
-      if (dir.exists(backup_name)) { unlink(backup_name, recursive = TRUE) }
-      system(paste("mv", output_dir, backup_name)) }
-  }
-  dir.create(output_dir)
-}
 
-cmri_welcome<-function(name, autors) {
-  loginfo("   ______     __    __     ______     __       ")
-  loginfo('  /\\  ___\\   /\\ "-./  \\   /\\  == \\   /\\ \\      ')
-  loginfo("  \\ \\ \\____  \\ \\ \\-./\\ \\  \\ \\  __<   \\ \\ \\     ")
-  loginfo("   \\ \\_____\\  \\ \\_\\ \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\    ")
-  loginfo("    \\/_____/   \\/_/  \\/_/   \\/_/ /_/   \\/_/    ")
-  loginfo("")
-  loginfo("---- Children’s Medical Research Institute ----")
-  loginfo(" Finding cures for childhood genetic diseases  ")
-  loginfo("")
-  loginfo(" ==============================================")
-  loginfo(" %s",name)
-  loginfo(" Author(s): %s", paste(autors,sep=", "))
-  loginfo(" cmri-bioinformatics@cmri.org.au")
-  loginfo(" ==============================================")
-  loginfo("")
-}
-
-test_required_files<-function(files){
-  missing_files<-!file.exists(files)
-  for (file in files[missing_files]){
-    logerror("Missing required file: %s",file)
-    q()
-  }
-}
-
-test_required_arguments<-function(arg_list,parameters){
-  for(par in parameters){
-    if( ! par %in% names(arg_list)) {
-        logerror("Missing required argument: %s",par)
-        q()
-    }
-  }
-}
-
-formatter.cmri <- function(record) { sprintf('CMRI Bioinformatics %s [%s] | %s', record$levelname, record$timestamp, record$msg) }
-#=====================================================================================================
-
-create_output_dir(args$output_dir,args$no_backup)
+createOutputDir(args$output_dir, args$no_backup)
 
 ## Logger configuration
 logReset()
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
-addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = formatter.cmri)
-addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = formatter.cmri)
+addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = cmriFormatter)
 
 #parse and merge the configuration file options.
 if (args$config != "") {
   args <- config.list.merge(eval.config(file = args$config, config = "clean_proteins"), args)
 }
 
-cmri_welcome("ProteomeRiver",c("Ignatius Pang","Pablo Galaviz"))
+cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
 loginfo("Argument: Value")
 loginfo("----------------------------------------------------")
@@ -182,10 +126,10 @@ for (v in names(args))
 }
 loginfo("----------------------------------------------------")
 
-test_required_files(c(
+testRequiredFiles(c(
   args$fasta_file
   ,args$raw_counts_file))
-test_required_arguments(args,c(
+testRequiredArguments(args, c(
   "output_counts_file"
   ,"razor_unique_peptides_group_thresh"
   ,"unique_peptides_group_thresh"
@@ -193,6 +137,12 @@ test_required_arguments(args,c(
   ,"group_pattern"
   ,"accession_record_file"
 ))
+
+args<-parseType(args,
+  c("razor_unique_peptides_group_thresh"
+    ,"unique_peptides_group_thresh"
+  )
+                ,as.integer)
 
 
 
@@ -251,7 +201,7 @@ if (file.exists(args$fasta_meta_file))
   aa_seq_tbl <- readRDS(args$fasta_meta_file)
 }else{
   loginfo("Mata-data does not exists, parsing fasta and saving RDS.")
-  aa_seq_tbl <- parse_fasta_file(args$fasta_file)
+  aa_seq_tbl <- parseFastaFile(args$fasta_file)
   saveRDS(aa_seq_tbl, args$fasta_meta_file)
 }
 
@@ -295,11 +245,11 @@ evidence_tbl_cleaned <- peptides_count_helper %>%
 loginfo("Identify best UniProt accession per entry, extract sample number and simplify column header")
 
 
-accession_gene_name_tbl <- choose_best_protein_accession(input_tbl = evidence_tbl_cleaned,
-                                                         acc_detail_tab = aa_seq_tbl,
-                                                         accessions_column = protein_ids,
-                                                         row_id_column = uniprot_acc,
-                                                         group_id = maxquant_row_id)
+accession_gene_name_tbl <- chooseBestProteinAccession(input_tbl = evidence_tbl_cleaned,
+                                                      acc_detail_tab = aa_seq_tbl,
+                                                      accessions_column = protein_ids,
+                                                      row_id_column = uniprot_acc,
+                                                      group_id = maxquant_row_id)
 
 
 accession_gene_name_tbl_record <- accession_gene_name_tbl %>%

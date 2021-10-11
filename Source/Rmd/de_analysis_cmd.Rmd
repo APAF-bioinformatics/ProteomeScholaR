@@ -255,7 +255,7 @@ p_load(ProteomeRiver)
 ## Create directories
 ```{r}
 print ("Create results directory if it does not yet exists.")
-create_dir_if_not_exists( results_dir)
+createDirIfNotExists(results_dir)
 
 ```
 
@@ -324,15 +324,15 @@ cln_dat_wide_cleaned <- NA
 if( !is.na(max_num_samples_miss_per_group) ) {
   print("Remove row with any missing values")
   
-cln_dat_wide_cleaned <- remove_rows_with_missing_values( cln_dat_wide_unsorted, 
-                                            matches(group_pattern), 
-                                            design_mat_cln %>% 
-                                              dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
-                                            !!rlang::sym(my_sample_id), 
-                                            !!rlang::sym(my_row_id), 
-                                            !!rlang::sym(my_group_id), 
-                                            max_num_samples_miss_per_group, 
-                                            abundance_threshold)
+cln_dat_wide_cleaned <- removeRowsWithMissingValues(cln_dat_wide_unsorted,
+                                                    matches(group_pattern),
+                                                    design_mat_cln %>%
+                                              dplyr::mutate( Sample_ID = as.character(Sample_ID)),
+                                                    !!rlang::sym(my_sample_id),
+                                                    !!rlang::sym(my_row_id),
+                                                    !!rlang::sym(my_group_id),
+                                                    max_num_samples_miss_per_group,
+                                                    abundance_threshold)
 
 } else {
   cln_dat_wide_cleaned <- cln_dat_wide_unsorted
@@ -368,9 +368,9 @@ vroom::vroom_write( cln_dat_wide, file.path( results_dir, "raw_counts_after_remo
 ## Functions to create the replicate matrix for RUVs
 ```{r}
 
-ruvIII_replicates_matrix <- get_ruvIII_replicate_matrix( design_mat_cln,  
-                                                         !!rlang::sym(my_sample_id), 
-                                                         !!rlang::sym(my_group_id))
+ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
+                                                     !!rlang::sym(my_sample_id),
+                                                     !!rlang::sym(my_group_id))
 
 ruvIII_replicates_matrix
 ```
@@ -400,7 +400,7 @@ print("Count the number of missing values for each sample.")
 ## Count the total number of missing values in total
 table(is.infinite(data.matrix(log2(counts_filt))))
 
-plot_num_missing_values <- get_plot_num_missing_vales(counts_filt[,cols_for_analysis])
+plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
 plot_num_missing_values
 
@@ -441,7 +441,7 @@ print("Missing value imputation")
 
 counts_rnorm.log.quant <- counts_na.log.quant %>%
   as.data.frame %>%
-  mutate_all( ~{impute_per_col(., width = 0.3, downshift = 1.8)} ) %>%
+  mutate_all( ~{imputePerCol(., width = 0.3, downshift = 1.8)} ) %>%
   as.matrix
 
 counts_rnorm.is_nan <- counts_rnorm.log.quant %>% 
@@ -463,7 +463,7 @@ print("Run statistical tests without RUV.")
 
 ID <- rownames(counts_rnorm.log.quant)
 
-type_of_grouping <- get_type_of_grouping( design_matrix=design_mat_cln, group_id=my_group_id, sample_id=my_sample_id)
+type_of_grouping <- getTypeOfGrouping(design_matrix=design_mat_cln, group_id=my_group_id, sample_id=my_sample_id)
 
 list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
@@ -480,11 +480,11 @@ myRes_rnorm.log.quant <- NA
 # } else if ( limma_method == "contrasts") {
   
 
-  list_rnorm.log.quant.ruv.r0 <- runTests_contrasts( counts_rnorm.log.quant, 
-                                                     contrast_strings = contrasts_tbl[,1][[1]], 
-                                                     design_matrix = design_mat_cln, 
-                                                     formula_string = formula_string,  
-                                                     weights=NA )  
+  list_rnorm.log.quant.ruv.r0 <- runTestsContrasts(counts_rnorm.log.quant,
+                                                   contrast_strings = contrasts_tbl[,1][[1]],
+                                                   design_matrix = design_mat_cln,
+                                                   formula_string = formula_string,
+                                                   weights=NA )
   
   myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 # }
@@ -508,11 +508,11 @@ myRes_rnorm.log.quant <- NA
 This is the set of proteins without statistically significant differential expression in all pairs of comparisons.
 ```{r}
 print( "Find the list of negative control genes using ANOVA.")
-control_genes_index <- get_neg_ctrl_prot_anova( counts_rnorm.log.quant, 
-                                                design_matrix = design_mat_cln, 
-                                                group_column = "group", 
-                                                num_neg_ctrl = num_neg_ctrl, 
-                                                q_val_thresh = q_val_thresh)
+control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
+                                           design_matrix = design_mat_cln,
+                                           group_column = "group",
+                                           num_neg_ctrl = num_neg_ctrl,
+                                           q_val_thresh = q_val_thresh)
 
 vroom::vroom_write(  data.frame( temp_col = names(control_genes_index), 
                                 is_control_genes=control_genes_index) %>%
@@ -552,8 +552,8 @@ ggsave( plot=cancorplot_r1, filename=file.path(results_dir, "cancor_plot_round_1
 ### Run RUVIII first on all samples
 ```{r}
 print( "Run RUVIII on the input counts table.")
-counts_rnorm.log.ruvIII_v1 <- my_RUVfit( counts_rnorm.log.quant, X=ruv_groups$group, control_genes_index, Z = 1, k = ruv_k, 
-                             method = ruv_method, M=ruvIII_replicates_matrix )  %>% t()
+counts_rnorm.log.ruvIII_v1 <- cmriRUVfit(counts_rnorm.log.quant, X=ruv_groups$group, control_genes_index, Z = 1, k = ruv_k,
+                                         method = ruv_method, M=ruvIII_replicates_matrix )  %>% t()
 
 vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>% 
                      as.data.frame %>% 
@@ -581,11 +581,11 @@ myRes_rnorm.log.quant.ruv.r1 <- NA
 # 
 # } else if ( limma_method == "contrasts") {
 
-  list_rnorm.log.quant.ruv.r1 <- runTests_contrasts( counts_rnorm.log.ruvIII_v1, 
-                                                     contrast_strings = contrasts_tbl[,1][[1]], 
-                                                     design_matrix = design_mat_cln, 
-                                                     formula_string = "~ 0 + group ",  
-                                                     weights=NA )
+  list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
+                                                   contrast_strings = contrasts_tbl[,1][[1]],
+                                                   design_matrix = design_mat_cln,
+                                                   formula_string = "~ 0 + group ",
+                                                   weights=NA )
   
  myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
@@ -611,11 +611,11 @@ myRes_rnorm.log.quant.ruv.r1 <- NA
 ## PCA plots and RLE plots, compare different approaches for data analysis
 ```{r}
 print("Draw the RLE and PCA plots.")
-rle_pca_plots_arranged <- rle_pca_plot_list( list_of_data_matrix=list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1), 
-                                             design_matrix = design_mat_cln, 
-                               sample_id_column=!!rlang::sym(my_sample_id), 
-                               group_column=!!rlang::sym(my_group_id),
-                               list_of_descriptions=list( "Before RUVIII", "After RUVIII") )
+rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix=list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
+                                         design_matrix = design_mat_cln,
+                                         sample_id_column=!!rlang::sym(my_sample_id),
+                                         group_column=!!rlang::sym(my_group_id),
+                                         list_of_descriptions=list( "Before RUVIII", "After RUVIII") )
 
 rle_pca_plots_arranged
 
@@ -630,19 +630,19 @@ dev.off()
 ## Select the data for volcano plot and p-values distribution plot 
 ```{r}
 print("Prepare data for drawing the volcano plots")
-selected_data <- get_significant_data(  list_of_de_tables = list( myRes_rnorm.log.quant,  
-                                                                  myRes_rnorm.log.quant.ruv.r1),
-                                        list_of_descriptions = list("No RUV",  
-                                                                    "RUV applied" ), 
-                                        row_id = !!sym(my_row_id), 
-                                        p_value_column = p.mod, 
-                                        q_value_column = q.mod, 
-                                        log_q_value_column = lqm,
-                                        log_fc_column = logFC, 
-                                        comparison_column = comparison, 
-                                        expression_column = expression,
-                                        facet_column = analysis_type, 
-                                        q_val_thresh = 0.05)  %>%
+selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.quant,
+                                                             myRes_rnorm.log.quant.ruv.r1),
+                                    list_of_descriptions = list("No RUV",
+                                                                    "RUV applied" ),
+                                    row_id = !!sym(my_row_id),
+                                    p_value_column = p.mod,
+                                    q_value_column = q.mod,
+                                    log_q_value_column = lqm,
+                                    log_fc_column = logFC,
+                                    comparison_column = comparison,
+                                    expression_column = expression,
+                                    facet_column = analysis_type,
+                                    q_val_thresh = 0.05)  %>%
                   dplyr::rename( log2FC = "logFC") 
 
 ## Write all the results in one single table 
@@ -658,11 +658,11 @@ selected_data %>%
 
 print("Print the volcano plots")
 
-volplot_gg.all <- print_volcano_plot (  selected_data, 
-                       log_q_value_column = lqm, 
-                       log_fc_column = log2FC, 
-                       q_val_thresh = 0.05, 
-                       formula_string="analysis_type ~ comparison" )
+volplot_gg.all <- plotVolcano (selected_data,
+                               log_q_value_column = lqm,
+                               log_fc_column = log2FC,
+                               q_val_thresh = 0.05,
+                               formula_string="analysis_type ~ comparison" )
 
 
 volplot_gg.all
@@ -677,11 +677,11 @@ ggsave(  filename=file.path( results_dir, "volplot_gg.all.svg"), plot=volplot_gg
 ```{r}
 print("Count the number of up or down significnat differentially expressed proteins.")
 
-num_sig_de_genes<- print_count_de_genes_table(  list_of_de_tables = list( myRes_rnorm.log.quant,  
-                                                                                   myRes_rnorm.log.quant.ruv.r1), 
-                                                         list_of_descriptions = list("No RUV",  
-                                                                                     "RUV applied" ), 
-                                                         formula_string="analysis_type ~ comparison" )
+num_sig_de_genes<- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.log.quant,
+                                                                   myRes_rnorm.log.quant.ruv.r1),
+                                          list_of_descriptions = list("No RUV",
+                                                                                     "RUV applied" ),
+                                          formula_string="analysis_type ~ comparison" )
 
 num_sig_de_genes$plot
 
@@ -708,9 +708,9 @@ vroom::vroom_write( num_sig_de_genes$table,
 ## P-values distribution
 ```{r}
 print("Print p-values distribution figure")
-pvalhist <- print_p_values_distribution(selected_data, 
-                                        p_value_column = p.mod, 
-                                        formula_string="analysis_type ~ comparison" ) 
+pvalhist <- printPValuesDistribution(selected_data,
+                                     p_value_column = p.mod,
+                                     formula_string="analysis_type ~ comparison" )
 
 pvalhist
 

@@ -136,7 +136,7 @@ p_load(GO.db)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-create_dir_if_not_exists(results_dir)
+createDirIfNotExists(results_dir)
 ks_file <-  file.path( phosphosite_db_dir, "Kinase_Substrate_Dataset") 
 reg_sites_file <- file.path( phosphosite_db_dir, "Regulatory_sites" ) 
 disease_file <- file.path( phosphosite_db_dir, "Disease-associated_sites")
@@ -332,7 +332,7 @@ print("Get the best UniProt accession per row.")
 uniprot_acc_tbl <- de_phos_long %>%
   mutate( uniprot_acc_copy = uniprot_acc ) %>%
   separate_rows(uniprot_acc_copy, sep=":" ) %>%
-  mutate( join_uniprot_acc = clean_isoform_number(uniprot_acc_copy)) %>%
+  mutate( join_uniprot_acc = cleanIsoformNumber(uniprot_acc_copy)) %>%
   dplyr::distinct( uniprot_acc, join_uniprot_acc) %>%
   group_by( uniprot_acc) %>%
   mutate( acc_order_id = row_number()) %>% 
@@ -354,8 +354,8 @@ if( ! file.exists( file.path(results_dir, "uniprot_data.RDS"))) {
  # keytypes(up)
   list_of_sp_columns <- c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH", "ENSEMBL", "GO-ID", "KEYWORDS")
 
-  uniprot_dat <- batch_query_evidence(uniprot_acc_tbl, join_uniprot_acc, uniprot_handle=up, 
-                                      uniprot_columns = list_of_sp_columns)
+  uniprot_dat <- batchQueryEvidence(uniprot_acc_tbl, join_uniprot_acc, uniprot_handle=up,
+                                    uniprot_columns = list_of_sp_columns)
   
   saveRDS( uniprot_dat, file.path(results_dir, "uniprot_data.RDS"))
   
@@ -377,7 +377,7 @@ goterms <- Term(GOTERM)
 gotypes <- Ontology(GOTERM)
 
 tic()
-uniprot_dat_cln <- uniprot_go_id_to_term( uniprot_dat, sep="; ", goterms, gotypes  )
+uniprot_dat_cln <- uniprotGoIdToTerm(uniprot_dat, sep="; ", goterms, gotypes  )
 toc()
 
 uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%

@@ -167,7 +167,7 @@ if( length(command_line_options ) > 0 ) {
 ```{r}
 print( "Step 1: Create results directory.")
 
-create_dir_if_not_exists( results_dir)
+createDirIfNotExists(results_dir)
 
 ```
 
@@ -228,7 +228,7 @@ if ( group_pattern != "") {
 print( "Step 6: Reading the FASTA file and saving the meta-data file.")
 
 if(!file.exists( file.path( results_dir, fasta_meta_file))) {
-  aa_seq_tbl <- parse_fasta_file( fasta_file)
+  aa_seq_tbl <- parseFastaFile(fasta_file)
   saveRDS( aa_seq_tbl,  file.path( results_dir, fasta_meta_file))
 } else {
   aa_seq_tbl <- readRDS( file.path( results_dir, fasta_meta_file))

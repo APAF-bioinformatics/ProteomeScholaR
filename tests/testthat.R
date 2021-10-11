@@ -22,7 +22,7 @@ test_check("ProteomeRiver")
 context("clean_isoform_number")
 
 
-test_that( "clean_isoform_number function ", {expect_that( clean_isoform_number("Q8K4R4-2"), equals("Q8K4R4")) })
+test_that( "clean_isoform_number function ", {expect_that(cleanIsoformNumber("Q8K4R4-2"), equals("Q8K4R4")) })
 
 
 

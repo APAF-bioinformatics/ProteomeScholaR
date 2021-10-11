@@ -590,7 +590,7 @@ process_multisite_evidence <- function(fasta_file,
   ## Read fasta file
 
   print( "Step 1: Reading the fasta file.")
-  aa_seq_tbl <- parse_fasta_file( fasta_file)
+  aa_seq_tbl <- parseFastaFile(fasta_file)
 
   ## Add the row id column and create a column containing the cleaned  peptide
   print("Step 2: Get row ID and get cleaned peptide sequence.")
@@ -598,10 +598,10 @@ process_multisite_evidence <- function(fasta_file,
 
   ## Get best accession per entry, work out peptides mapped to multiple genes
   print("Step 3: Use decision tree to get best accession per phosphosite evidence entry")
-  accession_gene_name_tbl <- choose_best_accession( evidence_tbl_cleaned,
-                                                    aa_seq_tbl,
-                                                    {{accession_col}},
-                                                    {{group_id}})
+  accession_gene_name_tbl <- chooseBestAccession(evidence_tbl_cleaned,
+                                                 aa_seq_tbl,
+                                                 {{accession_col}},
+                                                 {{group_id}})
 
   ## Remove peptides without abundance values at all
   print("Step 4: Remove peptides without abundance values at all")

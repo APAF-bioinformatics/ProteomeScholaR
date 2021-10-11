@@ -160,7 +160,7 @@ p_load(ProteomeRiver)
 
 ## Create directories
 ```{r}
-create_dir_if_not_exists( results_dir)
+createDirIfNotExists(results_dir)
 
 ```
 
@@ -207,9 +207,9 @@ norm_abundance_mat <- norm_abundance %>%
 ## Functions to create the replicate matrix for RUVs
 ```{r}
 
-ruvIII_replicates_matrix <- get_ruvIII_replicate_matrix( design_mat_cln,  
-                                                         !!rlang::sym(my_sample_id), 
-                                                         !!rlang::sym(my_group_id))
+ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
+                                                     !!rlang::sym(my_sample_id),
+                                                     !!rlang::sym(my_group_id))
 
 ruvIII_replicates_matrix
 ```
@@ -292,8 +292,8 @@ if( file.exists(file.path( results_dir, "uniprot_acc_to_entrez_id.RDS") )) {
     
     #keytypes(up)
     
-    uniprot_acc_to_entrez_id <- batch_query_evidence( proteins_cln %>% distinct(uniprot_acc), uniprot_acc, up, 
-                                                      uniprot_columns = c("ENTREZ_GENE"))
+    uniprot_acc_to_entrez_id <- batchQueryEvidence(proteins_cln %>% distinct(uniprot_acc), uniprot_acc, up,
+                                                   uniprot_columns = c("ENTREZ_GENE"))
 
     saveRDS( uniprot_acc_to_entrez_id, file.path( results_dir, "uniprot_acc_to_entrez_id.RDS") )    
 }
@@ -316,8 +316,8 @@ if( file.exists(file.path( results_dir, "uniprot_acc_to_entrez_id.RDS") )) {
 ```{r}
 
 
-de_prot_for_camera_output <- merge_with_entrez_id( proteins_cln, 
-                                                   uniprot_acc_to_entrez_id  )
+de_prot_for_camera_output <- mergeWithEntrezId(proteins_cln,
+                                               uniprot_acc_to_entrez_id  )
 
 
 de_prot_for_camera_tab <-  de_prot_for_camera_output$de_proteins %>%
@@ -459,7 +459,7 @@ lists_of_contrasts <- list( RPE_Y.vs.RPE_X=c(0, 0, -1, 1 ) ,
 ## Run the camera test 
 ```{r}
 
-    create_dir_if_not_exists(file.path(results_dir, "Functional_Enrichment"))
+    createDirIfNotExists(file.path(results_dir, "Functional_Enrichment"))
 
     camera_results_file <- file.path(results_dir, "Functional_Enrichment", "camera_results.RDS")
 
@@ -479,12 +479,12 @@ if( file.exists(camera_results_file) ) {
         dplyr::select(-temp)
     
     # Pre-fill the data, other data to be filled with the pmap function
-    my_partial_camera <- partial( my_camera, 
-                                  abundance_mat = norm_abundance_mat_list , 
-                                  replicates_mat = ruvIII_replicates_matrix, 
-                                  lists_of_contrasts = lists_of_contrasts, 
-                                  list_of_gene_sets = gene_set_idx_list, 
-                                  min_set_size=4 )
+    my_partial_camera <- partial(cmriCamera,
+                                 abundance_mat = norm_abundance_mat_list ,
+                                 replicates_mat = ruvIII_replicates_matrix,
+                                 lists_of_contrasts = lists_of_contrasts,
+                                 list_of_gene_sets = gene_set_idx_list,
+                                 min_set_size=4 )
     
     camera_results <- purrr::pmap (combination_tab , 
                                    my_partial_camera)

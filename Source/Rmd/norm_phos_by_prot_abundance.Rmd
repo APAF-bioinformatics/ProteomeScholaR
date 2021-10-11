@@ -111,7 +111,7 @@ Meaning of separators
 
 ```{r}
 print ("Create results directory if it does not yet exists.")
-create_dir_if_not_exists(results_dir)
+createDirIfNotExists(results_dir)
 ```
 
 

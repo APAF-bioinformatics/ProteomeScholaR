@@ -3,7 +3,7 @@
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-clean_isoform_number <- function( string ) {
+cleanIsoformNumber <- function(string ) {
   # "Q8K4R4-2"
   str_replace( string, "-\\d+$", "")
 
@@ -14,7 +14,7 @@ clean_isoform_number <- function( string ) {
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-get_fasta_fields <- function(string, pattern) {
+getFastaFields <- function(string, pattern) {
 
   field_found <- str_detect( {{string}}, paste0(pattern, "="))
 
@@ -40,17 +40,17 @@ get_fasta_fields <- function(string, pattern) {
 #' @description parse_fasta_object: Parse FASTA headers
 #' @param aa_seq AAStringSet object, output from running seqinr
 #' @return A table containing the protein evidence, isoform number, uniprot accession without isoform number, gene name
-parse_fasta_object <- function( aa_seq ) {
+parseFastaObject <- function(aa_seq ) {
 
   accession_tab <-  data.frame( header=names(aa_seq)) %>%
     separate( header, into=c("db", "uniprot_acc", "description"), sep="\\|") %>%
     mutate( uniprot_id = str_replace( description, "(.*?)\\s(.*)", "\\1" ) ) %>%
-    mutate( OS = purrr::map_chr(description, ~get_fasta_fields(., "OS")))  %>%
-    mutate( OX = purrr::map_int(description, ~as.integer(get_fasta_fields(., "OX")))) %>%
-    mutate( GN = purrr::map_chr(description, ~get_fasta_fields(., "GN"))) %>%
+    mutate( OS = purrr::map_chr(description, ~getFastaFields(., "OS")))  %>%
+    mutate( OX = purrr::map_int(description, ~as.integer(getFastaFields(., "OX")))) %>%
+    mutate( GN = purrr::map_chr(description, ~getFastaFields(., "GN"))) %>%
     mutate( GN = ifelse( is.na(GN), "", GN)) %>%
-    mutate( PE = purrr::map_int(description, ~as.integer(get_fasta_fields(., "PE")))) %>%
-    mutate( SV = purrr::map_int(description, ~as.integer(get_fasta_fields(., "SV")))) %>%
+    mutate( PE = purrr::map_int(description, ~as.integer(getFastaFields(., "PE")))) %>%
+    mutate( SV = purrr::map_int(description, ~as.integer(getFastaFields(., "SV")))) %>%
     dplyr::select(-description) %>%
     dplyr::rename( species = "OS",
                    tax_id = "OX",
@@ -67,7 +67,7 @@ parse_fasta_object <- function( aa_seq ) {
                                         as.numeric,
                                       is_isoform == "Canonical" ~ 0,
                                       TRUE ~ NA_real_ ) ) %>%
-    mutate( cleaned_acc = clean_isoform_number(uniprot_acc)) %>%
+    mutate( cleaned_acc = cleanIsoformNumber(uniprot_acc)) %>%
     mutate( protein_evidence  = factor(protein_evidence, levels =1:5 )) %>%
     mutate( status = factor( db, levels =c( "sp", "tr"), labels=c("reviewed", "unreviewed"))) %>%
     mutate( is_isoform = factor(is_isoform, levels =c("Canonical", "Isoform")))
@@ -101,14 +101,14 @@ parse_fasta_object <- function( aa_seq ) {
 #' seq     Amino acid sequence.
 #' seq_length      Sequence length (integer).
 #' @export
-parse_fasta_file <- function( fasta_file) {
+parseFastaFile <- function(fasta_file) {
 
   aa_seqinr <-  read.fasta( file = fasta_file,
                             seqtype="AA",
                             whole.header	=TRUE,
                             as.string=TRUE)
 
-  acc_detail_tab <- parse_fasta_object(aa_seqinr)
+  acc_detail_tab <- parseFastaObject(aa_seqinr)
 
   names(aa_seqinr) <- str_match( names(aa_seqinr), "(sp|tr)\\|(.+?)\\|(.*)\\s+" )[,3]
 
@@ -122,13 +122,13 @@ parse_fasta_file <- function( fasta_file) {
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #' @export
-choose_best_accession <- function( input_tbl, acc_detail_tab, accessions_column, group_id) {
+chooseBestAccession <- function(input_tbl, acc_detail_tab, accessions_column, group_id) {
 
   resolve_acc_helper <- input_tbl %>%
     dplyr::select( {{group_id}}, {{accessions_column}}, cleaned_peptide) %>%
     mutate( uniprot_acc = str_split( {{accessions_column}}, ";") ) %>%
     unnest( uniprot_acc )   %>%
-    mutate( cleaned_acc = clean_isoform_number(uniprot_acc)) %>%
+    mutate( cleaned_acc = cleanIsoformNumber(uniprot_acc)) %>%
     left_join( acc_detail_tab,
                by=c("uniprot_acc" = "uniprot_acc",
                     "cleaned_acc" = "cleaned_acc") ) %>%

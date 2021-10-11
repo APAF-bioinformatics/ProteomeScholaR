@@ -127,7 +127,7 @@ if( length(command_line_options ) > 0 ) {
 
 }
 
-create_dir_if_not_exists(results_dir)
+createDirIfNotExists(results_dir)
 additional_cols <- str_split(  add_cols_string, ",")[[1]] 
 col_pattern <- janitor::make_clean_names( col_pattern_string)
 
@@ -149,7 +149,7 @@ colnames(evidence_janitor) <- str_replace(colnames(evidence_janitor), "_i_ds", "
   print( "Step 1: Reading the fasta file.")
 aa_seq_tbl <-NA
 if(!file.exists( file.path( fasta_meta_file))) {
-  aa_seq_tbl <- parse_fasta_file( fasta_file)
+  aa_seq_tbl <- parseFastaFile(fasta_file)
   saveRDS( aa_seq_tbl,  file.path( fasta_meta_file))
 } else {
   aa_seq_tbl <- readRDS( file.path( fasta_meta_file))
@@ -163,10 +163,10 @@ if(!file.exists( file.path( fasta_meta_file))) {
   
   ## Get best accession per entry, work out peptides mapped to multiple genes
   print("Step 3: Use decision tree to get best accession per phosphosite evidence entry")
-  accession_gene_name_tbl <- choose_best_accession( evidence_tbl_cleaned, 
-                                                    aa_seq_tbl, 
-                                                    leading_proteins , 
-                                                    evidence_id)
+  accession_gene_name_tbl <- chooseBestAccession(evidence_tbl_cleaned,
+                                                 aa_seq_tbl,
+                                                 leading_proteins ,
+                                                 evidence_id)
   
   ## Remove peptides without abundance values at all 
   print("Step 4: Remove peptides without abundance values at all")

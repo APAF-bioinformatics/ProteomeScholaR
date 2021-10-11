@@ -14,7 +14,7 @@
 ## Output:
 ## An environment that act as a hash to convert keys to attributes.
 #' @export
-create_id_to_attribute_hash <- function(  keys, attributes) {
+createIdToAttributeHash <- function(keys, attributes) {
 
 	keys <- as.character( as.vector(keys))
 	attribute <- as.vector(attributes)
@@ -45,7 +45,7 @@ create_id_to_attribute_hash <- function(  keys, attributes) {
 ## Output:
 ## A value that correspond to the query key value.
 #' @export
-convert_key_to_attribute <- function(key, hash) {
+convertKeyToAttribute <- function(key, hash) {
 
 	if ( base::exists(key, hash) ) {
 		return ( base::get(key, hash))
@@ -59,7 +59,7 @@ convert_key_to_attribute <- function(key, hash) {
 
 #TODO: Move to an Rpackage RCMRI with common functions. It may be a dependency for each CMRI's project.
 #' @export
-create_directory_if_not_exists <- function(file_path, mode = "0777") {
+createDirectoryIfNotExists <- function(file_path, mode = "0777") {
 
 	### Create directory recursively if it doesn't exist
 	if (! file.exists(file_path)){
@@ -71,8 +71,8 @@ create_directory_if_not_exists <- function(file_path, mode = "0777") {
 }
 
 #' @export
-create_dir_if_not_exists  <- function(file_path, mode = "0777") {
-  create_directory_if_not_exists(file_path, mode = "0777")
+createDirIfNotExists  <- function(file_path, mode = "0777") {
+  createDirectoryIfNotExists(file_path, mode = "0777")
 }
 
 
@@ -81,7 +81,7 @@ create_dir_if_not_exists  <- function(file_path, mode = "0777") {
 ## Function to source Rmd files
 # https://stackoverflow.com/questions/10966109/how-to-source-r-markdown-file-like-sourcemyfile-r
 #' @export
-source_rmd_file_simple <- function(x, ...) {
+sourceRmdFileSimple <- function(x, ...) {
 	source(purl(x, output = tempfile()), ...)
 }
 
@@ -95,7 +95,7 @@ source_rmd_file_simple <- function(x, ...) {
 #'
 #' @return This function is called for its side effects
 #' @export
-source_rmd_file <- function(file, skip_plots = TRUE) {
+sourceRmdFile <- function(file, skip_plots = TRUE) {
 	temp = tempfile(fileext=".R")
 	knitr::purl(file, output=temp)
 
@@ -113,3 +113,75 @@ source_rmd_file <- function(file, skip_plots = TRUE) {
 
 
 ##################################################################################################################
+
+
+#TODO: create an Rpackage RCMRI with common functions. It may be a dependency for each CMRI's project.
+#=====================================================================================================
+#' @export
+createOutputDir <- function(output_dir, no_backup) {
+  if (output_dir == "") {
+    logerror("output_dir is an empty string")
+    q()
+  }
+  if (dir.exists(output_dir)) {
+    if (no_backup) {
+      unlink(output_dir, recursive = TRUE)
+    }
+    else {
+      backup_name <- paste(output_dir, "_prev", sep = "")
+      if (dir.exists(backup_name)) { unlink(backup_name, recursive = TRUE) }
+      system(paste("mv", output_dir, backup_name)) }
+  }
+  dir.create(output_dir)
+}
+
+#' @export
+cmriWelcome <- function(name, autors) {
+  loginfo("   ______     __    __     ______     __       ")
+  loginfo('  /\\  ___\\   /\\ "-./  \\   /\\  == \\   /\\ \\      ')
+  loginfo("  \\ \\ \\____  \\ \\ \\-./\\ \\  \\ \\  __<   \\ \\ \\     ")
+  loginfo("   \\ \\_____\\  \\ \\_\\ \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\    ")
+  loginfo("    \\/_____/   \\/_/  \\/_/   \\/_/ /_/   \\/_/    ")
+  loginfo("")
+  loginfo("---- Children’s Medical Research Institute ----")
+  loginfo(" Finding cures for childhood genetic diseases  ")
+  loginfo("")
+  loginfo(" ==============================================")
+  loginfo(" %s", name)
+  loginfo(" Author(s): %s", paste(autors, sep = ", "))
+  loginfo(" cmri-bioinformatics@cmri.org.au")
+  loginfo(" ==============================================")
+  loginfo("")
+}
+
+#' @export
+testRequiredFiles <- function(files) {
+  missing_files <- !file.exists(files)
+  for (file in files[missing_files]) {
+    logerror("Missing required file: %s", file)
+    q()
+  }
+}
+
+#' @export
+testRequiredArguments <- function(arg_list, parameters) {
+  for (par in parameters) {
+    if (!par %in% names(arg_list)) {
+      logerror("Missing required argument: %s", par)
+      q()
+    }
+  }
+}
+
+#' @export
+parseType<-function (arg_list,parameters,functType){
+  for(key in parameters){
+    arg_list[key]<-functType(arg_list[key])
+  }
+  return (arg_list)
+}
+
+
+#' @export
+cmriFormatter <- function(record) { sprintf('CMRI Bioinformatics %s [%s] | %s', record$levelname, record$timestamp, record$msg) }
+#=====================================================================================================
