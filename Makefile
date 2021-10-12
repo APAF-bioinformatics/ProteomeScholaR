@@ -15,6 +15,8 @@ SCRIPTS = $(BASE)/Source
 TEST = $(BASE)/tests
 SRCD = $(BASE)/R
 
+export R_LIBS_USER=$(RLIB)
+
 ifeq ($(UNAME),Darwin)
 BASH_PROFILE=$(HOME)/.profile
 else
@@ -68,7 +70,6 @@ install:intro setdirs
 	@echo 'Installing $(PROJECT) on $(PREFIX)'
 	@echo '-----------------------------------'
 	@echo '	'
-	@export R_LIBS_USER=$(RLIB)
 	@$(RSCRIPTEXEC) $(SCRIPTS)/aux/install.R
 	@$(REXEC) CMD INSTALL ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
