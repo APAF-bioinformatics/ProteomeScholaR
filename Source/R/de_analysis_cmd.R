@@ -693,8 +693,7 @@ vroom::vroom_write(de_proteins_long, path = file.path(args$output_dir, paste0(ar
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-te<-toc(quiet = FALSE)
-print(te)
+te<-toc(quiet = TRUE)
 loginfo("%f sec elapsed",te$toc-te$tic)
 writeLines(capture.output(sessionInfo()), file.path(args$output_dir,"sessionInfo.txt"))
 
