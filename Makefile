@@ -71,7 +71,7 @@ install:intro setdirs
 	@echo '-----------------------------------'
 	@echo '	'
 	@$(RSCRIPTEXEC) $(SCRIPTS)/aux/install.R
-	@$(REXEC) CMD INSTALL ./
+	@$(REXEC) CMD INSTALL -l $(RLIB) ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
 	@cp -r $(SCRIPTS)/shell/* $(PREFIX)/$(PROJECT)/Source/shell
 	@chmod +x $(PREFIX)/$(PROJECT)/Source/R/*
