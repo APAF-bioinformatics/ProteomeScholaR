@@ -143,11 +143,6 @@ parser <- add_option(parser, "--file_prefix", type = "character", dest = "file_p
 #parse comand line arguments first.
 args <- parse_args(parser)
 
-#TODO:REMOVE!
-####### DEBUGING ###############
-setwd("/home/pablo/Development/Podocyte_2021/Source/Part_1/")
-args$config="config.ini"
-################################
 createOutputDir(args$output_dir, args$no_backup)
 
 ## Logger configuration
