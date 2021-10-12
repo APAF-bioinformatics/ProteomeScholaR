@@ -30,6 +30,7 @@ setdirs:
 	@mkdir -p $(PREFIX)/$(PROJECT)/Source/R
 	@mkdir -p $(PREFIX)/$(PROJECT)/Source/shell
 	@mkdir -p $(PREFIX)/$(PROJECT)/test
+	@mkdir -p $(PREFIX)/$(PROJECT)/man
 
 
 
@@ -67,7 +68,8 @@ install:intro setdirs
 	@echo 'Installing $(PROJECT) on $(PREFIX)'
 	@echo '-----------------------------------'
 	@echo '	'
-	@$(RSCRIPTEXEC) -e 'devtools::document()'
+	@export R_LIBS_USER=$(RLIB)
+	@$(RSCRIPTEXEC) $(SCRIPTS)/aux/install.R
 	@$(REXEC) CMD INSTALL ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
 	@cp -r $(SCRIPTS)/shell/* $(PREFIX)/$(PROJECT)/Source/shell
@@ -77,6 +79,7 @@ install:intro setdirs
 	@echo '	'
 	@echo 'append $(PREFIX)/$(PROJECT)/Source/R to your PATH environment variable'
 	@echo "export PATH=$(PREFIX)/$(PROJECT)/Source/R:\$$PATH"
+	@echo "export R_LIBS_USER=$(RLIB)"
 	@echo 'or run: make setup'
 	@echo '	'
 	@echo " === install done ! === "
@@ -102,6 +105,7 @@ uninstall:intro
 
 setup:intro
 	@echo "export PATH=$(PREFIX)/$(PROJECT)/Source/R:\$$PATH" >> $(BASH_PROFILE)
+	@echo "export R_LIBS_USER=$(RLIB)" >> $(BASH_PROFILE)
 	@echo '	'
 	@echo '-----------------------------------'
 	@echo "run: source $(BASH_PROFILE)"

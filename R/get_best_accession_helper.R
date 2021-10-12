@@ -1,5 +1,5 @@
-# Author(s): Ignatius Pang
-# Email: ipang@cmri.org.au
+# Author(s): Ignatius Pang, Pablo Galaviz
+# Email: cmri-bioinformatics@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
