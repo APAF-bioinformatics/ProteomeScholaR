@@ -10,7 +10,7 @@
 #Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
-  BiocManager::install(version = "3.12")
+  BiocManager::install()
 }
 
 # load pacman package manager
@@ -166,11 +166,6 @@ for (v in names(args))
 }
 loginfo("----------------------------------------------------")
 
-testRequiredFiles(c(
-  args$counts_table_file
-  , args$contrasts_file
-  , args$design_matrix_file
-))
 
 testRequiredArguments(args, c(
   "group_pattern"
@@ -183,6 +178,15 @@ testRequiredArguments(args, c(
   , "group_id"
   , "row_id"
   , "file_prefix"
+  , "counts_table_file"
+  , "contrasts_file"
+  , "design_matrix_file"
+))
+
+testRequiredFiles(c(
+  args$counts_table_file
+  , args$contrasts_file
+  , args$design_matrix_file
 ))
 
 

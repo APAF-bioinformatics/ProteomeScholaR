@@ -15,7 +15,6 @@ SCRIPTS = $(BASE)/Source
 TEST = $(BASE)/tests
 SRCD = $(BASE)/R
 
-export R_LIBS_USER=$(RLIB)
 
 ifeq ($(UNAME),Darwin)
 BASH_PROFILE=$(HOME)/.profile
@@ -33,7 +32,7 @@ setdirs:
 	@mkdir -p $(PREFIX)/$(PROJECT)/Source/shell
 	@mkdir -p $(PREFIX)/$(PROJECT)/test
 	@mkdir -p $(PREFIX)/$(PROJECT)/man
-
+	@mkdir -p $(RLIB)
 
 
 done:

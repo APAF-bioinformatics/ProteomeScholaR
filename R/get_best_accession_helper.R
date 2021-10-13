@@ -3,6 +3,7 @@
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#' @export
 cleanIsoformNumber <- function(string ) {
   # "Q8K4R4-2"
   str_replace( string, "-\\d+$", "")
@@ -14,6 +15,7 @@ cleanIsoformNumber <- function(string ) {
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#' @export
 getFastaFields <- function(string, pattern) {
 
   field_found <- str_detect( {{string}}, paste0(pattern, "="))
@@ -40,6 +42,7 @@ getFastaFields <- function(string, pattern) {
 #' @description parse_fasta_object: Parse FASTA headers
 #' @param aa_seq AAStringSet object, output from running seqinr
 #' @return A table containing the protein evidence, isoform number, uniprot accession without isoform number, gene name
+#' @export
 parseFastaObject <- function(aa_seq ) {
 
   accession_tab <-  data.frame( header=names(aa_seq)) %>%

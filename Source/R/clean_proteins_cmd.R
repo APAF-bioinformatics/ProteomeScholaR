@@ -10,7 +10,7 @@
 #Test if BioManager is installed 
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
-  BiocManager::install(version = "3.12")
+  BiocManager::install()
 }
 
 # load pacman package manager
@@ -126,9 +126,7 @@ for (v in names(args))
 }
 loginfo("----------------------------------------------------")
 
-testRequiredFiles(c(
-  args$fasta_file
-  ,args$raw_counts_file))
+
 testRequiredArguments(args, c(
   "output_counts_file"
   ,"razor_unique_peptides_group_thresh"
@@ -136,8 +134,13 @@ testRequiredArguments(args, c(
   ,"fasta_meta_file"
   ,"group_pattern"
   ,"accession_record_file"
+  ,"fasta_file"
+  ,"raw_counts_file"
 ))
 
+testRequiredFiles(c(
+  args$fasta_file
+  ,args$raw_counts_file))
 args<-parseType(args,
   c("razor_unique_peptides_group_thresh"
     ,"unique_peptides_group_thresh"

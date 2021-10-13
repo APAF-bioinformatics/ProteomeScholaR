@@ -11,13 +11,13 @@
 
 #Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
+  install.packages("BiocManager",repos = "https://cran.csiro.au/")
   BiocManager::install()
 }
 
 # load pacman package manager
 if (!require(pacman)) {
-  install.packages("pacman")
+  install.packages("pacman",repos = "https://cran.csiro.au/")
   library(pacman)
 }
 
