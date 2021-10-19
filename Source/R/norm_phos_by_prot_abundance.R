@@ -1,8 +1,7 @@
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#! /usr/bin/env Rscript
+#!/usr/bin/env Rscript
 
-# Author(s): Ignatius Pang
-# Email: ipang@cmri.org.au
+# Author(s): Ignatius Pang, Pablo Galaviz
+# Email: cmri-bioinformatics@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 
@@ -34,6 +33,8 @@ p_load(knitr)
 p_load(magrittr)
 p_load(optparse)
 p_load(ProteomeRiver)
+p_load(configr)
+p_load(logging)
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 tic()
@@ -41,65 +42,103 @@ tic()
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-group_pattern <- "RPE"
-## Directories management 
-base_dir <- here::here()
-data_dir <- file.path( base_dir, "Data")
-phos_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
-source_dir <- file.path(base_dir, "..")
-prot_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
-results_dir <- phos_results_dir
-
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-proteins_file <- file.path( prot_results_dir, "de_proteins_long_annot.tsv" ) 
-phospho_file  <- file.path(   phos_results_dir, "de_phos_long_annot.tsv" ) 
+# group_pattern <- "RPE"
+# ## Directories management
+# base_dir <- here::here()
+# data_dir <- file.path( base_dir, "Data")
+# phos_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
+# source_dir <- file.path(base_dir, "..")
+# prot_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
+# results_dir <- phos_results_dir
+#
+#
+#
+# ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# proteins_file <- file.path( prot_results_dir, "de_proteins_long_annot.tsv" )
+# phospho_file  <- file.path(   phos_results_dir, "de_phos_long_annot.tsv" )
 
 command_line_options <- commandArgs(trailingOnly = TRUE)
-if( length(command_line_options ) > 0 ) {
-  parser <- OptionParser(add_help_option =TRUE)
+parser <- OptionParser(add_help_option = TRUE)
+#Note: options with default values are ignored in the configuration file parsing.
+parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default = FALSE,
+                     help = "Print debugging output")
 
-  parser <- add_option(parser, c( "--output-dir"), type="character", default="", dest = "results_dir",
-                       help="Directory path for all results files.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c("--protein"), type="character", default="", dest = "proteins_file",
-                       help="File with table of differentially expressed proteins.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c("--phospho"), type="character", default="", dest = "phospho_file",
-                       help="File with table of differentially abundant phosphosites.",
-                       metavar="string") 
+parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
+                     help = "Only print critical information to the console.")
 
-  print(command_line_options)
-  
-  cmd_arguments <- parse_args(parser)
-  
-  print(cmd_arguments)  
+parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
+                     help = "Deactivate backup of previous run.")
 
-  proteins_file <- cmd_arguments$proteins_file
-  phospho_file <- cmd_arguments$phospho_file
-  results_dir <- cmd_arguments$results_dir
+parser <- add_option(parser, c("-c","--config"), type = "character", default = "", dest = "config",
+                     help = "Configuration file.",
+                     metavar = "string")
 
-  if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
-  if( proteins_file == "" ) { stop("No value for --protein was supplied. ") }
-  if( phospho_file == "" ) { stop("No value for --phospho was supplied. ") }
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "norm_phos_by_prot_abundance", dest = "output_dir",
+                     help = "Directory path for all results files.",
+                     metavar = "string")
 
+parser <- add_option(parser, c("-t","--tmp_dir"), type = "character", default = "cache", dest = "tmp_dir",
+                     help = "Directory path for temporary files.",
+                     metavar = "string")
+
+parser <- add_option(parser, c("-l","--log_file"), type = "character", default = "output.log", dest = "log_file",
+                     help = "Name of the logging file.",
+                     metavar = "string")
+
+#Options without a default value have the following priority: configuration file < command line argument
+parser <- add_option(parser, c("--proteins_file"), type="character", dest = "proteins_file",
+                     help="File with table of differentially expressed proteins.",
+                     metavar="string")
+
+parser <- add_option(parser, c("--phospho_file"), type="character", dest = "phospho_file",
+                     help="File with table of differentially abundant phosphosites.",
+                     metavar="string")
+
+#parse comand line arguments first.
+args <- parse_args(parser)
+
+
+createOutputDir(args$output_dir, args$no_backup)
+createDirectoryIfNotExists(args$tmp_dir)
+
+## Logger configuration
+logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
+level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
+
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "norm_phos_by_prot_abundance"), args)
 }
 
+cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
+loginfo("Reading configuration file %s", args$config)
+loginfo("Argument: Value")
+loginfo("----------------------------------------------------")
+for (v in names(args))
+{
+  loginfo("%s : %s", v, args[v])
+}
+loginfo("----------------------------------------------------")
 
+
+testRequiredArguments(args, c(
+  "proteins_file"
+  ,"phospho_file"
+))
+
+testRequiredFiles(c(
+  args$proteins_file
+  ,args$phospho_file))
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print ("Create results directory if it does not yet exists.")
-createDirIfNotExists(results_dir)
+loginfo ("Read phosphopeptides abundance data.")
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print ("Read phosphopeptides abundance data.")
-
-phospho_tbl_orig <- vroom::vroom(phospho_file) 
+phospho_tbl_orig <- vroom::vroom(args$phospho_file)
   
 phospho_tbl <- phospho_tbl_orig %>%  
   dplyr::select(sites_id, q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
@@ -108,18 +147,14 @@ phospho_tbl <- phospho_tbl_orig %>%
   dplyr::rename( phos_maxquant_row_ids = "maxquant_row_ids" )
 
 phospho_cln <- phospho_tbl %>%
-  separate_rows(uniprot_acc, sep="[\\:;]") 
-
-
-phospho_cln
-
+  separate_rows(uniprot_acc, sep="[\\:;]")
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print ("Read proteomics abundance data.")
+loginfo ("Read proteomics abundance data.")
 
 
-proteins_tbl_orig <-  vroom::vroom( proteins_file, delim="\t") 
+proteins_tbl_orig <-  vroom::vroom( args$proteins_file, delim="\t")
 
 
 proteins_tbl <- proteins_tbl_orig %>%
@@ -145,7 +180,7 @@ prot_phos_uniprot_list %>% length()
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print( "Normalisation of the phosphopeptide abundance with the protein abundance.")
+loginfo( "Normalisation of the phosphopeptide abundance with the protein abundance.")
 basic_data_shared <- proteins_cln %>%
   inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",  
                                 "comparison" = "comparison"), suffix=c(".phos", ".prot") ) %>%
@@ -172,12 +207,12 @@ basic_data <- basic_data_shared %>%
 nrow(basic_data) == nrow(phospho_cln)
 
 
-vroom::vroom_write( basic_data, file.path( results_dir,  "norm_phosphosite_lfc_minus_protein_lfc_basic.tsv"))
+vroom::vroom_write( basic_data, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_basic.tsv"))
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Join normalized phosphopeptide abundance table with phosphosite annotations")
+loginfo("Join normalized phosphopeptide abundance table with phosphosite annotations")
 annotation_from_phospho_tbl <- phospho_tbl_orig %>%
   dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc)
 
@@ -187,13 +222,13 @@ annotated_phos_tbl <- basic_data %>%
                                                "phos_maxquant_row_ids" = "maxquant_row_ids"))
 
 
-vroom::vroom_write( annotated_phos_tbl, file.path( results_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
+vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
 
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Compare before and after normalization with protein abundance")
+loginfo("Compare before and after normalization with protein abundance")
 before_prot_norm <- phospho_cln %>%
   dplyr::filter( q.mod < 0.05) %>%
   dplyr::distinct(comparison, sites_id) %>%
@@ -216,9 +251,7 @@ compare_before_and_after <- before_prot_norm %>%
   summarise( Counts = n()) %>%
   ungroup()
 
- compare_before_and_after
-
- vroom::vroom_write( compare_before_and_after, file.path(results_dir, "compare_before_and_after_norm_by_prot_abundance.tsv"))
+ vroom::vroom_write( compare_before_and_after, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.tsv"))
  
  
  cmp_before_after_plot <- compare_before_and_after %>%
@@ -230,14 +263,14 @@ compare_before_and_after <- before_prot_norm %>%
  
  cmp_before_after_plot
  
- ggsave( plot=cmp_before_after_plot, file.path(results_dir, "compare_before_and_after_norm_by_prot_abundance.pdf"), width = 14, height=7)
- ggsave( plot=cmp_before_after_plot, file.path(results_dir, "compare_before_and_after_norm_by_prot_abundance.png"), width = 14, height=7 )
+ ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.pdf"), width = 14, height=7)
+ ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.png"), width = 14, height=7 )
 
  
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Create Volcano Plot")
+loginfo("Create Volcano Plot")
 qm.threshold <- 0.05
 logFC.threshold <- 1
 
@@ -265,14 +298,15 @@ basic_data_volcano_plot <- basic_data_volcano_plot_data %>%
                                   "Not Significant"))
 
 
-ggsave(  filename=file.path( results_dir, "volplot_gg_phos_vs_prot.all.png"), plot=basic_data_volcano_plot, width=15, height=6   ) 
-ggsave(  filename=file.path( results_dir, "volplot_gg_phos_vs_prot.all.svg"), plot=basic_data_volcano_plot, width=15, height=6   ) 
+ggsave(  filename=file.path( args$output_dir, "volplot_gg_phos_vs_prot.all.png"), plot=basic_data_volcano_plot, width=15, height=6   )
+ggsave(  filename=file.path( args$output_dir, "volplot_gg_phos_vs_prot.all.svg"), plot=basic_data_volcano_plot, width=15, height=6   )
 
 
 ggplotly(basic_data_volcano_plot)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-toc()
-sessionInfo()
+te<-toc(quiet = TRUE)
+loginfo("%f sec elapsed",te$toc-te$tic)
+writeLines(capture.output(sessionInfo()), file.path(args$output_dir,"sessionInfo.txt"))
 

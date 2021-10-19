@@ -147,9 +147,11 @@ createOutputDir(args$output_dir, args$no_backup)
 
 ## Logger configuration
 logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
-addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = cmriFormatter)
-addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = cmriFormatter)
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
 #parse and merge the configuration file options.
 if (args$config != "") {
@@ -199,8 +201,16 @@ args<-parseType(args,
     ,"num_neg_ctrl"
     ,"max_num_samples_miss_per_group"
     ,"abundance_threshold"
-  )
-                ,as.integer)
+  )  ,as.integer)
+args<-parseString(args,
+  c("group_pattern"
+    ,"test_pairs_file"
+    ,"formula_string"
+    ,"sample_id"
+    ,"group_id"
+    ,"row_id"
+    ,"file_prefix"
+  ))
 
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
@@ -449,7 +459,7 @@ cancorplot_r1 <- ruv_cancorplot(t(counts_rnorm.log.quant),
                                 X = ruv_groups %>% pull(!!rlang::sym(args$group_id)),
                                 ctl = control_genes_index)
 
-#cancorplot_r1
+
 
 ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.pdf"),limitsize = FALSE)
 ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.png"),limitsize = FALSE)
@@ -552,8 +562,6 @@ volplot_gg.all <- plotVolcano(selected_data,
                               q_val_thresh = 0.05,
                               formula_string = "analysis_type ~ comparison")
 
-
-volplot_gg.all
 
 ggsave(filename = file.path(args$output_dir, "volplot_gg.all.png"), plot = volplot_gg.all, width = 7.29, height = 6)
 ggsave(filename = file.path(args$output_dir, "volplot_gg.all.svg"), plot = volplot_gg.all, width = 7.29, height = 6)
