@@ -104,10 +104,6 @@ parser <- add_option(parser,  "--reactome_file", type="character",  dest = "reac
                      help="Name of the reactome data (Download and save if it does not exists). ",
                      metavar="string")
 
-parser <- add_option(parser,  "--reactome_file", type="character",  dest = "reactome_file",
-                     help="Name of the reactome data (Download and save if it does not exists). ",
-                     metavar="string")
-
 parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "uniprot_file",
                      help="Name of the uniprot data (Download and save if it does not exists). ",
                      metavar="string")
