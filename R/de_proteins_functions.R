@@ -198,7 +198,7 @@ plotPca <- function(data,
     as.data.frame %>%
     rownames_to_column(quo_name(enquo(sample_id_column))) %>%
     left_join(design_matrix, by = quo_name(enquo(sample_id_column))) %>%
-    ggplot(aes(PC1, PC2, col = group, label = Sample_ID)) +
+    ggplot(aes(PC1, PC2, col = {{group_column}}, label = {{sample_id_column}})) +
     geom_text() +
     labs(title = title) +
     theme(legend.title = element_blank())
