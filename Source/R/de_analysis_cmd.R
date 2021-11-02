@@ -259,7 +259,7 @@ design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
 
 rownames(design_mat_cln) <- design_mat_cln %>% pull(as.name(args$sample_id))
 
-## Check that the sample ID and group ID name is found in the design matrix 
+## Check that the sample ID and group ID name is found in the design matrix
 if (length(which(c(args$sample_id, args$group_id) %in% colnames(design_mat_cln))) != 2) {
   logerror("Sample ID and group ID are not matching to the column names used in the design matrix.")
   q()
@@ -276,7 +276,7 @@ if ("max_num_samples_miss_per_group" %in% names(args)) {
   cln_dat_wide_cleaned <- removeRowsWithMissingValues(cln_dat_wide_unsorted,
                                                       matches(args$group_pattern),
                                                       design_mat_cln %>%
-                                                            dplyr::mutate(Sample_ID = as.character(Sample_ID)),
+                                                            dplyr::mutate(Sample_ID = as.character(args$sample_id)),
                                                       !!rlang::sym(args$sample_id),
                                                       !!rlang::sym(args$row_id),
                                                       !!rlang::sym(args$group_id),
@@ -321,16 +321,16 @@ loginfo(ruvIII_replicates_matrix)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide, 
+# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide,
 #                                             matches(args$group_pattern),
-#                                             design_mat_cln %>% 
-#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
+#                                             design_mat_cln %>%
+#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)),
 #                                             !!rlang::sym(args$sample_id),
 #                                             !!rlang::sym(args$row_id),
 #                                             !!rlang::sym(args$group_id),
 #                                             args$min_num_samples_per_group,
 #                                             args$abundance_threshold)
-# 
+#
 # saveRDS(sample_rows_lists, file.path(args$output_dir, "keep_sample_rows_lists.RDS" ))
 
 
@@ -398,14 +398,14 @@ list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
 
 # if( limma_method == "pairs") {
-#   
-#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping, 
+#
+#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping,
 #                                   design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", args$group_id),
 #                                   contrast_variable=args$group_id,
-#                                   weights=NA) 
-#   
+#                                   weights=NA)
+#
 #   myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 
@@ -421,9 +421,9 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print( "Save the list of differentially expressed proteins, without using RUV.")
-# save_de_protein_list(myRes_rnorm.log.quant, 
+# save_de_protein_list(myRes_rnorm.log.quant,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_without_ruv.tsv")
 
@@ -482,16 +482,16 @@ loginfo("Compare the different experimental groups and obtain lists of different
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
 # if( limma_method == "pairs") {
-#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,  
+#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,
 #                                            cols_for_analysis, sample_rows_lists,
-#                                            type_of_grouping, 
-#                                            design_matrix = design_mat_cln, 
+#                                            type_of_grouping,
+#                                            design_matrix = design_mat_cln,
 #                                            formula_string= "~ 0 + group ",
 #                                            contrast_variable="group",
 #                                            weights=NA)
-#   
+#
 #   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
@@ -507,9 +507,9 @@ myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
-# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1, 
+# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_round_1_ruv.tsv")
 
@@ -546,7 +546,7 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
                                     q_val_thresh = 0.05) %>%
   dplyr::rename(log2FC = "logFC")
 
-## Write all the results in one single table 
+## Write all the results in one single table
 selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
   vroom::vroom_write(path = file.path(args$output_dir, "lfc_qval_long.tsv"))
