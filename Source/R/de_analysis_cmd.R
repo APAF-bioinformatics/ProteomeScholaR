@@ -497,7 +497,7 @@ myRes_rnorm.log.quant.ruv.r1 <- NA
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
                                                  design_matrix = design_mat_cln,
-                                                 formula_string = "~ 0 + group ",
+                                                 formula_string = args$formula_string,
                                                  weights = NA)
 
 myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
