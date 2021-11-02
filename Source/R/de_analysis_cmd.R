@@ -648,7 +648,7 @@ norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = quo_name(enquo(args$row_id)),
+               names_to = !!sym(args$row_id),
                values_to = "log2norm") %>%
   left_join(design_mat_cln, by = quo_name(enquo(args$row_id))) %>%
   mutate(temp_id = !!sym(args$row_id)) %>%
