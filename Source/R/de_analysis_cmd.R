@@ -648,10 +648,10 @@ norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = !!sym(args$row_id),
-               values_to = "log2norm") %>%
-  left_join(design_mat_cln, by = quo_name(enquo(args$row_id))) %>%
-  mutate(temp_id = !!sym(args$row_id)) %>%
+               names_to = args$sample_id,
+               values_to = "log2norm")  %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
   group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
   arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
@@ -666,10 +666,10 @@ raw_counts <- counts_filt %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = quo_name(enquo(args$row_id)),
+               names_to = args$sample_id,
                values_to = "raw") %>%
-  left_join(design_mat_cln, by = quo_name(enquo(args$row_id))) %>%
-  mutate(temp_id = !!sym(args$row_id)) %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
   group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
   arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
@@ -679,16 +679,16 @@ raw_counts <- counts_filt %>%
               names_from = replicate_number,
               values_from = raw)
 
-left_join_columns <- rlang::set_names(c(args$row_id, quo_name(enquo(args$group_id)) ),
+left_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                       c(args$row_id, "left_group"))
 
-right_join_columns <- rlang::set_names(c(args$row_id, quo_name(enquo(args$group_id)) ),
+right_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                        c(args$row_id, "right_group"))
 
 de_proteins_long <- selected_data %>%
   dplyr::filter(analysis_type == "RUV applied") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
-  dplyr::mutate(expression = str_replace_all(expression, quo_name(enquo(args$group_id)), "")) %>%
+  dplyr::mutate(expression = str_replace_all(expression, args$group_id, "")) %>%
   separate(expression, sep = "-", into = c("left_group", "right_group")) %>%
   left_join(norm_counts, by = left_join_columns) %>%
   left_join(norm_counts, by = right_join_columns,
