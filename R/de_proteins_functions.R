@@ -270,7 +270,7 @@ rlePcaPlotList <- function(list_of_data_matrix, design_matrix,
                           ~plotPca(.x,
                                    design_matrix = design_matrix,
                                    sample_id_column = { { sample_id_column } },
-                                   group_column = { { group } },
+                                   group_column = { { group_column } },
                                    title = .y, cex = 7))
 
   list_of_plots <- c(rle_list, pca_list)
