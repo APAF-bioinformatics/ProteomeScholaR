@@ -432,7 +432,7 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 loginfo("Find the list of negative control genes using ANOVA.")
 control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
                                            design_matrix = design_mat_cln,
-                                           group_column = "group",
+                                           group_column = args$group_id,
                                            num_neg_ctrl = args$num_neg_ctrl,
                                            q_val_thresh = args$q_val_thresh)
 
