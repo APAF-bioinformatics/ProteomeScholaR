@@ -227,13 +227,20 @@ if (args$group_pattern == "") {
 
 
 loginfo("Read file with lists of experimental contrasts to test %s", args$contrasts_file)
+logdebug(capture.output(
 contrasts_tbl <- vroom::vroom(args$contrasts_file, delim = "\t")
+    ,type = "message"
+))
+
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 loginfo("Read file with counts table %s", args$counts_table_file)
+logdebug(capture.output(
 evidence_tbl_filt <- vroom::vroom(args$counts_table_file, delim = "\t") %>%
   dplyr::select(one_of(c(args$row_id)), matches(args$group_pattern))
+    ,type = "message"
+))
 
 
 if (!args$row_id %in% colnames(evidence_tbl_filt)) {
@@ -253,9 +260,12 @@ cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
                                                           row_id = !!rlang::sym(args$row_id))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+logdebug(capture.output(
 design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
   as.data.frame() %>%
   dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
+    ,type = "message"
+))
 
 rownames(design_mat_cln) <- design_mat_cln %>% pull(as.name(args$sample_id))
 
@@ -316,7 +326,7 @@ ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
                                                      !!rlang::sym(args$sample_id),
                                                      !!rlang::sym(args$group_id))
 
-loginfo(ruvIII_replicates_matrix)
+logdebug(ruvIII_replicates_matrix)
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -336,14 +346,17 @@ loginfo(ruvIII_replicates_matrix)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Count the total number of missing values in total
-loginfo("Count the number of missing values for each sample:",table(is.infinite(data.matrix(log2(counts_filt)))))
+loginfo("Count the number of missing values for each sample: %d",table(is.infinite(data.matrix(log2(counts_filt)))))
 
 
 plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
-
-ggsave(filename = file.path(args$output_dir, "num_missing_values.png"), plot = plot_num_missing_values,limitsize = FALSE)
-ggsave(filename = file.path(args$output_dir, "num_missing_values.svg"), plot = plot_num_missing_values,limitsize = FALSE)
+for( file_name in list("num_missing_values.png","num_missing_values.svg")) {
+logdebug(capture.output(
+ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values,limitsize = FALSE)
+    ,type = "message"
+))
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -460,9 +473,12 @@ cancorplot_r1 <- ruv_cancorplot(t(counts_rnorm.log.quant),
                                 ctl = control_genes_index)
 
 
-
-ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.pdf"),limitsize = FALSE)
-ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.png"),limitsize = FALSE)
+for( file_name in list("cancor_plot_round_1.pdf","cancor_plot_round_1.png")) {
+  logdebug(capture.output(
+    ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, file_name), limitsize = FALSE)
+    , type = "message"
+  ))
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -474,7 +490,6 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                      as.data.frame %>%
                      rownames_to_column(args$row_id),
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
@@ -522,11 +537,11 @@ rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm
                                          group_column = !!rlang::sym(args$group_id),
                                          list_of_descriptions = list("Before RUVIII", "After RUVIII"))
 
-pdf(file.path(args$output_dir, "rle_pca_plots.pdf"))
+logdebug(capture.output(
+  ggsave(plot = rle_pca_plots_arranged, filename = file.path(args$output_dir, "rle_pca_plots.pdf"), limitsize = FALSE)
+  , type = "message"
+))
 
-rle_pca_plots_arranged
-
-dev.off()
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -549,7 +564,7 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
 ## Write all the results in one single table 
 selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
-  vroom::vroom_write(path = file.path(args$output_dir, "lfc_qval_long.tsv"))
+  vroom::vroom_write(file.path(args$output_dir, "lfc_qval_long.tsv"))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -563,8 +578,12 @@ volplot_gg.all <- plotVolcano(selected_data,
                               formula_string = "analysis_type ~ comparison")
 
 
-ggsave(filename = file.path(args$output_dir, "volplot_gg.all.png"), plot = volplot_gg.all, width = 7.29, height = 6)
-ggsave(filename = file.path(args$output_dir, "volplot_gg.all.svg"), plot = volplot_gg.all, width = 7.29, height = 6)
+for( file_name in list("volplot_gg_all.svg","volplot_gg_all.png")) {
+  logdebug(capture.output(
+ggsave(filename = file.path(args$output_dir, file_name), plot = volplot_gg.all, width = 7.29, height = 6)
+    , type = "message"
+  ))
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -576,22 +595,20 @@ num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.
                                                                            "RUV applied"),
                                            formula_string = "analysis_type ~ comparison")
 
-num_sig_de_genes$plot
 
-ggsave(filename = file.path(args$output_dir, "num_de_genes_barplot.png"),
+
+for( file_name in list("num_de_genes_barplot.svg","num_de_genes_barplot.png")) {
+  logdebug(capture.output(
+ggsave(filename = file.path(args$output_dir, file_name),
        plot = num_sig_de_genes$plot,
        height = 10,
        width = 7)
-
-ggsave(filename = file.path(args$output_dir, "num_de_genes_barplot.svg"),
-       plot = num_sig_de_genes$plot,
-       height = 10,
-       width = 7)
-
-num_sig_de_genes$table
+    , type = "message"
+  ))
+}
 
 vroom::vroom_write(num_sig_de_genes$table,
-                   path = file.path(args$output_dir,
+                   file.path(args$output_dir,
                                     "num_significant_de_genes_all.tab"))
 
 
@@ -601,17 +618,17 @@ pvalhist <- printPValuesDistribution(selected_data,
                                      p_value_column = p.mod,
                                      formula_string = "analysis_type ~ comparison")
 
-pvalhist
+#logdebug(head(pvalhist))
 
+for( file_name in list("p_values_distn.svg","p_values_distn.png")) {
+  logdebug(capture.output(
 ggsave(filename = file.path(args$output_dir, "p_values_distn.png"),
        plot = pvalhist,
        height = 10,
        width = 7)
-
-ggsave(filename = file.path(args$output_dir, "p_values_distn.svg"),
-       plot = pvalhist,
-       height = 10,
-       width = 7)
+    , type = "message"
+  ))
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -637,9 +654,9 @@ de_proteins_wide <- selected_data %>%
   left_join(norm_counts, by = args$row_id) %>%
   left_join(raw_counts, by = args$row_id)
 
-head(de_proteins_wide)
+#logdebug(head(de_proteins_wide))
 
-vroom::vroom_write(de_proteins_wide, path = file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
+vroom::vroom_write(de_proteins_wide, file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -701,7 +718,7 @@ de_proteins_long <- selected_data %>%
 #head(de_proteins_long)
 
 
-vroom::vroom_write(de_proteins_long, path = file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
+vroom::vroom_write(de_proteins_long, file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
