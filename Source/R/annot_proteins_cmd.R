@@ -170,16 +170,32 @@ args<-parseType(args,
 
 
 loginfo("Read file with results table with values in wider format %s", args$input_wide_file)
-de_proteins_wider <- vroom::vroom( args$input_wide_file )
+captured_output<-capture.output(
+  de_proteins_wider <- vroom::vroom( args$input_wide_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file with results table with values in longer format %s", args$input_long_file)
-de_proteins_longer <- vroom::vroom( args$input_long_file )
+captured_output<-capture.output(
+  de_proteins_longer <- vroom::vroom( args$input_long_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file to link the cleaned list of accessions to the original list of protein groups from MaxQuant file %s", args$ids_file)
-ids_tbl <- vroom::vroom( args$ids_file )
+captured_output<-capture.output(
+  ids_tbl <- vroom::vroom( args$ids_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file with the protein abundance data %s", args$raw_counts_file)
-dat_tbl <- vroom::vroom( args$raw_counts_file )
+captured_output<-capture.output(
+  dat_tbl <- vroom::vroom( args$raw_counts_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 dat_cln <-  janitor::clean_names(dat_tbl) %>%
   dplyr::rename( gene_names_maxquant = "gene_names")
@@ -198,8 +214,13 @@ if(!file.exists(reactome_file))
   loginfo(status)
 }
 loginfo("Reading Reactome UniProt to pathways file.")
-reactome_map <- vroom::vroom( reactome_file ,
+captured_output<-capture.output(
+  reactome_map <- vroom::vroom( reactome_file ,
                               col_names = c("uniprot_acc", "reactome_id", "url", "reactome_term", "evidence", "organism") )
+    , type = "message"
+)
+logdebug(captured_output)
+
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -315,7 +336,7 @@ de_proteins_longer_annot <- de_proteins_longer %>%
                            "protein_ids" = "protein_ids"))
 
 
-vroom::vroom_write(de_proteins_longer_annot, path=file.path(args$output_dir,args$output_long_file ) )
+vroom::vroom_write(de_proteins_longer_annot, file.path(args$output_dir,args$output_long_file ) )
 
 
 
