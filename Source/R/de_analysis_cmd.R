@@ -227,21 +227,21 @@ if (args$group_pattern == "") {
 
 
 loginfo("Read file with lists of experimental contrasts to test %s", args$contrasts_file)
-logdebug(capture.output(
+captured_output<-capture.output(
 contrasts_tbl <- vroom::vroom(args$contrasts_file, delim = "\t")
     ,type = "message"
-))
-
+)
+logdebug(captured_output)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 loginfo("Read file with counts table %s", args$counts_table_file)
-logdebug(capture.output(
+captured_output<-capture.output(
 evidence_tbl_filt <- vroom::vroom(args$counts_table_file, delim = "\t") %>%
   dplyr::select(one_of(c(args$row_id)), matches(args$group_pattern))
     ,type = "message"
-))
-
+)
+logdebug(captured_output)
 
 if (!args$row_id %in% colnames(evidence_tbl_filt)) {
   logerror("The row ID specified in --row-id was not found in the input counts file.")
@@ -260,12 +260,13 @@ cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
                                                           row_id = !!rlang::sym(args$row_id))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-logdebug(capture.output(
+captured_output<-capture.output(
 design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
   as.data.frame() %>%
   dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
     ,type = "message"
-))
+)
+logdebug(captured_output)
 
 rownames(design_mat_cln) <- design_mat_cln %>% pull(as.name(args$sample_id))
 
@@ -352,10 +353,11 @@ loginfo("Count the number of missing values for each sample: %d",table(is.infini
 plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
 for( file_name in list("num_missing_values.png","num_missing_values.svg")) {
-logdebug(capture.output(
+captured_output<-capture.output(
 ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values,limitsize = FALSE)
     ,type = "message"
-))
+)
+  logdebug(captured_output)
 }
 
 
@@ -474,10 +476,11 @@ cancorplot_r1 <- ruv_cancorplot(t(counts_rnorm.log.quant),
 
 
 for( file_name in list("cancor_plot_round_1.pdf","cancor_plot_round_1.png")) {
-  logdebug(capture.output(
+  captured_output<-capture.output(
     ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, file_name), limitsize = FALSE)
     , type = "message"
-  ))
+  )
+  logdebug(captured_output)
 }
 
 
@@ -537,10 +540,11 @@ rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm
                                          group_column = !!rlang::sym(args$group_id),
                                          list_of_descriptions = list("Before RUVIII", "After RUVIII"))
 
-logdebug(capture.output(
+captured_output<-capture.output(
   ggsave(plot = rle_pca_plots_arranged, filename = file.path(args$output_dir, "rle_pca_plots.pdf"), limitsize = FALSE)
   , type = "message"
-))
+)
+logdebug(captured_output)
 
 
 
@@ -579,10 +583,11 @@ volplot_gg.all <- plotVolcano(selected_data,
 
 
 for( file_name in list("volplot_gg_all.svg","volplot_gg_all.png")) {
-  logdebug(capture.output(
+  captured_output<capture.output(
 ggsave(filename = file.path(args$output_dir, file_name), plot = volplot_gg.all, width = 7.29, height = 6)
     , type = "message"
-  ))
+  )
+  logdebug(captured_output)
 }
 
 
@@ -598,13 +603,14 @@ num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.
 
 
 for( file_name in list("num_de_genes_barplot.svg","num_de_genes_barplot.png")) {
-  logdebug(capture.output(
+  captured_output<-capture.output(
 ggsave(filename = file.path(args$output_dir, file_name),
        plot = num_sig_de_genes$plot,
        height = 10,
        width = 7)
     , type = "message"
-  ))
+  )
+  logdebug(captured_output)
 }
 
 vroom::vroom_write(num_sig_de_genes$table,
@@ -621,13 +627,14 @@ pvalhist <- printPValuesDistribution(selected_data,
 #logdebug(head(pvalhist))
 
 for( file_name in list("p_values_distn.svg","p_values_distn.png")) {
-  logdebug(capture.output(
+  captured_output<capture.output(
 ggsave(filename = file.path(args$output_dir, "p_values_distn.png"),
        plot = pvalhist,
        height = 10,
        width = 7)
     , type = "message"
-  ))
+  )
+  logdebug(captured_output)
 }
 
 
