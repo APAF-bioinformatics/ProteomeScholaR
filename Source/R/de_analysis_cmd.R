@@ -269,7 +269,7 @@ design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
 
 rownames(design_mat_cln) <- design_mat_cln %>% pull(as.name(args$sample_id))
 
-## Check that the sample ID and group ID name is found in the design matrix 
+## Check that the sample ID and group ID name is found in the design matrix
 if (length(which(c(args$sample_id, args$group_id) %in% colnames(design_mat_cln))) != 2) {
   logerror("Sample ID and group ID are not matching to the column names used in the design matrix.")
   q()
@@ -286,7 +286,7 @@ if ("max_num_samples_miss_per_group" %in% names(args)) {
   cln_dat_wide_cleaned <- removeRowsWithMissingValues(cln_dat_wide_unsorted,
                                                       matches(args$group_pattern),
                                                       design_mat_cln %>%
-                                                            dplyr::mutate(Sample_ID = as.character(Sample_ID)),
+                                                            dplyr::mutate(Sample_ID = as.character(args$sample_id)),
                                                       !!rlang::sym(args$sample_id),
                                                       !!rlang::sym(args$row_id),
                                                       !!rlang::sym(args$group_id),
@@ -331,16 +331,16 @@ logdebug(ruvIII_replicates_matrix)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide, 
+# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide,
 #                                             matches(args$group_pattern),
-#                                             design_mat_cln %>% 
-#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
+#                                             design_mat_cln %>%
+#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)),
 #                                             !!rlang::sym(args$sample_id),
 #                                             !!rlang::sym(args$row_id),
 #                                             !!rlang::sym(args$group_id),
 #                                             args$min_num_samples_per_group,
 #                                             args$abundance_threshold)
-# 
+#
 # saveRDS(sample_rows_lists, file.path(args$output_dir, "keep_sample_rows_lists.RDS" ))
 
 
@@ -411,14 +411,14 @@ list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
 
 # if( limma_method == "pairs") {
-#   
-#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping, 
+#
+#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping,
 #                                   design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", args$group_id),
 #                                   contrast_variable=args$group_id,
-#                                   weights=NA) 
-#   
+#                                   weights=NA)
+#
 #   myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 
@@ -434,9 +434,9 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print( "Save the list of differentially expressed proteins, without using RUV.")
-# save_de_protein_list(myRes_rnorm.log.quant, 
+# save_de_protein_list(myRes_rnorm.log.quant,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_without_ruv.tsv")
 
@@ -445,7 +445,7 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 loginfo("Find the list of negative control genes using ANOVA.")
 control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
                                            design_matrix = design_mat_cln,
-                                           group_column = "group",
+                                           group_column = args$group_id,
                                            num_neg_ctrl = args$num_neg_ctrl,
                                            q_val_thresh = args$q_val_thresh)
 
@@ -497,22 +497,22 @@ loginfo("Compare the different experimental groups and obtain lists of different
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
 # if( limma_method == "pairs") {
-#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,  
+#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,
 #                                            cols_for_analysis, sample_rows_lists,
-#                                            type_of_grouping, 
-#                                            design_matrix = design_mat_cln, 
+#                                            type_of_grouping,
+#                                            design_matrix = design_mat_cln,
 #                                            formula_string= "~ 0 + group ",
 #                                            contrast_variable="group",
 #                                            weights=NA)
-#   
+#
 #   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
                                                  design_matrix = design_mat_cln,
-                                                 formula_string = "~ 0 + group ",
+                                                 formula_string = args$formula_string,
                                                  weights = NA)
 
 myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
@@ -522,9 +522,9 @@ myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
-# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1, 
+# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_round_1_ruv.tsv")
 
@@ -561,7 +561,7 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
                                     q_val_thresh = 0.05) %>%
   dplyr::rename(log2FC = "logFC")
 
-## Write all the results in one single table 
+## Write all the results in one single table
 selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
   vroom::vroom_write(file.path(args$output_dir, "lfc_qval_long.tsv"))
@@ -665,16 +665,16 @@ norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = "Sample_ID",
-               values_to = "log2norm") %>%
-  left_join(design_mat_cln, by = "Sample_ID") %>%
-  mutate(temp_id = Sample_ID) %>%
+               names_to = args$sample_id,
+               values_to = "log2norm")  %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
-  group_by(!!sym(args$row_id), group) %>%
-  arrange(!!sym(args$row_id), group, sample_number) %>%
+  group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
+  arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
   mutate(replicate_number = paste0("log2norm.", row_number())) %>%
   ungroup %>%
-  pivot_wider(id_cols = c(!!sym(args$row_id), group),
+  pivot_wider(id_cols = c(!!sym(args$row_id), !!sym(args$group_id)),
               names_from = replicate_number,
               values_from = log2norm)
 
@@ -683,29 +683,29 @@ raw_counts <- counts_filt %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = "Sample_ID",
+               names_to = args$sample_id,
                values_to = "raw") %>%
-  left_join(design_mat_cln, by = "Sample_ID") %>%
-  mutate(temp_id = Sample_ID) %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
-  group_by(!!sym(args$row_id), group) %>%
-  arrange(!!sym(args$row_id), group, sample_number) %>%
+  group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
+  arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
   mutate(replicate_number = paste0("raw.", row_number())) %>%
   ungroup %>%
-  pivot_wider(id_cols = c(!!sym(args$row_id), group),
+  pivot_wider(id_cols = c(!!sym(args$row_id), !!sym(args$group_id)),
               names_from = replicate_number,
               values_from = raw)
 
-left_join_columns <- rlang::set_names(c(args$row_id, "group"),
+left_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                       c(args$row_id, "left_group"))
 
-right_join_columns <- rlang::set_names(c(args$row_id, "group"),
+right_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                        c(args$row_id, "right_group"))
 
 de_proteins_long <- selected_data %>%
   dplyr::filter(analysis_type == "RUV applied") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
-  dplyr::mutate(expression = str_replace_all(expression, "group", "")) %>%
+  dplyr::mutate(expression = str_replace_all(expression, args$group_id, "")) %>%
   separate(expression, sep = "-", into = c("left_group", "right_group")) %>%
   left_join(norm_counts, by = left_join_columns) %>%
   left_join(norm_counts, by = right_join_columns,
