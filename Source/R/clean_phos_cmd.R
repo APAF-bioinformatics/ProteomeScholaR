@@ -156,7 +156,12 @@ args<-parseString(args,
 additional_cols <- str_split(  args$add_cols_string, ",")[[1]]
 col_pattern <- janitor::make_clean_names( args$col_pattern_string)
 
-evidence_tbl <- vroom::vroom( args$raw_counts_file)
+captured_output<-capture.output(
+  evidence_tbl <- vroom::vroom( args$raw_counts_file)
+  ,type = "message"
+)
+logdebug(captured_output)
+
 evidence_janitor <- janitor::clean_names(evidence_tbl)
 colnames(evidence_janitor) <- str_replace(colnames(evidence_janitor), "_i_ds", "_ids" )
 
@@ -183,11 +188,14 @@ evidence_tbl_cleaned <- addColumnsToEvidenceTbl(evidence_janitor )
 ## Get best accession per entry, work out peptides mapped to multiple genes
 loginfo("Use decision tree to get best accession per phosphosite evidence entry")
 #TODO:leading_proteins and evidence_id are hard coded, remove or make args
-accession_gene_name_tbl <- chooseBestAccession(evidence_tbl_cleaned,
+captured_output<-capture.output(
+  accession_gene_name_tbl <- chooseBestAccession(evidence_tbl_cleaned,
                                                aa_seq_tbl,
                                                leading_proteins ,
                                                evidence_id)
-  
+)
+logdebug(captured_output)
+
 ## Remove peptides without abundance values at all
 loginfo("Remove peptides without abundance values at all")
 evidence_tbl_filt <- removePeptidesWithoutAbundances(evidence_tbl_cleaned, col_pattern)

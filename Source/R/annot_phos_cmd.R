@@ -193,58 +193,83 @@ args<-parseType(args,
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Read abundance table.")
-abundance_tbl <- vroom::vroom(args$raw_counts_file)
+captured_output<-capture.output(
+  abundance_tbl <- vroom::vroom(args$raw_counts_file)
+  ,type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read differentially abundant phosphopeptides table in long format")
-de_phos_long <- vroom::vroom( args$input_long_file) %>%
-  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
-  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
-  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
-  dplyr::relocate(residue, .before="position") 
-
-loginfo("Read differentially abundant phosphopeptides table in wide format")
-de_phos_wide <- vroom::vroom( args$input_wide_file) %>%
+captured_output<-capture.output(
+  de_phos_long <- vroom::vroom( args$input_long_file) %>%
   mutate( sites_id_copy = sites_id, .after="sites_id") %>%
   separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
   mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
   dplyr::relocate(residue, .before="position")
+  ,type = "message"
+)
+logdebug(captured_output)
+
+loginfo("Read differentially abundant phosphopeptides table in wide format")
+captured_output<-capture.output(
+  de_phos_wide <- vroom::vroom( args$input_wide_file) %>%
+  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
+  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
+  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
+  dplyr::relocate(residue, .before="position")
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Read PhosphoSitePlus (PSP) kinase-substrate table.")
-ks_tbl <- vroom::vroom( ks_file, skip=3 ) %>%
+captured_output<-capture.output(
+  ks_tbl <- vroom::vroom( ks_file, skip=3 ) %>%
   mutate( SUB_MOD_RSD_CLN = str_replace_all(SUB_MOD_RSD, "([A-Z])(\\d+)", "\\1 \\2")) %>%
-  separate( SUB_MOD_RSD_CLN, into=c("residue", "position")) 
+  separate( SUB_MOD_RSD_CLN, into=c("residue", "position"))
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Read PSP regulatory sites table.")
-reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
+captured_output<-capture.output(
+  reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
       mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
       separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
       relocate (ACC_ID, residue, position, ptm_type, .before="GENE" ) %>%
       dplyr::select(-`...21`) %>%
       dplyr::rename( REG_SITES_PMIDs = "PMIDs") %>%
       dplyr::rename( REG_SITES_NOTES = "NOTES")
-  
+  ,type = "message"
+)
+logdebug(captured_output)
+
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo( "Read PSP disease table")
-disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
+captured_output<-capture.output(
+  disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
   dplyr::select( ACC_ID, MOD_RSD, DISEASE, ALTERATION, NOTES ) %>%
   mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
   separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
   dplyr::rename( DISEASE_NOTES = "NOTES") %>%
-  dplyr::select(-MOD_RSD, -ptm_type) 
+  dplyr::select(-MOD_RSD, -ptm_type)
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 loginfo("Read PSP post-translational modification (PTM) tables")
 logdebug(list_of_ptm_files)
-ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
+captured_output<-capture.output(
+  ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   dplyr::select( ACC_ID, MOD_RSD, ptm) %>%
   mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
   separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
@@ -253,6 +278,9 @@ ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   mutate( ptm= purrr::map_chr( ptm, ~{ temp_vec <- str_split(., "/")[[1]]
   temp_vec[length(temp_vec)] } )) %>%
   dplyr::mutate( ptm = str_replace_all( ptm, "_site_dataset", ""))
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 
@@ -359,8 +387,12 @@ if(!file.exists(reactome_file))
   loginfo(status)
 }
 loginfo("Reading Reactome UniProt to pathways file.")
-reactome_map <- vroom::vroom( reactome_file ,
+captured_output<-capture.output(
+  reactome_map <- vroom::vroom( reactome_file ,
                               col_names = c("uniprot_acc", "reactome_id", "url", "reactome_term", "evidence", "organism") )
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -490,7 +522,7 @@ de_phos_long_annot <- de_phos_long %>%
              by=c("sites_id" = "sites_id")) %>%
   distinct()
 
-vroom::vroom_write(de_phos_long_annot, path=file.path(args$output_dir,args$output_long_file ))
+vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -137,9 +137,13 @@ testRequiredFiles(c(
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo ("Read phosphopeptides abundance data.")
-
+captured_output<-capture.output(
 phospho_tbl_orig <- vroom::vroom(args$phospho_file)
-  
+  ,type = "message"
+)
+logdebug(captured_output)
+
+
 phospho_tbl <- phospho_tbl_orig %>%  
   dplyr::select(sites_id, q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
   mutate( phosphosites_id_copy = sites_id ) %>%
@@ -152,9 +156,11 @@ phospho_cln <- phospho_tbl %>%
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo ("Read proteomics abundance data.")
-
-
-proteins_tbl_orig <-  vroom::vroom( args$proteins_file, delim="\t")
+captured_output<-capture.output(
+  proteins_tbl_orig <-  vroom::vroom( args$proteins_file, delim="\t")
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 proteins_tbl <- proteins_tbl_orig %>%
@@ -173,9 +179,9 @@ phospho_uniprot_list <- phospho_cln %>% distinct(uniprot_acc) %>% pull(uniprot_a
 prot_phos_uniprot_list <- intersect( proteins_uniprot_list, 
            phospho_uniprot_list ) 
 
-proteins_uniprot_list %>% length()
-phospho_uniprot_list %>% length()
-prot_phos_uniprot_list %>% length()
+logdebug(proteins_uniprot_list %>% length())
+logdebug(phospho_uniprot_list %>% length())
+logdebug(prot_phos_uniprot_list %>% length())
 
 
 
@@ -204,7 +210,9 @@ basic_data_phospho_only <- phospho_cln %>%
 basic_data <- basic_data_shared %>%
   bind_rows(basic_data_phospho_only)
 
-nrow(basic_data) == nrow(phospho_cln)
+ if (nrow(basic_data) != nrow(phospho_cln)){
+   logwarning("nrow(basic_data) != nrow(phospho_cln)")
+ }
 
 
 vroom::vroom_write( basic_data, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_basic.tsv"))
@@ -261,11 +269,13 @@ compare_before_and_after <- before_prot_norm %>%
      geom_text(stat='identity', aes(label= Counts), vjust=-0.5) 
 
  
- cmp_before_after_plot
- 
- ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.pdf"), width = 14, height=7)
- ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.png"), width = 14, height=7 )
-
+ for( file_name in list("compare_before_and_after_norm_by_prot_abundance.pdf","compare_before_and_after_norm_by_prot_abundance.png")) {
+  captured_output<capture.output(
+   ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, file_name), width = 14, height=7)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
  
 
 
@@ -297,12 +307,20 @@ basic_data_volcano_plot <- basic_data_volcano_plot_data %>%
                                          logFC.threshold), 
                                   "Not Significant"))
 
+for( file_name in list("volplot_gg_phos_vs_prot_all.png","volplot_gg_phos_vs_prot_all.svg")) {
+  captured_output<capture.output(
+  ggsave(  filename=file.path( args$output_dir, file_name), plot=basic_data_volcano_plot, width=15, height=6   )
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
-ggsave(  filename=file.path( args$output_dir, "volplot_gg_phos_vs_prot.all.png"), plot=basic_data_volcano_plot, width=15, height=6   )
-ggsave(  filename=file.path( args$output_dir, "volplot_gg_phos_vs_prot.all.svg"), plot=basic_data_volcano_plot, width=15, height=6   )
+captured_output<capture.output(
+  ggplotly(basic_data_volcano_plot)
+    , type = "message"
+  )
+logdebug(captured_output)
 
-
-ggplotly(basic_data_volcano_plot)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
