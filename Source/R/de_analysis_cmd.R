@@ -543,7 +543,7 @@ myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
 
 saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
-         filename = file.path(args$output_dir, "fit.eb.RDS" ) )
+         file.path(args$output_dir, "fit.eb.RDS" ) )
 # }
 
 
