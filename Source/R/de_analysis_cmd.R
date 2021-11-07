@@ -536,6 +536,9 @@ list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
 
 myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
+
+saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
+         filename = file.path(args$output_dir, "fit.eb.RDS" ) )
 # }
 
 
