@@ -285,6 +285,8 @@ cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
 table_value <- table(is.infinite(data.matrix(log2(cln_dat_wide_unsorted[, c(colnames(cln_dat_wide_unsorted)[1], cols_for_analysis)]%>%
                                                     column_to_rownames(args$row_id)))))
 
+print( table_value)
+
 loginfo("Count the number of missing values for each sample before removing proteins with some missing values: %d",
         table_value)
 
