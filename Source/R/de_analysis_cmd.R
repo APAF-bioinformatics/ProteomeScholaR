@@ -288,7 +288,7 @@ table_value <- table(is.infinite(data.matrix(log2(cln_dat_wide_unsorted[, c(coln
 print( table_value)
 
 loginfo("Count the number of missing values for each sample before removing proteins with some missing values: %d",
-        table_value)
+        table_value[1, "TRUE"])
 
 plot_num_missing_values_before <- plotNumMissingVales(cln_dat_wide_unsorted[, cols_for_analysis])
 
