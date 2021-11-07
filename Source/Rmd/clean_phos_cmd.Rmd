@@ -158,7 +158,7 @@ if(!file.exists( file.path( fasta_meta_file))) {
   
   ## Add the row id column and create a column containing the cleaned  peptide
   print("Step 2: Get row ID and get cleaned peptide sequence.")
-  evidence_tbl_cleaned <- add_columns_to_evidence_tbl( evidence_janitor ) 
+  evidence_tbl_cleaned <- addColumnsToEvidenceTbl(evidence_janitor )
   
   
   ## Get best accession per entry, work out peptides mapped to multiple genes
@@ -170,7 +170,7 @@ if(!file.exists( file.path( fasta_meta_file))) {
   
   ## Remove peptides without abundance values at all 
   print("Step 4: Remove peptides without abundance values at all")
-  evidence_tbl_filt <- remove_peptides_without_abundances(evidence_tbl_cleaned, col_pattern)
+  evidence_tbl_filt <- removePeptidesWithoutAbundances(evidence_tbl_cleaned, col_pattern)
 
 
 ```
@@ -178,12 +178,12 @@ if(!file.exists( file.path( fasta_meta_file))) {
 ```{r}
   ## For all the multi-phosphosites peptide extract their intensity, filter peptide with no intensity across all samples, extract site probabilities
   print("Step 5: Filter peptides with no intensity across all samples, extract intensity data, extract sites")
-  sites_probability_tbl <- filter_peptide_and_extract_probabilities (evidence_tbl_filt , 
-                                                                       accession_gene_name_tbl,
-                                                                       col_pattern,
-                                                                       accession_col = leading_proteins,
-                                                                      phospho_site_prob_col = phospho_sty_probabilities,
-                                                     num_phospho_site_col = phospho_sty ) 
+  sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt ,
+                                                                 accession_gene_name_tbl,
+                                                                 col_pattern,
+                                                                 accession_col = leading_proteins,
+                                                                 phospho_site_prob_col = phospho_sty_probabilities,
+                                                                 num_phospho_site_col = phospho_sty )
   
 ```
 
@@ -191,49 +191,49 @@ if(!file.exists( file.path( fasta_meta_file))) {
 ```{r}
   ## Get the peptide start and end position for each peptide 
   print("Step 6: Add peptide start and end position")
-  peptide_start_and_end <- add_peptide_start_and_end( sites_probability_tbl , aa_seq_tbl )
+  peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl , aa_seq_tbl )
 
   
   ## Get the phosphosites position string 
   print("Step 7: Add string listing the positions of phosphosites")
-  phosphosite_pos_string_tbl <- add_phosphosites_positions_string(peptide_start_and_end )
+  phosphosite_pos_string_tbl <- addPhosphositesPositionsString(peptide_start_and_end )
   
   ## Get the string listing all the 15-mer sequences, each sequence has the phosphorylation site in the middle
   print("Step 8: Add string listing all 15-mer sequences, each sequence has phosphosite in the center")
-  get_15_mer_tbl <- add_X_mer_strings( phosphosite_pos_string_tbl,  padding_length=7) 
+  get_15_mer_tbl <- addXMerStrings(phosphosite_pos_string_tbl, padding_length=7)
   
   ## Get peptides with at least one phosphosite over threshold. Find all peptides with same sites as another peptides that contained at least one phosphosies >= threshold.
   print("Step 9: Get high conf. peptides (e.g. phosphosites >= threshold). Get peptide W/ same sites as high conf. peptide.")
-  get_15_mer_tbl_filt <- filter_by_score_and_get_similar_peptides( get_15_mer_tbl, 
-                                                                   site_prob_threshold, 
-                                                                   recover_site_prob_thresh)
+  get_15_mer_tbl_filt <- filterByScoreAndGetSimilarPeptides(get_15_mer_tbl,
+                                                            site_prob_threshold,
+                                                            recover_site_prob_thresh)
 
   ## Pivot the phosphosites to a longer table 
   print("Step 10: Pivot phosphosites/phosphopeptide table to long format")
-  all_phos_sites_long_tbl <- all_phosphosites_pivot_longer( get_15_mer_tbl_filt,
-                                                            additional_cols ,                                                            
-                                                            col_pattern  )
+  all_phos_sites_long_tbl <- allPhosphositesPivotLonger(get_15_mer_tbl_filt,
+                                                        additional_cols ,
+                                                        col_pattern  )
   
   #colnames(all_phos_sites_long_tbl)
   
   ## Group peptides from paralog proteins 
   print("Step 11: Group peptides from paralog proteins ")
-  paralog_sites_long <- group_paralog_peptides ( all_phos_sites_long_tbl, additional_cols )
+  paralog_sites_long <- groupParalogPeptides (all_phos_sites_long_tbl, additional_cols )
   
   ## Pivot the phosphosites data to a wide format
   print("Step 12: Pivot phosphosites/phosphopeptide table to wide format")
-  all_phos_sites_wide_tbl <- all_phosphosites_pivot_wider( paralog_sites_long, 
-                                                           additional_cols )
+  all_phos_sites_wide_tbl <- allPhosphositesPivotWider(paralog_sites_long,
+                                                       additional_cols )
   
   ## Summarise the abundance values for each unique phosphosites (mean, median, sum), return table in long format
   print("Step 13: Summarise abundance values for each unique phosphosites, long format")
-  summarised_long_tbl_list <- unique_phosphosites_summarise_long_list( paralog_sites_long, 
-                                                                       additional_cols ) 
+  summarised_long_tbl_list <- uniquePhosphositesSummariseLongList(paralog_sites_long,
+                                                                  additional_cols )
   
   ## Summarise the abundance values for each unique phosphosites (mean, median, sum), return table in wide format
   print("Step 14: Summarise abundance values for each unique phosphosites, wide format")
-  summarised_wide_tbl_list <- unique_phosphosites_summarise_wide_list( summarised_long_tbl_list, 
-                                                                       additional_cols)
+  summarised_wide_tbl_list <- uniquePhosphositesSummariseWideList(summarised_long_tbl_list,
+                                                                  additional_cols)
   
 ```
 

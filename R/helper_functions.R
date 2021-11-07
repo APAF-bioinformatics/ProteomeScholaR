@@ -132,7 +132,7 @@ createOutputDir <- function(output_dir, no_backup) {
       if (dir.exists(backup_name)) { unlink(backup_name, recursive = TRUE) }
       system(paste("mv", output_dir, backup_name)) }
   }
-  dir.create(output_dir)
+  dir.create(output_dir, recursive = TRUE)
 }
 
 #' @export
@@ -177,6 +177,14 @@ testRequiredArguments <- function(arg_list, parameters) {
 parseType<-function (arg_list,parameters,functType){
   for(key in parameters){
     arg_list[key]<-functType(arg_list[key])
+  }
+  return (arg_list)
+}
+
+#' @export
+parseString<-function (arg_list,parameters){
+  for(key in parameters){
+    arg_list[key]<- str_replace_all(arg_list[key],c("\""="","\'"=""))
   }
   return (arg_list)
 }

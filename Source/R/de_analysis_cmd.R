@@ -147,9 +147,11 @@ createOutputDir(args$output_dir, args$no_backup)
 
 ## Logger configuration
 logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
-addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = cmriFormatter)
-addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = cmriFormatter)
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
 #parse and merge the configuration file options.
 if (args$config != "") {
@@ -199,8 +201,16 @@ args<-parseType(args,
     ,"num_neg_ctrl"
     ,"max_num_samples_miss_per_group"
     ,"abundance_threshold"
-  )
-                ,as.integer)
+  )  ,as.integer)
+args<-parseString(args,
+  c("group_pattern"
+    ,"test_pairs_file"
+    ,"formula_string"
+    ,"sample_id"
+    ,"group_id"
+    ,"row_id"
+    ,"file_prefix"
+  ))
 
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
@@ -217,14 +227,21 @@ if (args$group_pattern == "") {
 
 
 loginfo("Read file with lists of experimental contrasts to test %s", args$contrasts_file)
+captured_output<-capture.output(
 contrasts_tbl <- vroom::vroom(args$contrasts_file, delim = "\t")
+    ,type = "message"
+)
+logdebug(captured_output)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 loginfo("Read file with counts table %s", args$counts_table_file)
+captured_output<-capture.output(
 evidence_tbl_filt <- vroom::vroom(args$counts_table_file, delim = "\t") %>%
   dplyr::select(one_of(c(args$row_id)), matches(args$group_pattern))
-
+    ,type = "message"
+)
+logdebug(captured_output)
 
 if (!args$row_id %in% colnames(evidence_tbl_filt)) {
   logerror("The row ID specified in --row-id was not found in the input counts file.")
@@ -242,20 +259,45 @@ cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
                                                           col_pattern = args$group_pattern,
                                                           row_id = !!rlang::sym(args$row_id))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Read design matrix file.")
 
+captured_output<-capture.output(
 design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
   as.data.frame() %>%
   dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
+    ,type = "message"
+)
+logdebug(captured_output)
 
 rownames(design_mat_cln) <- design_mat_cln %>% pull(as.name(args$sample_id))
 
-## Check that the sample ID and group ID name is found in the design matrix 
+## Check that the sample ID and group ID name is found in the design matrix
 if (length(which(c(args$sample_id, args$group_id) %in% colnames(design_mat_cln))) != 2) {
   logerror("Sample ID and group ID are not matching to the column names used in the design matrix.")
   q()
 }
 
 cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Count the total number of missing values in total
+
+table_value <- table(is.infinite(data.matrix(log2(cln_dat_wide_unsorted[, c(colnames(cln_dat_wide_unsorted)[1], cols_for_analysis)]%>%
+                                                    column_to_rownames(args$row_id)))))
+
+loginfo("Count the number of missing values for each sample before removing proteins with some missing values: %d",
+        table_value["TRUE"])
+
+plot_num_missing_values_before <- plotNumMissingVales(cln_dat_wide_unsorted[, cols_for_analysis])
+
+for( file_name in list("num_missing_values_before_filtering.png","num_missing_values_before_filtering.svg")) {
+  captured_output<-capture.output(
+    ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values_before, limitsize = FALSE)
+    ,type = "message"
+  )
+  logdebug(captured_output)
+}
+
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -266,7 +308,7 @@ if ("max_num_samples_miss_per_group" %in% names(args)) {
   cln_dat_wide_cleaned <- removeRowsWithMissingValues(cln_dat_wide_unsorted,
                                                       matches(args$group_pattern),
                                                       design_mat_cln %>%
-                                                            dplyr::mutate(Sample_ID = as.character(Sample_ID)),
+                                                            dplyr::mutate(Sample_ID = as.character(args$sample_id)),
                                                       !!rlang::sym(args$sample_id),
                                                       !!rlang::sym(args$row_id),
                                                       !!rlang::sym(args$group_id),
@@ -306,34 +348,38 @@ ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
                                                      !!rlang::sym(args$sample_id),
                                                      !!rlang::sym(args$group_id))
 
-loginfo(ruvIII_replicates_matrix)
+logdebug(ruvIII_replicates_matrix)
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide, 
+# sample_rows_lists <- get_rows_to_keep_list( cln_dat_wide,
 #                                             matches(args$group_pattern),
-#                                             design_mat_cln %>% 
-#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)), 
+#                                             design_mat_cln %>%
+#                                               dplyr::mutate( Sample_ID = as.character(Sample_ID)),
 #                                             !!rlang::sym(args$sample_id),
 #                                             !!rlang::sym(args$row_id),
 #                                             !!rlang::sym(args$group_id),
 #                                             args$min_num_samples_per_group,
 #                                             args$abundance_threshold)
-# 
+#
 # saveRDS(sample_rows_lists, file.path(args$output_dir, "keep_sample_rows_lists.RDS" ))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Count the total number of missing values in total
-loginfo("Count the number of missing values for each sample:",table(is.infinite(data.matrix(log2(counts_filt)))))
+loginfo("Count the number of missing values for each sample: %d",table(is.infinite(data.matrix(log2(counts_filt)))))
 
 
 plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
-
-ggsave(filename = file.path(args$output_dir, "num_missing_values.png"), plot = plot_num_missing_values,limitsize = FALSE)
-ggsave(filename = file.path(args$output_dir, "num_missing_values.svg"), plot = plot_num_missing_values,limitsize = FALSE)
+for( file_name in list("num_missing_values.png","num_missing_values.svg")) {
+captured_output<-capture.output(
+ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values,limitsize = FALSE)
+    ,type = "message"
+)
+  logdebug(captured_output)
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -388,14 +434,14 @@ list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
 
 # if( limma_method == "pairs") {
-#   
-#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping, 
+#
+#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping,
 #                                   design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", args$group_id),
 #                                   contrast_variable=args$group_id,
-#                                   weights=NA) 
-#   
+#                                   weights=NA)
+#
 #   myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 
@@ -411,9 +457,9 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print( "Save the list of differentially expressed proteins, without using RUV.")
-# save_de_protein_list(myRes_rnorm.log.quant, 
+# save_de_protein_list(myRes_rnorm.log.quant,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_without_ruv.tsv")
 
@@ -422,7 +468,7 @@ myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 loginfo("Find the list of negative control genes using ANOVA.")
 control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
                                            design_matrix = design_mat_cln,
-                                           group_column = "group",
+                                           group_column = args$group_id,
                                            num_neg_ctrl = args$num_neg_ctrl,
                                            q_val_thresh = args$q_val_thresh)
 
@@ -449,10 +495,14 @@ cancorplot_r1 <- ruv_cancorplot(t(counts_rnorm.log.quant),
                                 X = ruv_groups %>% pull(!!rlang::sym(args$group_id)),
                                 ctl = control_genes_index)
 
-#cancorplot_r1
 
-ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.pdf"),limitsize = FALSE)
-ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, "cancor_plot_round_1.png"),limitsize = FALSE)
+for( file_name in list("cancor_plot_round_1.pdf","cancor_plot_round_1.png")) {
+  captured_output<-capture.output(
+    ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, file_name), limitsize = FALSE)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -465,41 +515,43 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                      rownames_to_column(args$row_id),
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
 
-
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
 
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
 # if( limma_method == "pairs") {
-#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,  
+#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,
 #                                            cols_for_analysis, sample_rows_lists,
-#                                            type_of_grouping, 
-#                                            design_matrix = design_mat_cln, 
+#                                            type_of_grouping,
+#                                            design_matrix = design_mat_cln,
 #                                            formula_string= "~ 0 + group ",
 #                                            contrast_variable="group",
 #                                            weights=NA)
-#   
+#
 #   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-# 
+#
 # } else if ( limma_method == "contrasts") {
 
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
                                                  design_matrix = design_mat_cln,
-                                                 formula_string = "~ 0 + group ",
+                                                 formula_string = args$formula_string,
                                                  weights = NA)
 
 myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
+
+saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
+         file.path(args$output_dir, "fit.eb.RDS" ) )
 # }
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
-# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1, 
+# save_de_protein_list(myRes_rnorm.log.quant.ruv.r1,
 #                      row_id="protein_id",
-#                      sort_by_column =q.mod, 
+#                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_round_1_ruv.tsv")
 
@@ -512,11 +564,12 @@ rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm
                                          group_column = !!rlang::sym(args$group_id),
                                          list_of_descriptions = list("Before RUVIII", "After RUVIII"))
 
-pdf(file.path(args$output_dir, "rle_pca_plots.pdf"))
+captured_output<-capture.output(
+  ggsave(plot = rle_pca_plots_arranged, filename = file.path(args$output_dir, "rle_pca_plots.pdf"), limitsize = FALSE)
+  , type = "message"
+)
+logdebug(captured_output)
 
-rle_pca_plots_arranged
-
-dev.off()
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -536,10 +589,10 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
                                     q_val_thresh = 0.05) %>%
   dplyr::rename(log2FC = "logFC")
 
-## Write all the results in one single table 
+## Write all the results in one single table
 selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
-  vroom::vroom_write(path = file.path(args$output_dir, "lfc_qval_long.tsv"))
+  vroom::vroom_write(file.path(args$output_dir, "lfc_qval_long.tsv"))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -553,10 +606,13 @@ volplot_gg.all <- plotVolcano(selected_data,
                               formula_string = "analysis_type ~ comparison")
 
 
-volplot_gg.all
-
-ggsave(filename = file.path(args$output_dir, "volplot_gg.all.png"), plot = volplot_gg.all, width = 7.29, height = 6)
-ggsave(filename = file.path(args$output_dir, "volplot_gg.all.svg"), plot = volplot_gg.all, width = 7.29, height = 6)
+for( file_name in list("volplot_gg_all.svg","volplot_gg_all.png")) {
+  captured_output<capture.output(
+ggsave(filename = file.path(args$output_dir, file_name), plot = volplot_gg.all, width = 7.29, height = 6)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -568,22 +624,21 @@ num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.
                                                                            "RUV applied"),
                                            formula_string = "analysis_type ~ comparison")
 
-num_sig_de_genes$plot
 
-ggsave(filename = file.path(args$output_dir, "num_de_genes_barplot.png"),
+
+for( file_name in list("num_de_genes_barplot.svg","num_de_genes_barplot.png")) {
+  captured_output<-capture.output(
+ggsave(filename = file.path(args$output_dir, file_name),
        plot = num_sig_de_genes$plot,
        height = 10,
        width = 7)
-
-ggsave(filename = file.path(args$output_dir, "num_de_genes_barplot.svg"),
-       plot = num_sig_de_genes$plot,
-       height = 10,
-       width = 7)
-
-num_sig_de_genes$table
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
 vroom::vroom_write(num_sig_de_genes$table,
-                   path = file.path(args$output_dir,
+                   file.path(args$output_dir,
                                     "num_significant_de_genes_all.tab"))
 
 
@@ -593,17 +648,18 @@ pvalhist <- printPValuesDistribution(selected_data,
                                      p_value_column = p.mod,
                                      formula_string = "analysis_type ~ comparison")
 
-pvalhist
+#logdebug(head(pvalhist))
 
+for( file_name in list("p_values_distn.svg","p_values_distn.png")) {
+  captured_output<capture.output(
 ggsave(filename = file.path(args$output_dir, "p_values_distn.png"),
        plot = pvalhist,
        height = 10,
        width = 7)
-
-ggsave(filename = file.path(args$output_dir, "p_values_distn.svg"),
-       plot = pvalhist,
-       height = 10,
-       width = 7)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -629,9 +685,9 @@ de_proteins_wide <- selected_data %>%
   left_join(norm_counts, by = args$row_id) %>%
   left_join(raw_counts, by = args$row_id)
 
-head(de_proteins_wide)
+#logdebug(head(de_proteins_wide))
 
-vroom::vroom_write(de_proteins_wide, path = file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
+vroom::vroom_write(de_proteins_wide, file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -640,16 +696,16 @@ norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = "Sample_ID",
-               values_to = "log2norm") %>%
-  left_join(design_mat_cln, by = "Sample_ID") %>%
-  mutate(temp_id = Sample_ID) %>%
+               names_to = args$sample_id,
+               values_to = "log2norm")  %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
-  group_by(!!sym(args$row_id), group) %>%
-  arrange(!!sym(args$row_id), group, sample_number) %>%
+  group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
+  arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
   mutate(replicate_number = paste0("log2norm.", row_number())) %>%
   ungroup %>%
-  pivot_wider(id_cols = c(!!sym(args$row_id), group),
+  pivot_wider(id_cols = c(!!sym(args$row_id), !!sym(args$group_id)),
               names_from = replicate_number,
               values_from = log2norm)
 
@@ -658,29 +714,29 @@ raw_counts <- counts_filt %>%
   as.data.frame %>%
   rownames_to_column(args$row_id) %>%
   pivot_longer(cols = matches(args$group_pattern),
-               names_to = "Sample_ID",
+               names_to = args$sample_id,
                values_to = "raw") %>%
-  left_join(design_mat_cln, by = "Sample_ID") %>%
-  mutate(temp_id = Sample_ID) %>%
+  left_join(design_mat_cln, by = args$sample_id) %>%
+  mutate(temp_id = !!sym(args$sample_id)) %>%
   separate(temp_id, sep = "_", into = c("sample_number", "group_pattern")) %>%
-  group_by(!!sym(args$row_id), group) %>%
-  arrange(!!sym(args$row_id), group, sample_number) %>%
+  group_by(!!sym(args$row_id), !!sym(args$group_id)) %>%
+  arrange(!!sym(args$row_id), !!sym(args$group_id), sample_number) %>%
   mutate(replicate_number = paste0("raw.", row_number())) %>%
   ungroup %>%
-  pivot_wider(id_cols = c(!!sym(args$row_id), group),
+  pivot_wider(id_cols = c(!!sym(args$row_id), !!sym(args$group_id)),
               names_from = replicate_number,
               values_from = raw)
 
-left_join_columns <- rlang::set_names(c(args$row_id, "group"),
+left_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                       c(args$row_id, "left_group"))
 
-right_join_columns <- rlang::set_names(c(args$row_id, "group"),
+right_join_columns <- rlang::set_names(c(args$row_id, args$group_id ),
                                        c(args$row_id, "right_group"))
 
 de_proteins_long <- selected_data %>%
   dplyr::filter(analysis_type == "RUV applied") %>%
   dplyr::select(-lqm, -colour, -analysis_type) %>%
-  dplyr::mutate(expression = str_replace_all(expression, "group", "")) %>%
+  dplyr::mutate(expression = str_replace_all(expression, args$group_id, "")) %>%
   separate(expression, sep = "-", into = c("left_group", "right_group")) %>%
   left_join(norm_counts, by = left_join_columns) %>%
   left_join(norm_counts, by = right_join_columns,
@@ -693,7 +749,7 @@ de_proteins_long <- selected_data %>%
 #head(de_proteins_long)
 
 
-vroom::vroom_write(de_proteins_long, path = file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
+vroom::vroom_write(de_proteins_long, file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -59,6 +59,10 @@ parser <- add_option(parser, c("-o","--output_dir"), type = "character", default
                      help = "Directory path for all results files.",
                      metavar = "string")
 
+parser <- add_option(parser, c("-t","--tmp_dir"), type = "character", default = "cache", dest = "tmp_dir",
+                     help = "Directory path for temporary files.",
+                     metavar = "string")
+
 parser <- add_option(parser, c("-l","--log_file"), type = "character", default = "output.log", dest = "log_file",
                      help = "Name of the logging file.",
                      metavar = "string")
@@ -104,12 +108,15 @@ parser <- add_option(parser, "--fasta_meta_file", type = "character", dest = "fa
 args <- parse_args(parser)
 
 createOutputDir(args$output_dir, args$no_backup)
+createDirectoryIfNotExists(args$tmp_dir)
 
 ## Logger configuration
 logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
-addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = cmriFormatter)
-addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = cmriFormatter)
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
 #parse and merge the configuration file options.
 if (args$config != "") {
@@ -141,19 +148,27 @@ testRequiredArguments(args, c(
 testRequiredFiles(c(
   args$fasta_file
   ,args$raw_counts_file))
+
 args<-parseType(args,
   c("razor_unique_peptides_group_thresh"
     ,"unique_peptides_group_thresh"
-  )
-                ,as.integer)
+  ),as.integer)
+
+args<-parseString(args,
+  c("group_pattern"
+    ,"column_pattern"
+  ))
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Reading the counts file.")
 
-dat_tbl <- vroom::vroom(args$raw_counts_file)
-
+captured_output<-capture.output(
+  dat_tbl <- vroom::vroom(args$raw_counts_file)
+  ,type = "message"
+)
+logdebug(captured_output)
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Clean counts table header name.")
@@ -197,15 +212,17 @@ if("group_pattern" %in% args) {
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Read fasta file 
 # colnames(aa_seq_tbl)
-loginfo("Reading the FASTA file and saving the meta-data file.")
-if (file.exists(args$fasta_meta_file))
+
+fasta_meta_file<-file.path(args$tmp_dir,args$fasta_meta_file)
+loginfo("Reading the FASTA file %s and saving the meta-data file.",fasta_meta_file)
+if (file.exists(fasta_meta_file))
 {
   loginfo("Mata-data exists, reading RDS.")
-  aa_seq_tbl <- readRDS(args$fasta_meta_file)
+  aa_seq_tbl <- readRDS(fasta_meta_file)
 }else{
   loginfo("Mata-data does not exists, parsing fasta and saving RDS.")
   aa_seq_tbl <- parseFastaFile(args$fasta_file)
-  saveRDS(aa_seq_tbl, args$fasta_meta_file)
+  saveRDS(aa_seq_tbl, fasta_meta_file)
 }
 
 ## Add the row id column and create a column containing the cleaned  peptide

@@ -1,19 +1,17 @@
 #!/usr/bin/env Rscript
 
-# Author(s): Ignatius Pang
-# Email: ipang@cmri.org.au
+# Author(s): Ignatius Pang, Pablo Galaviz
+# Email: cmri-bioinformatics@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-options(knitr.duplicate.label = "allow")
-
-
-#Test if BioManager is installed 
+#Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
-   BiocManager::install(version = "3.12")
+   BiocManager::install(version = "3.13")
 }
 
 # load pacman package manager
@@ -21,109 +19,7 @@ if(!require(pacman)){
     install.packages("pacman")
     library(pacman)
 }
-p_load(optparse)
-p_load(tictoc)
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-tic()
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-group_pattern <- "RPE"
-## Directories management 
-base_dir <- here::here()
-data_dir <- file.path( base_dir, "Data")
-results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
-source_dir <- file.path(base_dir, "..")
-
-phosphosite_db_dir <- file.path(   data_dir,  "PhosphositePlus", "20210730")
-
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-input_long_file <- file.path( results_dir, "de_phos_long.tsv" ) 
-input_wide_file  <- file.path( results_dir, "de_phos_wide.tsv" ) 
-output_long_file <- file.path(results_dir, "de_phos_long_annot.tsv" ) 
-output_wide_file <- file.path(results_dir, "de_phos_wide_annot.tsv" ) 
-near_ptm_num_residues <- 5
-taxonomy_id <- 10090
-raw_counts_file <- file.path( base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "Abundance_Tables", "sum_phoshpsites.tsv")
-
-command_line_options <- commandArgs(trailingOnly = TRUE)
-
-if( length(command_line_options ) > 0 ) {
-  parser <- OptionParser(add_help_option =TRUE)
-
-  parser <- add_option(parser, c( "--tax-id"), type="integer", default="", dest = "taxonomy_id",
-                       help="The NCBI taxonomy ID of the organism being investigated (e.g. M. musculus=10090, H. sapien=9606).",
-                       metavar="integer")     
-  
-  parser <- add_option(parser, c( "--output-dir"), type="character", default="", dest = "results_dir",
-                       help="Directory path for all results files.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c("--input-wide"), type="character", default="", dest = "input_wide_file",
-                       help="Results table with values in wider format.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c("--input-long"), type="character", default="", dest = "input_long_file",
-                       help="Results table with values in longer format.",
-                       metavar="string") 
-  
-  parser <- add_option(parser, c("--raw-counts"), type="character", default="", dest = "raw_counts_file",
-                       help="Input file with the protein abundance data.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c( "--output-wide"), type="character", default="", dest = "output_wide_file",
-                       help="Results table with values in wider format.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c( "--output-long"), type="character", default="", dest = "output_long_file",
-                       help="Results table with values in longer format.",
-                       metavar="string")   
-  
-  parser <- add_option(parser, c( "--psp-dir"), type="character", default="", dest = "phosphosite_db_dir",
-                       help="File path for location of PhosphoSitePlus DB data files (https://www.phosphosite.org/staticDownloads).",
-                       metavar="string")  
-  
-  
-  parser <- add_option(parser, c( "--near-ptm"), type="integer", default=5, dest = "near_ptm_num_residues",
-                       help="Find other PTM near within +/- this many number of residues from the phosphosites.",
-                       metavar="integer") 
-    
-  print(command_line_options)
-  
-  cmd_arguments <- parse_args(parser)
-  
-  print(cmd_arguments)  
-
-  input_wide_file <- cmd_arguments$input_wide_file
-  input_long_file <- cmd_arguments$input_long_file
-  output_wide_file <- cmd_arguments$output_wide_file
-  output_long_file <- cmd_arguments$output_long_file
-  results_dir <- cmd_arguments$results_dir
-  taxonomy_id <- cmd_arguments$taxonomy_id
-  raw_counts_file <- cmd_arguments$raw_counts_file
-  phosphosite_db_dir <- cmd_arguments$phosphosite_db_dir
-  near_ptm_num_residues <- cmd_arguments$near_ptm_num_residues
-  
-  if( results_dir == "" ) { stop("No value for --output-dir was supplied.") }
-  if( group_pattern == "" ) { stop("No value for --group-pattern was supplied.") }
-  if( input_wide_file == "" ) { stop("No value for --input-wide was supplied. ") }
-  if( input_long_file == "" ) { stop("No value for --input-long was supplied. ") }
-  if( output_wide_file == "" ) { stop("No value for --output-wide was supplied. ") }
-  if( output_long_file == "" ) { stop("No value for --output-long was supplied. ") }
-  if( taxonomy_id == "" ) { stop("No value for --tax_id was supplied.") }
-  if( raw_counts_file == "" ) { stop("No value for --raw-counts was supplied.") }
-  if( phosphosite_db_dir == "" ) { stop("No value for --psp-dir was supplied.") }
-
-}
-
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 p_load(tidyverse)
 p_load(vroom)
 p_load(magrittr)
@@ -134,66 +30,143 @@ p_load(UniProt.ws)
 p_load(biomaRt)
 p_load(GO.db)
 
+p_load(optparse)
+p_load(tictoc)
+p_load(configr)
+p_load(logging)
 
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-createDirIfNotExists(results_dir)
-ks_file <-  file.path( phosphosite_db_dir, "Kinase_Substrate_Dataset") 
-reg_sites_file <- file.path( phosphosite_db_dir, "Regulatory_sites" ) 
-disease_file <- file.path( phosphosite_db_dir, "Disease-associated_sites")
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Read abundance table.")
-abundance_tbl <- vroom::vroom(raw_counts_file)
-
-print("Read differentially abundant phosphopeptides table in long format")
-de_phos_long <- vroom::vroom( input_long_file) %>%
-  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
-  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
-  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
-  dplyr::relocate(residue, .before="position") 
-
-print("Read differentially abundant phosphopeptides table in wide format")
-de_phos_wide <- vroom::vroom( input_wide_file) %>%
-  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
-  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
-  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
-  dplyr::relocate(residue, .before="position")
-
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Read PhosphoSitePlus (PSP) kinase-substrate table.")
-ks_tbl <- vroom::vroom( ks_file, skip=3 ) %>%
-  mutate( SUB_MOD_RSD_CLN = str_replace_all(SUB_MOD_RSD, "([A-Z])(\\d+)", "\\1 \\2")) %>%
-  separate( SUB_MOD_RSD_CLN, into=c("residue", "position")) 
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Read PSP regulatory sites table.")
-reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
-      mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
-      separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
-      relocate (ACC_ID, residue, position, ptm_type, .before="GENE" ) %>%
-      dplyr::select(-`...21`) %>%
-      dplyr::rename( REG_SITES_PMIDs = "PMIDs") %>%
-      dplyr::rename( REG_SITES_NOTES = "NOTES")
-  
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print( "Read PSP disease table")
-disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
-  dplyr::select( ACC_ID, MOD_RSD, DISEASE, ALTERATION, NOTES ) %>%
-  mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
-  separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
-  dplyr::rename( DISEASE_NOTES = "NOTES") %>%
-  dplyr::select(-MOD_RSD, -ptm_type) 
+tic()
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-print("Read PSP post-translational modification (PTM) tables")
+command_line_options <- commandArgs(trailingOnly = TRUE)
+parser <- OptionParser(add_help_option = TRUE)
+#Note: options with default values are ignored in the configuration file parsing.
+parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default = FALSE,
+                     help = "Print debugging output")
+
+parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
+                     help = "Only print critical information to the console.")
+
+parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
+                     help = "Deactivate backup of previous run.")
+
+parser <- add_option(parser, c("-c","--config"), type = "character", default = "", dest = "config",
+                     help = "Configuration file.",
+                     metavar = "string")
+
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "annot_phos", dest = "output_dir",
+                     help = "Directory path for all results files.",
+                     metavar = "string")
+
+parser <- add_option(parser, c("-t","--tmp_dir"), type = "character", default = "cache", dest = "tmp_dir",
+                     help = "Directory path for temporary files.",
+                     metavar = "string")
+
+parser <- add_option(parser, c("-l","--log_file"), type = "character", default = "output.log", dest = "log_file",
+                     help = "Name of the logging file.",
+                     metavar = "string")
+
+#Options without a default value have the following priority: configuration file < command line argument
+parser <- add_option(parser,  "--taxonomy_id", type="integer", dest = "taxonomy_id",
+                     help="The NCBI taxonomy ID of the organism being investigated (e.g. M. musculus=10090, H. sapien=9606).",
+                     metavar="integer")
+
+parser <- add_option(parser, "--input_wide_file", type="character", dest = "input_wide_file",
+                       help="Results table with values in wider format.",
+                       metavar="string")
+
+parser <- add_option(parser, "--input_long_file", type="character",  dest = "input_long_file",
+                     help="Results table with values in longer format.",
+                     metavar="string")
+
+parser <- add_option(parser, "--raw_counts_file", type="character", dest = "raw_counts_file",
+                     help="Input file with the protein abundance data.",
+                     metavar="string")
+
+parser <- add_option(parser,  "--output_wide_file", type="character",  dest = "output_wide_file",
+                     help="Results table with values in wider format.",
+                     metavar="string")
+
+parser <- add_option(parser,  "--output_long_file", type="character", dest = "output_long_file",
+                     help="Results table with values in longer format.",
+                     metavar="string")
+
+parser <- add_option(parser,  "--phosphosite_db_dir", type="character", dest = "phosphosite_db_dir",
+                     help="File path for location of PhosphoSitePlus DB data files (https://www.phosphosite.org/staticDownloads).",
+                     metavar="string")
+
+
+parser <- add_option(parser, c( "--near_ptm_num_residues"), type="integer", dest = "near_ptm_num_residues",
+                     help="Find other PTM near within +/- this many number of residues from the phosphosites.",
+                     metavar="integer")
+
+parser <- add_option(parser,  "--reactome_file", type="character",  dest = "reactome_file",
+                     help="Name of the reactome data (Download and save if it does not exists). ",
+                     metavar="string")
+
+parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "uniprot_file",
+                     help="Name of the uniprot data (Download and save if it does not exists). ",
+                     metavar="string")
+
+#parse comand line arguments first.
+args <- parse_args(parser)
+
+
+createOutputDir(args$output_dir, args$no_backup)
+createDirectoryIfNotExists(args$tmp_dir)
+
+## Logger configuration
+logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
+level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
+
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "annot_phos"), args)
+}
+
+cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
+loginfo("Reading configuration file %s", args$config)
+loginfo("Argument: Value")
+loginfo("----------------------------------------------------")
+for (v in names(args))
+{
+  loginfo("%s : %s", v, args[v])
+}
+loginfo("----------------------------------------------------")
+
+testRequiredArguments(args, c(
+  "input_wide_file"
+  ,"input_long_file"
+  ,"raw_counts_file"
+  ,"output_wide_file"
+  ,"output_long_file"
+  ,"taxonomy_id"
+  ,"phosphosite_db_dir"
+  ,"near_ptm_num_residues"
+  ,"reactome_file"
+  ,"uniprot_file"
+))
+
+ks_file <-  file.path( args$phosphosite_db_dir, "Kinase_Substrate_Dataset")
+reg_sites_file <- file.path( args$phosphosite_db_dir, "Regulatory_sites" )
+disease_file <- file.path( args$phosphosite_db_dir, "Disease-associated_sites")
+
+testRequiredFiles(c(
+  args$input_wide_file
+  , args$input_long_file
+  , args$raw_counts_file
+  ,args$ids_file
+  ,ks_file
+  ,reg_sites_file
+  ,disease_file
+))
+
 list_of_ptm_file_names <- c("Acetylation_site_dataset",
 "Methylation_site_dataset",
 "O-GalNAc_site_dataset",
@@ -202,9 +175,101 @@ list_of_ptm_file_names <- c("Acetylation_site_dataset",
 "Sumoylation_site_dataset",
 "Ubiquitination_site_dataset")
 
-list_of_ptm_files <- purrr::map_chr( list_of_ptm_file_names, ~file.path(phosphosite_db_dir, .))
+list_of_ptm_files <- purrr::map_chr( list_of_ptm_file_names, ~file.path(args$phosphosite_db_dir, .))
+testRequiredFiles(list_of_ptm_files)
 
-ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
+
+#unused
+#args<-parseType(args,
+#  c("some_double_par")
+#  ,as.double)
+
+args<-parseType(args,
+  c("taxonomy_id"
+  ,"near_ptm_num_residues")
+                ,as.integer)
+
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Read abundance table.")
+captured_output<-capture.output(
+  abundance_tbl <- vroom::vroom(args$raw_counts_file)
+  ,type = "message"
+)
+logdebug(captured_output)
+
+loginfo("Read differentially abundant phosphopeptides table in long format")
+captured_output<-capture.output(
+  de_phos_long <- vroom::vroom( args$input_long_file) %>%
+  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
+  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
+  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
+  dplyr::relocate(residue, .before="position")
+  ,type = "message"
+)
+logdebug(captured_output)
+
+loginfo("Read differentially abundant phosphopeptides table in wide format")
+captured_output<-capture.output(
+  de_phos_wide <- vroom::vroom( args$input_wide_file) %>%
+  mutate( sites_id_copy = sites_id, .after="sites_id") %>%
+  separate( sites_id_copy, sep="!", into=c("uniprot_acc", "gene_name", "position", "sequence")) %>%
+  mutate( residue= purrr::map_chr( sequence, ~{ str_replace_all( ., "[A-Z_]{7}(.)[A-Z_]{7}([\\:;\\|]*)", "\\1\\2"    )  }  )) %>%
+  dplyr::relocate(residue, .before="position")
+  ,type = "message"
+)
+logdebug(captured_output)
+
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Read PhosphoSitePlus (PSP) kinase-substrate table.")
+captured_output<-capture.output(
+  ks_tbl <- vroom::vroom( ks_file, skip=3 ) %>%
+  mutate( SUB_MOD_RSD_CLN = str_replace_all(SUB_MOD_RSD, "([A-Z])(\\d+)", "\\1 \\2")) %>%
+  separate( SUB_MOD_RSD_CLN, into=c("residue", "position"))
+  ,type = "message"
+)
+logdebug(captured_output)
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Read PSP regulatory sites table.")
+captured_output<-capture.output(
+  reg_sites_tbl <- vroom::vroom( reg_sites_file, skip=3)  %>%
+      mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
+      separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
+      relocate (ACC_ID, residue, position, ptm_type, .before="GENE" ) %>%
+      dplyr::select(-`...21`) %>%
+      dplyr::rename( REG_SITES_PMIDs = "PMIDs") %>%
+      dplyr::rename( REG_SITES_NOTES = "NOTES")
+  ,type = "message"
+)
+logdebug(captured_output)
+
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo( "Read PSP disease table")
+captured_output<-capture.output(
+  disease_tbl <- vroom::vroom( disease_file, skip=3 ) %>%
+  dplyr::select( ACC_ID, MOD_RSD, DISEASE, ALTERATION, NOTES ) %>%
+  mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
+  separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
+  dplyr::rename( DISEASE_NOTES = "NOTES") %>%
+  dplyr::select(-MOD_RSD, -ptm_type)
+  ,type = "message"
+)
+logdebug(captured_output)
+
+
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+loginfo("Read PSP post-translational modification (PTM) tables")
+logdebug(list_of_ptm_files)
+captured_output<-capture.output(
+  ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   dplyr::select( ACC_ID, MOD_RSD, ptm) %>%
   mutate( MOD_RSD_CLN=  str_replace_all(  MOD_RSD, "([A-Z])(\\d+)-(.*)", "\\1 \\2 \\3") ) %>%
   separate( MOD_RSD_CLN, sep=" ", into=c("residue", "position", "ptm_type")) %>%
@@ -213,18 +278,21 @@ ptm_tbl <- vroom::vroom( list_of_ptm_files, skip=3, id="ptm")  %>%
   mutate( ptm= purrr::map_chr( ptm, ~{ temp_vec <- str_split(., "/")[[1]]
   temp_vec[length(temp_vec)] } )) %>%
   dplyr::mutate( ptm = str_replace_all( ptm, "_site_dataset", ""))
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print( paste0("Find other PTM nearby +/- ", near_ptm_num_residues, " amino acid wihtin the phosphorylation sites.") )
+loginfo( "Find other PTM nearby +/- %s amino acid wihtin the phosphorylation sites.", args$near_ptm_num_residue)
 get_nearby_ptm <- de_phos_long  %>% 
   dplyr::distinct( sites_id, uniprot_acc,  position) %>%
   separate_rows( uniprot_acc, position, sep="\\:") %>%
   separate_rows( uniprot_acc, position, sep="\\|") %>%  
   separate_rows( uniprot_acc, position, sep=";") %>%  
   mutate( position = str_replace_all( position, "\\(|\\)", "") %>% purrr::map_int(as.integer)) %>%
-  mutate( residue_window =  purrr::map(position,  ~seq( from=as.integer( .)-near_ptm_num_residues, to= as.integer( .)+near_ptm_num_residues, by=1 )) ) %>%
+  mutate( residue_window =  purrr::map(position,  ~seq( from=as.integer( .)-args$near_ptm_num_residues, to= as.integer( .)+args$near_ptm_num_residues, by=1 )) ) %>%
   unnest( residue_window) %>%
   left_join(ptm_tbl %>% 
               mutate(ptm_count=1) %>%
@@ -245,7 +313,7 @@ nearby_ptm_count <- get_nearby_ptm %>%
   pivot_wider( id_cols = sites_id,
                values_from = ptm_count,
                names_from="ptm",
-               names_prefix = paste0("nearby_+/-", near_ptm_num_residues, "_") )
+               names_prefix = paste0("nearby_+/-", args$near_ptm_num_residues, "_") )
 
 
 
@@ -311,23 +379,25 @@ phosphosite_plus_tbl <- de_phos_long  %>%
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-print("Download Reactome UniProt to pathways file.")
-
-temp_file <- tempfile()
-
-reactome_file <- download.file(url="https://reactome.org/download/current/UniProt2Reactome.txt", destfile=temp_file)
-
-reactome_map <- vroom::vroom( temp_file , 
+reactome_file<-file.path(args$tmp_dir,args$reactome_file)
+if(!file.exists(reactome_file))
+{
+  logwarn("Download Reactome UniProt to pathways file.")
+  status <- download.file(url="https://reactome.org/download/current/UniProt2Reactome.txt", destfile=reactome_file)
+  loginfo(status)
+}
+loginfo("Reading Reactome UniProt to pathways file.")
+captured_output<-capture.output(
+  reactome_map <- vroom::vroom( reactome_file ,
                               col_names = c("uniprot_acc", "reactome_id", "url", "reactome_term", "evidence", "organism") )
-
-
-
-
+  ,type = "message"
+)
+logdebug(captured_output)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-print("Get the best UniProt accession per row.")
+loginfo("Get the best UniProt accession per row.")
 
 uniprot_acc_tbl <- de_phos_long %>%
   mutate( uniprot_acc_copy = uniprot_acc ) %>%
@@ -342,26 +412,35 @@ uniprot_acc_tbl <- de_phos_long %>%
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Download information from UniProt.")
-uniprot_dat <- NA
-up <- NA
-if( ! file.exists( file.path(results_dir, "uniprot_data.RDS"))) {
+loginfo("Download information from UniProt.")
+uniprot_file<-file.path(args$tmp_dir,args$uniprot_file)
+if( ! file.exists( uniprot_file )) {
 
-  if( is.na(up)) {
-    up <- UniProt.ws(taxId=taxonomy_id )
-  } 
-
- # keytypes(up)
-  list_of_sp_columns <- c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH", "ENSEMBL", "GO-ID", "KEYWORDS")
-
+  up <- UniProt.ws(taxId=args$taxonomy_id )
+  list_of_sp_columns <- c("EXISTENCE"
+                          , "SCORE"
+                          , "REVIEWED"
+                          , "GENENAME"
+                          , "PROTEIN-NAMES"
+                          , "LENGTH"
+                          , "ENSEMBL"
+                          , "GO-ID"
+                          , "KEYWORDS"
+  )
+  up_cls<-unlist(columns(up))
+  list_intersect<-intersect(list_of_sp_columns,up_cls)
+  if(length(setdiff( list_of_sp_columns,list_intersect)) > 0)
+  {
+    logerror("UniProt fields not found: %s",paste(list_of_sp_columns[,list_intersect],sep=", "))
+  }
   uniprot_dat <- batchQueryEvidence(uniprot_acc_tbl, join_uniprot_acc, uniprot_handle=up,
-                                    uniprot_columns = list_of_sp_columns)
-  
-  saveRDS( uniprot_dat, file.path(results_dir, "uniprot_data.RDS"))
-  
-} else {
-  uniprot_dat <- readRDS( file.path(results_dir, "uniprot_data.RDS"))
+                                uniprot_columns = list_of_sp_columns)
+  saveRDS( uniprot_dat, uniprot_file)
+
 }
+
+loginfo("Reading UniProt data from %s.",uniprot_file)
+uniprot_dat <- readRDS( uniprot_file )
 
 
 
@@ -372,13 +451,11 @@ if( ! file.exists( file.path(results_dir, "uniprot_data.RDS"))) {
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-print("Merge with Gene Ontology terms.")
+loginfo("Merge with Gene Ontology terms.")
 goterms <- Term(GOTERM)
 gotypes <- Ontology(GOTERM)
 
-tic()
 uniprot_dat_cln <- uniprotGoIdToTerm(uniprot_dat, sep="; ", goterms, gotypes  )
-toc()
 
 uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
   left_join( uniprot_dat_cln, by=c("join_uniprot_acc" = "UNIPROTKB") )   %>%
@@ -388,12 +465,10 @@ uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
   ungroup()   %>%
   dplyr::rename( UNIPROT_GENENAME = "GENENAME")
 
-uniprot_dat_multiple_acc
-
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Add reactome pathways annotation.")
+loginfo("Add reactome pathways annotation.")
 reactome_term_tbl <- uniprot_acc_tbl %>%
   left_join( reactome_map, by=c("join_uniprot_acc" = "uniprot_acc") )   %>%
   dplyr::filter(reactome_term != "NA" ) %>%
@@ -426,12 +501,12 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 # 
 # head( de_phos_wide_annot ) 
 # 
-# vroom::vroom_write(de_phos_wide_annot, path=output_wide_file ) 
+# vroom::vroom_write(de_phos_wide_annot, path=file.path(args$output_dir,args$output_wide_file )
 
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-print("Output longer format results table with protein annotation.")
+loginfo("Output longer format results table with protein annotation.")
 de_phos_long_annot <- de_phos_long %>%
   left_join( num_phos_sites, by =c("sites_id" = "sites_id")) %>%
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
@@ -447,12 +522,11 @@ de_phos_long_annot <- de_phos_long %>%
              by=c("sites_id" = "sites_id")) %>%
   distinct()
 
-head( de_phos_long_annot )
-
-vroom::vroom_write(de_phos_long_annot, path=output_long_file ) 
-
+vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-toc()
+te<-toc(quiet = TRUE)
+loginfo("%f sec elapsed",te$toc-te$tic)
+writeLines(capture.output(sessionInfo()), file.path(args$output_dir,"sessionInfo.txt"))
 

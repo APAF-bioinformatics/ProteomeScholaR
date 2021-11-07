@@ -63,6 +63,10 @@ parser <- add_option(parser, c("-o", "--output_dir"), type = "character", defaul
                      help = "Directory path for all results files.",
                      metavar = "string")
 
+parser <- add_option(parser, c("-t","--tmp_dir"), type = "character", default = "cache", dest = "tmp_dir",
+                     help = "Directory path for temporary files.",
+                     metavar = "string")
+
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log", dest = "log_file",
                      help = "Name of the logging file.",
                      metavar = "string")
@@ -84,20 +88,24 @@ parser <- add_option(parser, "--ids_file", type="character", dest = "ids_file",
                      help="File to link the cleaned list of accessions to the original list of protein groups from MaxQuant file. Also, contains the MaxQuant output row ID.",
                      metavar="string")
 
-parser <- add_option(parser, c("--raw_counts_file"), type="character", dest = "raw_counts_file",
+parser <- add_option(parser, "--raw_counts_file", type="character", dest = "raw_counts_file",
                      help="Input file with the protein abundance data.",
                      metavar="string")
 
-parser <- add_option(parser, c( "--output_wide_file"), type="character",  dest = "output_wide_file",
+parser <- add_option(parser,  "--output_wide_file", type="character",  dest = "output_wide_file",
                      help="Results table with values in wider format.",
                      metavar="string")
 
-parser <- add_option(parser, c( "--output_long_file"), type="character",  dest = "output_long_file",
+parser <- add_option(parser,  "--output_long_file", type="character",  dest = "output_long_file",
                      help="Results table with values in longer format.",
                      metavar="string")
 
-parser <- add_option(parser, c( "--cache_dir"), type="character",  dest = "cache_dir",
-                     help="Directory for temporary downloads. ",
+parser <- add_option(parser,  "--reactome_file", type="character",  dest = "reactome_file",
+                     help="Name of the reactome data (Download and save if it does not exists). ",
+                     metavar="string")
+
+parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "uniprot_file",
+                     help="Name of the uniprot data (Download and save if it does not exists). ",
                      metavar="string")
 
 #parse comand line arguments first.
@@ -105,12 +113,15 @@ args <- parse_args(parser)
 
 
 createOutputDir(args$output_dir, args$no_backup)
+createDirectoryIfNotExists(args$tmp_dir)
 
 ## Logger configuration
 logReset()
+addHandler(writeToConsole , formatter = cmriFormatter)
+addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), formatter = cmriFormatter)
+
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
-addHandler(writeToConsole, level = ifelse(args$silent, loglevels["ERROR"], level), formatter = cmriFormatter)
-addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), level = level, formatter = cmriFormatter)
+setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
 #parse and merge the configuration file options.
 if (args$config != "") {
@@ -132,11 +143,11 @@ testRequiredArguments(args, c(
   ,"output_wide_file"
   ,"output_long_file"
   ,"ids_file"
-  ,"cache_dir"
   ,"input_wide_file"
   ,"input_long_file"
   ,"raw_counts_file"
-
+  ,"reactome_file"
+  ,"uniprot_file"
 ))
 
 
@@ -147,11 +158,6 @@ testRequiredFiles(c(
   ,args$ids_file
 ))
 
-if(!dir.exists(args$cache_dir))
-{
-    logerror("Path does not exists: %s", args$cache_dir)
-      q()
-}
 #unused
 #args<-parseType(args,
 #  c("some_double_par")
@@ -164,16 +170,32 @@ args<-parseType(args,
 
 
 loginfo("Read file with results table with values in wider format %s", args$input_wide_file)
-de_proteins_wider <- vroom::vroom( args$input_wide_file )
+captured_output<-capture.output(
+  de_proteins_wider <- vroom::vroom( args$input_wide_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file with results table with values in longer format %s", args$input_long_file)
-de_proteins_longer <- vroom::vroom( args$input_long_file )
+captured_output<-capture.output(
+  de_proteins_longer <- vroom::vroom( args$input_long_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file to link the cleaned list of accessions to the original list of protein groups from MaxQuant file %s", args$ids_file)
-ids_tbl <- vroom::vroom( args$ids_file )
+captured_output<-capture.output(
+  ids_tbl <- vroom::vroom( args$ids_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 loginfo("Read file with the protein abundance data %s", args$raw_counts_file)
-dat_tbl <- vroom::vroom( args$raw_counts_file )
+captured_output<-capture.output(
+  dat_tbl <- vroom::vroom( args$raw_counts_file )
+    , type = "message"
+)
+logdebug(captured_output)
 
 dat_cln <-  janitor::clean_names(dat_tbl) %>%
   dplyr::rename( gene_names_maxquant = "gene_names")
@@ -184,7 +206,7 @@ colnames(dat_cln) <- str_replace(colnames(dat_cln), "_i_ds", "_ids" )
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-reactome_file<-file.path(args$cache_dir,"reactome_data.txt")
+reactome_file<-file.path(args$tmp_dir,args$reactome_file)
 if(!file.exists(reactome_file))
 {
   logwarn("Download Reactome UniProt to pathways file.")
@@ -192,8 +214,13 @@ if(!file.exists(reactome_file))
   loginfo(status)
 }
 loginfo("Reading Reactome UniProt to pathways file.")
-reactome_map <- vroom::vroom( reactome_file ,
+captured_output<-capture.output(
+  reactome_map <- vroom::vroom( reactome_file ,
                               col_names = c("uniprot_acc", "reactome_id", "url", "reactome_term", "evidence", "organism") )
+    , type = "message"
+)
+logdebug(captured_output)
+
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -213,7 +240,7 @@ uniprot_acc_tbl <- de_proteins_wider %>%
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Download information from UniProt.")
-uniprot_file<-file.path(args$cache_dir,"uniprot_data.RDS")
+uniprot_file<-file.path(args$tmp_dir,args$uniprot_file)
 if( ! file.exists( uniprot_file )) {
 
   up <- UniProt.ws(taxId=args$taxonomy_id )
@@ -259,7 +286,6 @@ gotypes <- Ontology(GOTERM)
 uniprot_dat_cln <- uniprotGoIdToTerm(uniprot_dat, sep="; ", goterms, gotypes  )
 
 
-
 uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
   left_join( uniprot_dat_cln, by=c("join_uniprot_acc" = "UNIPROTKB") )   %>%
   arrange( uniprot_acc, acc_order_id) %>%
@@ -267,12 +293,6 @@ uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
   summarise( across( .cols=setdiff( colnames( uniprot_dat_cln), "UNIPROTKB")   , ~paste(., collapse=":"))   ) %>%
   ungroup()   %>%
   dplyr::rename( UNIPROT_GENENAME = "GENENAME")
-
-
-#uniprot_dat_multiple_acc
-
-
-
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -315,9 +335,8 @@ de_proteins_longer_annot <- de_proteins_longer %>%
   left_join( dat_cln, by=c("maxquant_row_id" = "id",
                            "protein_ids" = "protein_ids"))
 
-#head( de_proteins_longer_annot )
 
-vroom::vroom_write(de_proteins_longer_annot, path=file.path(args$output_dir,args$output_long_file ) )
+vroom::vroom_write(de_proteins_longer_annot, file.path(args$output_dir,args$output_long_file ) )
 
 
 
