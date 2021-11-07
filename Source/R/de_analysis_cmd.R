@@ -259,6 +259,7 @@ cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
                                                           col_pattern = args$group_pattern,
                                                           row_id = !!rlang::sym(args$row_id))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Read design matrix file.")
 
 captured_output<-capture.output(
 design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
