@@ -789,6 +789,9 @@ runTestsContrasts <- function(data,
 
   eb.fit <- eBayes(cfit)
 
+  ## Run treat over here
+  # t.fit <- treat(eb.fit, lfc=1) ## assign log fold change threshold below which is scientifically not relevant
+
   result_tables <- purrr::map(contrast_strings,
                               function(contrast) {
                                 de_tbl <- topTreat(eb.fit, coef = contrast, n = Inf) %>%

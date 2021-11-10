@@ -7,7 +7,7 @@
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#Test if BioManager is installed 
+#Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
    BiocManager::install()
@@ -74,12 +74,12 @@ parser <- add_option(parser, c("-l", "--log_file"), type = "character", default 
 #Options without a default value have the following priority: configuration file < command line argument
 parser <- add_option(parser,  "--taxonomy_id", type="integer", dest = "taxonomy_id",
                        help="The NCBI taxonomy ID of the organism being investigated (e.g. M. musculus=10090, H. sapien=9606).",
-                       metavar="integer")     
+                       metavar="integer")
 
 parser <- add_option(parser, "--input_wide_file", type="character", dest = "input_wide_file",
                        help="Results table with values in wider format.",
-                       metavar="string")   
-  
+                       metavar="string")
+
 parser <- add_option(parser, "--input_long_file", type="character",  dest = "input_long_file",
                      help="Results table with values in longer format.",
                      metavar="string")
@@ -232,7 +232,7 @@ uniprot_acc_tbl <- de_proteins_wider %>%
   mutate( join_uniprot_acc = cleanIsoformNumber(uniprot_acc_copy)) %>%
   dplyr::distinct( uniprot_acc, join_uniprot_acc) %>%
   group_by( uniprot_acc) %>%
-  mutate( acc_order_id = row_number()) %>% 
+  mutate( acc_order_id = row_number()) %>%
   ungroup
 
 
@@ -263,7 +263,7 @@ if( ! file.exists( uniprot_file )) {
   uniprot_dat <- batchQueryEvidence(uniprot_acc_tbl, join_uniprot_acc, uniprot_handle=up,
                                 uniprot_columns = list_of_sp_columns)
   saveRDS( uniprot_dat, uniprot_file)
-  
+
 }
 
 loginfo("Reading UniProt data from %s.",uniprot_file)
@@ -306,39 +306,31 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
   mutate(reactome_term = str_replace_all( reactome_term , ":", "-")) %>%
   group_by(uniprot_acc ) %>%
   summarise( reactome_term = paste(reactome_term, collapse=":") ) %>%
-  ungroup()   
-
-
-
+  ungroup()
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print("Output wider format results table with protein annotation.")
 # de_proteins_wider_annot <- de_proteins_wider %>%
-#   left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
+#   left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>%
 #   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
 #   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
 #   left_join( dat_cln, by=c("maxquant_row_id" = "id",
 #                            "protein_ids" = "protein_ids"))
-# 
-# head( de_proteins_wider_annot ) 
-# 
+#
+# head( de_proteins_wider_annot )
+#
 # vroom::vroom_write(de_proteins_wider_annot, path=file.path(args$output_dir,args$output_wide_file ))
-
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Output longer format results table with protein annotation.")
 de_proteins_longer_annot <- de_proteins_longer %>%
-  left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>% 
+  left_join( ids_tbl, by=c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
   left_join( dat_cln, by=c("maxquant_row_id" = "id",
                            "protein_ids" = "protein_ids"))
 
-
 vroom::vroom_write(de_proteins_longer_annot, file.path(args$output_dir,args$output_long_file ) )
-
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 te<-toc(quiet = TRUE)

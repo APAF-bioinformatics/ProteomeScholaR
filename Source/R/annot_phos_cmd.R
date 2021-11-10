@@ -110,7 +110,7 @@ parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "unipr
                      help="Name of the uniprot data (Download and save if it does not exists). ",
                      metavar="string")
 
-#parse comand line arguments first.
+#parse command line arguments first.
 args <- parse_args(parser)
 
 
@@ -286,19 +286,19 @@ logdebug(captured_output)
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo( "Find other PTM nearby +/- %s amino acid wihtin the phosphorylation sites.", args$near_ptm_num_residue)
-get_nearby_ptm <- de_phos_long  %>% 
+get_nearby_ptm <- de_phos_long  %>%
   dplyr::distinct( sites_id, uniprot_acc,  position) %>%
   separate_rows( uniprot_acc, position, sep="\\:") %>%
-  separate_rows( uniprot_acc, position, sep="\\|") %>%  
-  separate_rows( uniprot_acc, position, sep=";") %>%  
+  separate_rows( uniprot_acc, position, sep="\\|") %>%
+  separate_rows( uniprot_acc, position, sep=";") %>%
   mutate( position = str_replace_all( position, "\\(|\\)", "") %>% purrr::map_int(as.integer)) %>%
   mutate( residue_window =  purrr::map(position,  ~seq( from=as.integer( .)-args$near_ptm_num_residues, to= as.integer( .)+args$near_ptm_num_residues, by=1 )) ) %>%
   unnest( residue_window) %>%
-  left_join(ptm_tbl %>% 
+  left_join(ptm_tbl %>%
               mutate(ptm_count=1) %>%
               dplyr::select(-residue), by=c( "uniprot_acc" = "uniprot_acc",
                                  "residue_window" = "position")) %>%
-  distinct %>% 
+  distinct %>%
   dplyr::filter( !( residue_window == position & ptm_type == "p") ) %>% ## Avoid counting the same phosphorylation site as the query itself
   dplyr::select(-MOD_RSD, -uniprot_acc, -position, -ptm_type)
 
@@ -319,13 +319,13 @@ nearby_ptm_count <- get_nearby_ptm %>%
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-num_phos_sites <- de_phos_long  %>% 
+num_phos_sites <- de_phos_long  %>%
   dplyr::distinct( sites_id, position) %>%
-  dplyr::mutate( num_sites =   str_split(position, ":") %>% 
-                   purrr::map_chr(1) %>% 
-                   str_split( "\\|")  %>% 
-                 purrr::map_chr(1) %>% 
-                   str_split(";") %>% 
+  dplyr::mutate( num_sites =   str_split(position, ":") %>%
+                   purrr::map_chr(1) %>%
+                   str_split( "\\|")  %>%
+                 purrr::map_chr(1) %>%
+                   str_split(";") %>%
                    purrr::map_int(length) ) %>%
   dplyr::select(-position)
 
@@ -335,15 +335,15 @@ num_phos_sites <- de_phos_long  %>%
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # de_phos_long %>% dplyr::filter( str_detect( uniprot_acc, "[^[:alnum:]]+" ) )
 
-phosphosite_plus_tbl <- de_phos_long  %>% 
+phosphosite_plus_tbl <- de_phos_long  %>%
   dplyr::distinct( sites_id, uniprot_acc, residue, position, sequence) %>%
   separate_rows( uniprot_acc, position, sequence, residue, sep="\\:") %>%
-  separate_rows( uniprot_acc, position, sequence, residue, sep="\\|") %>%  
-  separate_rows( uniprot_acc, position, sequence, residue, sep=";") %>%  
+  separate_rows( uniprot_acc, position, sequence, residue, sep="\\|") %>%
+  separate_rows( uniprot_acc, position, sequence, residue, sep=";") %>%
   mutate( position = str_replace_all( position, "\\(|\\)", "") %>% purrr::map_int(as.integer)) %>%
   left_join (reg_sites_tbl %>%
                dplyr::filter(ptm_type == "p") %>%
-               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
+               dplyr::mutate( position = purrr::map_int(position, as.integer)),
              by=c("uniprot_acc" = "ACC_ID",
                                  "residue" = "residue",
                                  "position" = "position"
@@ -351,13 +351,13 @@ phosphosite_plus_tbl <- de_phos_long  %>%
   left_join( ks_tbl %>%
                dplyr::rename(KINASE_GENE = "GENE") %>%
                dplyr::select(-DOMAIN, - `SITE_+/-7_AA`) %>%
-               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
+               dplyr::mutate( position = purrr::map_int(position, as.integer)),
              by=c("uniprot_acc" = "SUB_ACC_ID",
                           "residue"="residue",
-                          "position" = "position", 
+                          "position" = "position",
                           "SITE_GRP_ID" = "SITE_GRP_ID"))   %>%
   left_join( disease_tbl %>%
-               dplyr::mutate( position = purrr::map_int(position, as.integer)), 
+               dplyr::mutate( position = purrr::map_int(position, as.integer)),
              by=c( "uniprot_acc" = "ACC_ID",
                                  "residue" = "residue",
                                  "position" = "position")) %>%
@@ -366,12 +366,12 @@ phosphosite_plus_tbl <- de_phos_long  %>%
   ungroup() %>%
   group_by(sites_id ) %>%
   summarise( across( .cols=everything()  , ~paste(unique(.), collapse=":"))   ) %>%
-  ungroup() 
- 
+  ungroup()
+
 # de_phos_long_annot %>% dplyr::filter( str_detect( KINASE, "//" ) )
-#   
+#
 # # colnames( de_phos_long_annot)[ which( !is.na( str_match( colnames( de_phos_long_annot), "\\.y" ) )  ) ]
-# 
+#
 # de_phos_long_annot %>%
 #   dplyr::filter( !is.na(ptm_type) | !is.na( KINASE))
 
@@ -405,7 +405,7 @@ uniprot_acc_tbl <- de_phos_long %>%
   mutate( join_uniprot_acc = cleanIsoformNumber(uniprot_acc_copy)) %>%
   dplyr::distinct( uniprot_acc, join_uniprot_acc) %>%
   group_by( uniprot_acc) %>%
-  mutate( acc_order_id = row_number()) %>% 
+  mutate( acc_order_id = row_number()) %>%
   ungroup
 
 
@@ -478,7 +478,7 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
   mutate(reactome_term = str_replace_all( reactome_term , ":", "-")) %>%
   group_by(uniprot_acc ) %>%
   summarise( reactome_term = paste(reactome_term, collapse=":") ) %>%
-  ungroup()   
+  ungroup()
 
 
 
@@ -489,18 +489,18 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 #   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
 #   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
 #   left_join( phosphosite_plus_tbl %>%
-#                dplyr::select(-uniprot_acc, -position, -residue, -sequence), 
+#                dplyr::select(-uniprot_acc, -position, -residue, -sequence),
 #              by=c("sites_id" = "sites_id")) %>%
 #   left_join(  abundance_tbl %>%
-#    dplyr::select( sites_id, maxquant_row_ids ), 
+#    dplyr::select( sites_id, maxquant_row_ids ),
 #    by=c("sites_id" = "sites_id")) %>%
 #   relocate(maxquant_row_ids, .after="sites_id") %>%
-#   left_join( get_nearby_ptm, 
+#   left_join( get_nearby_ptm,
 #              by=c("sites_id" = "sites_id")) %>%
 #   distinct()
-# 
-# head( de_phos_wide_annot ) 
-# 
+#
+# head( de_phos_wide_annot )
+#
 # vroom::vroom_write(de_phos_wide_annot, path=file.path(args$output_dir,args$output_wide_file )
 
 
@@ -512,13 +512,13 @@ de_phos_long_annot <- de_phos_long %>%
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
   left_join( phosphosite_plus_tbl %>%
-               dplyr::select(-uniprot_acc, -position, -residue, -sequence), 
+               dplyr::select(-uniprot_acc, -position, -residue, -sequence),
              by=c("sites_id" = "sites_id"))  %>%
   left_join(  abundance_tbl %>%
-   dplyr::select( sites_id, maxquant_row_ids ), 
+   dplyr::select( sites_id, maxquant_row_ids ),
    by=c("sites_id" = "sites_id")) %>%
   relocate(maxquant_row_ids, .after="sites_id")  %>%
-  left_join( nearby_ptm_count, 
+  left_join( nearby_ptm_count,
              by=c("sites_id" = "sites_id")) %>%
   distinct()
 

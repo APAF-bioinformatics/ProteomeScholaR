@@ -61,81 +61,81 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "", dest = "config",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis", dest = "output_dir",
+parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log", dest = "log_file",
+parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
                      help = "Name of the logging file.",
                      metavar = "string")
 
 #Options without a default value have the following priority: configuration file < command line argument
-parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer", dest = "max_num_samples_miss_per_group",
+parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer",
                      help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group [default %default]",
                      metavar = "integer")
 
-parser <- add_option(parser, "--abundance_threshold", type = "integer", dest = "abundance_threshold",
+parser <- add_option(parser, "--abundance_threshold", type = "integer",
                      help = "Abundance threshold above which the protein in the sample is accepted for analysis [default %default]",
                      metavar = "integer")
 
 
-parser <- add_option(parser, "--group_pattern", type = "character", dest = "group_pattern",
+parser <- add_option(parser, "--group_pattern", type = "character",
                      help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, "--q_val_thresh", type = "double", dest = "q_val_thresh",
+parser <- add_option(parser, "--q_val_thresh", type = "double",
                      help = "q-value threshold below which a protein has statistically significant differetial expression [default %default]",
                      metavar = "double")
 
-parser <- add_option(parser, "--ruv_k", type = "integer", dest = "ruv_k",
-                     help = "The number of unwanted factors to use.  [default %default]",
+parser <- add_option(parser, "--ruv_k", type = "integer",
+                     help = "The number of unwanted factors to use.",
                      metavar = "integer")
 
-parser <- add_option(parser, "--num_neg_ctrl", type = "integer", dest = "num_neg_ctrl",
-                     help = "The number of negative control proteins to use.  [default %default]",
+parser <- add_option(parser, "--num_neg_ctrl", type = "integer",
+                     help = "The number of negative control proteins to use.",
                      metavar = "number")
 
-parser <- add_option(parser, "--ruv_method", type = "character", dest = "ruv_method",
-                     help = "A string representing the ruv3 method to use.  [default %default]",
+parser <- add_option(parser, "--ruv_method", type = "character",
+                     help = "A string representing the ruv3 method to use.",
                      metavar = "character")
 
-parser <- add_option(parser, "--counts_table_file", type = "character", dest = "counts_table_file",
+parser <- add_option(parser, "--counts_table_file", type = "character",
                      help = "Input file with the protein abundance values",
                      metavar = "string")
 
-parser <- add_option(parser, "--test_pairs_file", type = "character", dest = "test_pairs_file",
+parser <- add_option(parser, "--test_pairs_file", type = "character",
                      help = "Input file with a table listing all the pairs of experimental groups to compare. First column represents group A and second column represents group B. Linear model comparisons (e.g. Contrasts) would be group B minus group A.",
                      metavar = "string")
 
-parser <- add_option(parser, "--contrasts_file", type = "character", dest = "contrasts_file",
+parser <- add_option(parser, "--contrasts_file", type = "character",
                      help = "Input file with a table listing all comparisons to be made in string, one comparison per line (e.g. groupB.vs.group_A = groupB - groupA).",
                      metavar = "string")
 
-parser <- add_option(parser, "--formula_string", type = "character", dest = "formula_string",
+parser <- add_option(parser, "--formula_string", type = "character",
                      help = "A string representing the formula for input into the model.frame function. (e.g. ~ 0 + group).",
                      metavar = "string")
 
-parser <- add_option(parser, "--design_matrix_file", type = "character", dest = "design_matrix_file",
+parser <- add_option(parser, "--design_matrix_file", type = "character",
                      help = "Input file with the design matrix",
                      metavar = "string")
 
-parser <- add_option(parser, "--sample_id", type = "character", dest = "sample_id",
+parser <- add_option(parser, "--sample_id", type = "character",
                      help = "A string describing the sample ID. This must be a column that exists in the design matrix.",
                      metavar = "string")
 
-parser <- add_option(parser, "--group_id", type = "character", dest = "group_id",
+parser <- add_option(parser, "--group_id", type = "character",
                      help = "A string describing the experimental group ID. This must be a column that exists in the design matrix.",
                      metavar = "string")
 
-parser <- add_option(parser, "--row_id", type = "character", dest = "row_id",
+parser <- add_option(parser, "--row_id", type = "character",
                      help = "A string describing the row id.",
                      metavar = "string")
 
-parser <- add_option(parser, "--file_prefix", type = "character", dest = "file_prefix",
+parser <- add_option(parser, "--file_prefix", type = "character",
                      help = "A string to indicate the type of analysis and is used in the file name of the output results table.",
                      metavar = "string")
 
