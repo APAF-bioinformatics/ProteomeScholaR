@@ -184,11 +184,26 @@ parseType<-function (arg_list,parameters,functType){
 #' @export
 parseString<-function (arg_list,parameters){
   for(key in parameters){
-    arg_list[key]<- str_replace_all(arg_list[key],c("\""="","\'"=""))
+    if(key %in% names(arg_list)) {
+      arg_list[key] <- str_replace_all(arg_list[key], c("\"" = "", "\'" = ""))
+    }
   }
   return (arg_list)
 }
 
+#' @export
+parseList<-function (arg_list,parameters){
+  for(key in parameters){
+    items<-str_replace_all(as.character(arg_list[key])," ","")
+    arg_list[key]<- base::strsplit(items,split=",")
+  }
+  return (arg_list)
+}
+
+#' @export
+isArgumentDefined<-function(arg_list,parameter){
+  return (!is.null(arg_list[parameter]) & (parameter %in% names(arg_list)) & as.character(arg_list[parameter]) != "")
+}
 
 #' @export
 cmriFormatter <- function(record) { sprintf('CMRI Bioinformatics %s [%s] | %s', record$levelname, record$timestamp, record$msg) }

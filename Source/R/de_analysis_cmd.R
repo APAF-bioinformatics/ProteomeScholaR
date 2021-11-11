@@ -139,9 +139,16 @@ parser <- add_option(parser, "--file_prefix", type = "character",
                      help = "A string to indicate the type of analysis and is used in the file name of the output results table.",
                      metavar = "string")
 
+parser <- add_option(parser, "--plots_format", type = "character",
+                     help = "A comma separated strings to indicate the fortmat output for the plots [pdf,png,svg].",
+                     metavar = "string")
 
 #parse comand line arguments first.
 args <- parse_args(parser)
+
+setwd("/home/pablo/Development/CMRI/ProteomeRiver/tests/data")
+args$config<-"config_prot.ini"
+
 
 createOutputDir(args$output_dir, args$no_backup)
 
@@ -202,6 +209,8 @@ args<-parseType(args,
     ,"max_num_samples_miss_per_group"
     ,"abundance_threshold"
   )  ,as.integer)
+
+
 args<-parseString(args,
   c("group_pattern"
     ,"test_pairs_file"
@@ -210,7 +219,17 @@ args<-parseString(args,
     ,"group_id"
     ,"row_id"
     ,"file_prefix"
+    ,"plots_format"
   ))
+
+if(isArgumentDefined(args,"plots_format"))
+{
+  args <- parseList(args,
+                    c("plots_format"))
+}else {
+  logwarn("plots_format is undefined, default output set to pdf.")
+  args$plots_format <- list("pdf")
+}
 
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
@@ -290,9 +309,10 @@ loginfo("Count the number of missing values for each sample before removing prot
 
 plot_num_missing_values_before <- plotNumMissingVales(cln_dat_wide_unsorted[, cols_for_analysis])
 
-for( file_name in list("num_missing_values_before_filtering.png","num_missing_values_before_filtering.svg")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("num_missing_values_before_filtering.",format_ext))
   captured_output<-capture.output(
-    ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values_before, limitsize = FALSE)
+    ggsave(filename = file_name, plot = plot_num_missing_values_before, limitsize = FALSE)
     ,type = "message"
   )
   logdebug(captured_output)
@@ -373,9 +393,10 @@ loginfo("Count the number of missing values for each sample: %d",table(is.infini
 
 plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
-for( file_name in list("num_missing_values.png","num_missing_values.svg")) {
-captured_output<-capture.output(
-ggsave(filename = file.path(args$output_dir, file_name), plot = plot_num_missing_values,limitsize = FALSE)
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("num_missing_values.",format_ext))
+  captured_output<-capture.output(
+ggsave(filename = file_name, plot = plot_num_missing_values,limitsize = FALSE)
     ,type = "message"
 )
   logdebug(captured_output)
@@ -496,9 +517,10 @@ cancorplot_r1 <- ruv_cancorplot(t(counts_rnorm.log.quant),
                                 ctl = control_genes_index)
 
 
-for( file_name in list("cancor_plot_round_1.pdf","cancor_plot_round_1.png")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("cancor_plot_round_1.",format_ext))
   captured_output<-capture.output(
-    ggsave(plot = cancorplot_r1, filename = file.path(args$output_dir, file_name), limitsize = FALSE)
+    ggsave(plot = cancorplot_r1, filename =  file_name, limitsize = FALSE)
     , type = "message"
   )
   logdebug(captured_output)
@@ -563,13 +585,14 @@ rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm
                                          sample_id_column = !!rlang::sym(args$sample_id),
                                          group_column = !!rlang::sym(args$group_id),
                                          list_of_descriptions = list("Before RUVIII", "After RUVIII"))
-
-captured_output<-capture.output(
-  ggsave(plot = rle_pca_plots_arranged, filename = file.path(args$output_dir, "rle_pca_plots.pdf"), limitsize = FALSE)
-  , type = "message"
-)
-logdebug(captured_output)
-
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("rle_pca_plots.",format_ext))
+  captured_output<-capture.output(
+    ggsave(plot = rle_pca_plots_arranged, filename =  file_name, limitsize = FALSE)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -606,9 +629,10 @@ volplot_gg.all <- plotVolcano(selected_data,
                               formula_string = "analysis_type ~ comparison")
 
 
-for( file_name in list("volplot_gg_all.svg","volplot_gg_all.png")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("volplot_gg_all.",format_ext))
   captured_output<capture.output(
-ggsave(filename = file.path(args$output_dir, file_name), plot = volplot_gg.all, width = 7.29, height = 6)
+ggsave(filename = file_name, plot = volplot_gg.all, width = 7.29, height = 6)
     , type = "message"
   )
   logdebug(captured_output)
@@ -626,9 +650,10 @@ num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.
 
 
 
-for( file_name in list("num_de_genes_barplot.svg","num_de_genes_barplot.png")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("num_de_genes_barplot.",format_ext))
   captured_output<-capture.output(
-ggsave(filename = file.path(args$output_dir, file_name),
+ggsave(filename = file_name,
        plot = num_sig_de_genes$plot,
        height = 10,
        width = 7)
@@ -650,9 +675,10 @@ pvalhist <- printPValuesDistribution(selected_data,
 
 #logdebug(head(pvalhist))
 
-for( file_name in list("p_values_distn.svg","p_values_distn.png")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("p_values_distn.",format_ext))
   captured_output<capture.output(
-ggsave(filename = file.path(args$output_dir, "p_values_distn.png"),
+ggsave(filename = file_name,
        plot = pvalhist,
        height = 10,
        width = 7)
