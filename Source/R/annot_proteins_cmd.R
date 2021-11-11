@@ -315,7 +315,9 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 #   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
 #   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
 #   left_join( dat_cln, by=c("maxquant_row_id" = "id",
-#                            "protein_ids" = "protein_ids"))
+#                            "protein_ids" = "protein_ids")) %>%
+#   arrange( comparison, q.mod, log2FC) %>%
+#   distinct()
 #
 # head( de_proteins_wider_annot )
 #
@@ -328,7 +330,9 @@ de_proteins_longer_annot <- de_proteins_longer %>%
   left_join( uniprot_dat_multiple_acc, by = c("uniprot_acc" = "uniprot_acc") ) %>%
   left_join( reactome_term_tbl, by = c("uniprot_acc" = "uniprot_acc"))  %>%
   left_join( dat_cln, by=c("maxquant_row_id" = "id",
-                           "protein_ids" = "protein_ids"))
+                           "protein_ids" = "protein_ids")) %>%
+  arrange( comparison, q.mod, log2FC) %>%
+  distinct()
 
 vroom::vroom_write(de_proteins_longer_annot, file.path(args$output_dir,args$output_long_file ) )
 

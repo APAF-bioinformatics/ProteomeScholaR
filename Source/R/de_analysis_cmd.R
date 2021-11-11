@@ -683,7 +683,9 @@ de_proteins_wide <- selected_data %>%
               names_sep = ":",
               values_from = c(log2FC, q.mod, p.mod)) %>%
   left_join(norm_counts, by = args$row_id) %>%
-  left_join(raw_counts, by = args$row_id)
+  left_join(raw_counts, by = args$row_id) %>%
+  arrange( comparison, q.mod, log2FC) %>%
+  distinct()
 
 #logdebug(head(de_proteins_wide))
 
@@ -743,7 +745,9 @@ de_proteins_long <- selected_data %>%
             suffix = c(".left", ".right")) %>%
   left_join(raw_counts, by = left_join_columns) %>%
   left_join(raw_counts, by = right_join_columns,
-            suffix = c(".left", ".right"))
+            suffix = c(".left", ".right")) %>%
+  arrange( comparison, q.mod, log2FC) %>%
+  distinct()
 
 
 #head(de_proteins_long)

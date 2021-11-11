@@ -497,6 +497,7 @@ reactome_term_tbl <- uniprot_acc_tbl %>%
 #   relocate(maxquant_row_ids, .after="sites_id") %>%
 #   left_join( get_nearby_ptm,
 #              by=c("sites_id" = "sites_id")) %>%
+#   arrange( comparison, q.mod, log2FC) %>%
 #   distinct()
 #
 # head( de_phos_wide_annot )
@@ -520,6 +521,7 @@ de_phos_long_annot <- de_phos_long %>%
   relocate(maxquant_row_ids, .after="sites_id")  %>%
   left_join( nearby_ptm_count,
              by=c("sites_id" = "sites_id")) %>%
+  arrange( comparison, q.mod, log2FC) %>%
   distinct()
 
 vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
