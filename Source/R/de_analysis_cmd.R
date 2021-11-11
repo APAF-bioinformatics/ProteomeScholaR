@@ -684,7 +684,6 @@ de_proteins_wide <- selected_data %>%
               values_from = c(log2FC, q.mod, p.mod)) %>%
   left_join(norm_counts, by = args$row_id) %>%
   left_join(raw_counts, by = args$row_id) %>%
-  arrange( comparison, q.mod, log2FC) %>%
   distinct()
 
 #logdebug(head(de_proteins_wide))
