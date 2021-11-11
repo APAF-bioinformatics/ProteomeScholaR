@@ -7,7 +7,7 @@
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#Test if BioManager is installed 
+#Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
    BiocManager::install(version = "3.12")
@@ -144,7 +144,7 @@ phospho_tbl_orig <- vroom::vroom(args$phospho_file)
 logdebug(captured_output)
 
 
-phospho_tbl <- phospho_tbl_orig %>%  
+phospho_tbl <- phospho_tbl_orig %>%
   dplyr::select(sites_id, q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
   mutate( phosphosites_id_copy = sites_id ) %>%
   separate(phosphosites_id_copy, sep="!", into=c("uniprot_acc", "gene_symbol", "positions", "peptide")) %>%
@@ -169,15 +169,15 @@ proteins_tbl <- proteins_tbl_orig %>%
 
 proteins_cln <- proteins_tbl  %>%
   mutate( uniprot_acc_copy = uniprot_acc) %>%
-  separate_rows(uniprot_acc_copy, sep="[\\:;]") 
+  separate_rows(uniprot_acc_copy, sep="[\\:;]")
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc_copy) %>% pull(uniprot_acc_copy) 
+proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc_copy) %>% pull(uniprot_acc_copy)
 phospho_uniprot_list <- phospho_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
-prot_phos_uniprot_list <- intersect( proteins_uniprot_list, 
-           phospho_uniprot_list ) 
+prot_phos_uniprot_list <- intersect( proteins_uniprot_list,
+           phospho_uniprot_list )
 
 logdebug(proteins_uniprot_list %>% length())
 logdebug(phospho_uniprot_list %>% length())
@@ -188,24 +188,27 @@ logdebug(prot_phos_uniprot_list %>% length())
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo( "Normalisation of the phosphopeptide abundance with the protein abundance.")
 basic_data_shared <- proteins_cln %>%
-  inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",  
+  inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",
                                 "comparison" = "comparison"), suffix=c(".phos", ".prot") ) %>%
   mutate( norm_phos_logFC = log2FC.phos - log2FC.prot) %>%
   mutate( adj_qmod.prot  = ifelse(sign(q.mod.phos)  ==  sign(q.mod.prot), 1-q.mod.prot,  q.mod.prot  )) %>%
   mutate( combined_q_mod = 1-pchisq(-2*( log(q.mod.phos) + log(adj_qmod.prot)   ), 2*2 )  ) %>%
   dplyr::mutate( status  = "Phos_and_Prot") %>%
   dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc,  log2FC.phos, q.mod.phos,  log2FC.prot, q.mod.prot, status, phos_maxquant_row_ids, prot_maxquant_row_ids )   %>%
+  arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
   distinct() %>%
   as.data.frame
 
 basic_data_phospho_only <- phospho_cln %>%
-  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc_copy" ,  
+  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc_copy" ,
                                 "comparison" = "comparison") )  %>%
   dplyr::mutate(norm_phos_logFC =  log2FC, combined_q_mod = q.mod) %>%
   dplyr::rename( log2FC.phos= log2FC, q.mod.phos = q.mod ) %>%
   dplyr::mutate( status  = "Phos_Only")%>%
   dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc, log2FC.phos, q.mod.phos, status, phos_maxquant_row_ids)    %>%
-  as.data.frame 
+  arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
+  distinct() %>%
+  as.data.frame
 
 basic_data <- basic_data_shared %>%
   bind_rows(basic_data_phospho_only)
@@ -227,13 +230,14 @@ annotation_from_phospho_tbl <- phospho_tbl_orig %>%
 annotated_phos_tbl <- basic_data %>%
   left_join( annotation_from_phospho_tbl, by=c("sites_id" = "sites_id",
                                                "comparison" = "comparison",
-                                               "phos_maxquant_row_ids" = "maxquant_row_ids"))
+                                               "phos_maxquant_row_ids" = "maxquant_row_ids")) %>%
+  dplyr::select( !matches( "log2norm\\.\\d+\\.(left|right)") &
+                 !matches("raw\\.\\d+\\.(left|right)")) %>%
+  arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
+  distinct() %>%
 
 
 vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
-
-
-
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare before and after normalization with protein abundance")
@@ -251,24 +255,25 @@ after_prot_norm <- basic_data %>%
 
 compare_before_and_after <- before_prot_norm %>%
   full_join( after_prot_norm, by=c("comparison", "sites_id"), suffix=c(".before", ".after")) %>%
-  mutate( Normalization = case_when (  is.na(Normalization.before) & !is.na(Normalization.after)  ~ "After Only",
-          !is.na(Normalization.before) & !is.na(Normalization.after)   ~ "Before and After",
-          !is.na(Normalization.before) & is.na(Normalization.after)   ~ "Before Only",
+  mutate( Normalization = case_when (  is.na(Normalization.before) & !is.na(Normalization.after) ~ "After Only",
+          !is.na(Normalization.before) & !is.na(Normalization.after) ~ "Before and After",
+          !is.na(Normalization.before) & is.na(Normalization.after) ~ "Before Only",
           TRUE ~ NA_character_ ) ) %>%
   group_by( comparison,  Normalization) %>%
   summarise( Counts = n()) %>%
   ungroup()
 
- vroom::vroom_write( compare_before_and_after, file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.tsv"))
- 
- 
+ vroom::vroom_write( compare_before_and_after,
+                     file.path(args$output_dir, "compare_before_and_after_norm_by_prot_abundance.tsv"))
+
+
  cmp_before_after_plot <- compare_before_and_after %>%
    ggplot( aes( Normalization, Counts)) +
    geom_col() +
    facet_grid( . ~ comparison ) +
-     geom_text(stat='identity', aes(label= Counts), vjust=-0.5) 
+     geom_text(stat='identity', aes(label= Counts), vjust=-0.5)
 
- 
+
  for( file_name in list("compare_before_and_after_norm_by_prot_abundance.pdf","compare_before_and_after_norm_by_prot_abundance.png")) {
   captured_output<capture.output(
    ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, file_name), width = 14, height=7)
@@ -276,7 +281,7 @@ compare_before_and_after <- before_prot_norm %>%
   )
   logdebug(captured_output)
 }
- 
+
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -286,7 +291,7 @@ logFC.threshold <- 1
 
 basic_data_volcano_plot_data <- basic_data %>%
   left_join( annotated_phos_tbl %>%
-               dplyr::distinct( uniprot_acc, gene_name), 
+               dplyr::distinct( uniprot_acc, gene_name),
              by=c("uniprot_acc" = "uniprot_acc")) %>%
   dplyr::mutate( colour= case_when ( abs(norm_phos_logFC) >= logFC.threshold & combined_q_mod >= qm.threshold ~ "orange",
                                      abs(norm_phos_logFC) >= logFC.threshold & combined_q_mod < qm.threshold ~ "purple",
@@ -299,12 +304,12 @@ basic_data_volcano_plot <- basic_data_volcano_plot_data %>%
   geom_point() +
   facet_grid( . ~ comparison)  +
             scale_colour_manual(values = c("orange", "purple", "blue" ,"black"),
-                                labels=c(paste0("Not significant, logFC > ", 
-                                  logFC.threshold), 
-                                  paste0("Significant, logFC >= ", 
-                                         logFC.threshold), 
-                                  paste0("Significant, logFC <", 
-                                         logFC.threshold), 
+                                labels=c(paste0("Not significant, logFC > ",
+                                  logFC.threshold),
+                                  paste0("Significant, logFC >= ",
+                                         logFC.threshold),
+                                  paste0("Significant, logFC <",
+                                         logFC.threshold),
                                   "Not Significant"))
 
 for( file_name in list("volplot_gg_phos_vs_prot_all.png","volplot_gg_phos_vs_prot_all.svg")) {
