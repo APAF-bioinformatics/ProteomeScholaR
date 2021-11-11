@@ -690,6 +690,8 @@ ggsave(filename = file_name,
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+loginfo("Create wide format output file")
+
 norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
   set_colnames(paste0(colnames(counts_rnorm.log.ruvIII_v1), ".log2norm")) %>%
@@ -710,7 +712,7 @@ de_proteins_wide <- selected_data %>%
               values_from = c(log2FC, q.mod, p.mod)) %>%
   left_join(norm_counts, by = args$row_id) %>%
   left_join(raw_counts, by = args$row_id) %>%
-  arrange( comparison, q.mod, log2FC) %>%
+  dplyr::arrange(across(matches("q.mod"))) %>%
   distinct()
 
 #logdebug(head(de_proteins_wide))
@@ -719,6 +721,7 @@ vroom::vroom_write(de_proteins_wide, file.path(args$output_dir, paste0(args$file
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Create long format output file")
 
 norm_counts <- counts_rnorm.log.ruvIII_v1 %>%
   as.data.frame %>%
