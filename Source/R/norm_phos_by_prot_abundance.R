@@ -42,22 +42,6 @@ tic()
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# group_pattern <- "RPE"
-# ## Directories management
-# base_dir <- here::here()
-# data_dir <- file.path( base_dir, "Data")
-# phos_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Phosphopeptides", "DE_Analysis")
-# source_dir <- file.path(base_dir, "..")
-# prot_results_dir <- file.path(base_dir, "Results",  paste0(group_pattern, "90"),  "Proteins", "DE_Analysis")
-# results_dir <- phos_results_dir
-#
-#
-#
-# ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#
-# proteins_file <- file.path( prot_results_dir, "de_proteins_long_annot.tsv" )
-# phospho_file  <- file.path(   phos_results_dir, "de_phos_long_annot.tsv" )
-
 command_line_options <- commandArgs(trailingOnly = TRUE)
 parser <- OptionParser(add_help_option = TRUE)
 #Note: options with default values are ignored in the configuration file parsing.
@@ -94,6 +78,10 @@ parser <- add_option(parser, c("--proteins_file"), type="character", dest = "pro
 parser <- add_option(parser, c("--phospho_file"), type="character", dest = "phospho_file",
                      help="File with table of differentially abundant phosphosites.",
                      metavar="string")
+
+parser <- add_option(parser, "--plots_format", type = "character",
+                     help = "A comma separated strings to indicate the fortmat output for the plots [pdf,png,svg].",
+                     metavar = "string")
 
 #parse comand line arguments first.
 args <- parse_args(parser)
@@ -134,6 +122,17 @@ testRequiredArguments(args, c(
 testRequiredFiles(c(
   args$proteins_file
   ,args$phospho_file))
+
+args<-parseString(args,c("plots_format"))
+
+if(isArgumentDefined(args,"plots_format"))
+{
+  args <- parseList(args,c("plots_format"))
+}else {
+  logwarn("plots_format is undefined, default output set to pdf.")
+  args$plots_format <- list("pdf")
+}
+
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo ("Read phosphopeptides abundance data.")
@@ -234,7 +233,7 @@ annotated_phos_tbl <- basic_data %>%
   dplyr::select( !matches( "log2norm\\.\\d+\\.(left|right)") &
                  !matches("raw\\.\\d+\\.(left|right)")) %>%
   arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
-  distinct() %>%
+  distinct()
 
 
 vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
@@ -274,9 +273,10 @@ compare_before_and_after <- before_prot_norm %>%
      geom_text(stat='identity', aes(label= Counts), vjust=-0.5)
 
 
- for( file_name in list("compare_before_and_after_norm_by_prot_abundance.pdf","compare_before_and_after_norm_by_prot_abundance.png")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("compare_before_and_after_norm_by_prot_abundance.",format_ext))
   captured_output<capture.output(
-   ggsave( plot=cmp_before_after_plot, file.path(args$output_dir, file_name), width = 14, height=7)
+   ggsave( plot=cmp_before_after_plot, file_name, width = 14, height=7)
     , type = "message"
   )
   logdebug(captured_output)
@@ -312,9 +312,10 @@ basic_data_volcano_plot <- basic_data_volcano_plot_data %>%
                                          logFC.threshold),
                                   "Not Significant"))
 
-for( file_name in list("volplot_gg_phos_vs_prot_all.png","volplot_gg_phos_vs_prot_all.svg")) {
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("volplot_gg_phos_vs_prot_all.",format_ext))
   captured_output<capture.output(
-  ggsave(  filename=file.path( args$output_dir, file_name), plot=basic_data_volcano_plot, width=15, height=6   )
+  ggsave(  filename=file_name, plot=basic_data_volcano_plot, width=15, height=6   )
     , type = "message"
   )
   logdebug(captured_output)

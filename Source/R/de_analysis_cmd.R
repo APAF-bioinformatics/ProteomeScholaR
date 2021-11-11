@@ -146,9 +146,6 @@ parser <- add_option(parser, "--plots_format", type = "character",
 #parse comand line arguments first.
 args <- parse_args(parser)
 
-setwd("/home/pablo/Development/CMRI/ProteomeRiver/tests/data")
-args$config<-"config_prot.ini"
-
 
 createOutputDir(args$output_dir, args$no_backup)
 
