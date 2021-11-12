@@ -557,6 +557,23 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Draw the RLE and PCA plots.")
+rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
+                                         design_matrix = design_mat_cln,
+                                         sample_id_column = !!rlang::sym(args$sample_id),
+                                         group_column = !!rlang::sym(args$group_id),
+                                         list_of_descriptions = list("Before RUVIII", "After RUVIII"))
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("rle_pca_plots.",format_ext))
+  captured_output<-capture.output(
+    ggsave(plot = rle_pca_plots_arranged, filename =  file_name, limitsize = FALSE)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
 
 list_rnorm.log.quant.ruv.r1 <- NA
@@ -595,24 +612,6 @@ saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
 #                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_round_1_ruv.tsv")
-
-
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-loginfo("Draw the RLE and PCA plots.")
-rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
-                                         design_matrix = design_mat_cln,
-                                         sample_id_column = !!rlang::sym(args$sample_id),
-                                         group_column = !!rlang::sym(args$group_id),
-                                         list_of_descriptions = list("Before RUVIII", "After RUVIII"))
-for( format_ext in args$plots_format) {
-  file_name<-file.path(args$output_dir,paste0("rle_pca_plots.",format_ext))
-  captured_output<-capture.output(
-    ggsave(plot = rle_pca_plots_arranged, filename =  file_name, limitsize = FALSE)
-    , type = "message"
-  )
-  logdebug(captured_output)
-}
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Prepare data for drawing the volcano plots")
