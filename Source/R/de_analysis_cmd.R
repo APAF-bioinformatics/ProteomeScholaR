@@ -53,46 +53,46 @@ parser <- OptionParser(add_help_option = TRUE)
 
 #Note: options with default values are ignored in the configuration file parsing.
 parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default = FALSE,
-                     help = "Print debugging output")
+                     help = "Print debugging output  [default %default]")
 
 parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
-                     help = "Only print critical information to the console.")
+                     help = "Only print critical information to the console.  [default %default]")
 
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
-                     help = "Deactivate backup of previous run.")
+                     help = "Deactivate backup of previous run.  [default %default]")
 
 parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
-                     help = "Configuration file.",
+                     help = "Configuration file.  [default %default]",
                      metavar = "string")
 
 parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis",
-                     help = "Directory path for all results files.",
+                     help = "Directory path for all results files.  [default %default]",
                      metavar = "string")
 
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
-                     help = "Name of the logging file.",
+                     help = "Name of the logging file.  [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double", default = NA,
+parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double",
                      help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
                      metavar = "double")
 
 #Options without a default value have the following priority: configuration file < command line argument
 parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer",
-                     help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group [default %default]",
+                     help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group",
                      metavar = "integer")
 
 parser <- add_option(parser, "--abundance_threshold", type = "integer",
-                     help = "Abundance threshold above which the protein in the sample is accepted for analysis [default %default]",
+                     help = "Abundance threshold above which the protein in the sample is accepted for analysis",
                      metavar = "integer")
 
 
 parser <- add_option(parser, "--group_pattern", type = "character",
-                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
+                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment.",
                      metavar = "string")
 
 parser <- add_option(parser, "--q_val_thresh", type = "double",
-                     help = "q-value threshold below which a protein has statistically significant differetial expression [default %default]",
+                     help = "q-value threshold below which a protein has statistically significant differetial expression",
                      metavar = "double")
 
 parser <- add_option(parser, "--ruv_k", type = "integer",
@@ -200,9 +200,26 @@ testRequiredFiles(c(
 ))
 
 
-args<-parseType(args,
-  c("q_val_thresh")
-                ,as.double)
+if(isArgumentDefined(args,"treat_lfc_cutoff"))
+{
+  args<-parseType(args,
+                  c("treat_lfc_cutoff")
+                  ,as.double)
+}else {
+  logwarn("treat_lfc_cutoff is undefined, default value set to NA")
+  args$treat_lfc_cutoff<-NA
+}
+
+
+if(isArgumentDefined(args,"q_val_thresh"))
+{
+  args<-parseType(args,
+                  c("q_val_thresh")
+                  ,as.double)
+}else {
+  logwarn("q_val_thresh is undefined, default value set to NaN.")
+  args$q_val_thresh<-NaN
+}
 
 args<-parseType(args,
   c("ruv_k"
