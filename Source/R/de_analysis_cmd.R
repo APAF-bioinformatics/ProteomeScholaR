@@ -73,6 +73,10 @@ parser <- add_option(parser, c("-l", "--log_file"), type = "character", default 
                      help = "Name of the logging file.",
                      metavar = "string")
 
+parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double", default = NA,
+                     help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
+                     metavar = "double")
+
 #Options without a default value have the following priority: configuration file < command line argument
 parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer",
                      help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group [default %default]",
@@ -467,7 +471,8 @@ list_rnorm.log.quant.ruv.r0 <- runTestsContrasts(counts_rnorm.log.quant,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
                                                  design_matrix = design_mat_cln,
                                                  formula_string = args$formula_string,
-                                                 weights = NA)
+                                                 weights = NA,
+                                                 treat_lfc_cutoff = as.double(args$treat_lfc_cutoff))
 
 myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 # }

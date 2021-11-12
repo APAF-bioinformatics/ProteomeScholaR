@@ -763,7 +763,8 @@ runTestsContrasts <- function(data,
                               formula_string,
                               p_value_column = p.mod,
                               q_value_column = q.mod,
-                              weights = NA) {
+                              weights = NA,
+                              treat_lfc_cutoff = NA) {
 
   ff <- as.formula(formula_string)
   mod_frame <- model.frame(ff, design_matrix)
@@ -790,11 +791,16 @@ runTestsContrasts <- function(data,
   eb.fit <- eBayes(cfit)
 
   ## Run treat over here
-  # t.fit <- treat(eb.fit, lfc=1) ## assign log fold change threshold below which is scientifically not relevant
+  t.fit <- NA
+  if( !is.na( treat_lfc_cutoff)) {
+    t.fit <- treat(eb.fit, lfc=as.double(treat_lfc_cutoff)) ## assign log fold change threshold below which is scientifically not relevant
+  } else {
+    t.fit <- eb.fit
+  }
 
   result_tables <- purrr::map(contrast_strings,
                               function(contrast) {
-                                de_tbl <- topTreat(eb.fit, coef = contrast, n = Inf) %>%
+                                de_tbl <- topTreat(t.fit, coef = contrast, n = Inf) %>%
                                   mutate({ { q_value_column } } := qvalue(P.Value)$q) %>%
                                   dplyr::rename({ { p_value_column } } := P.Value)
                               }
@@ -804,7 +810,7 @@ runTestsContrasts <- function(data,
 
 
   return(list(results = result_tables,
-              fit.eb = eb.fit))
+              fit.eb = t.fit))
 }
 
 
