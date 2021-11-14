@@ -131,6 +131,10 @@ parser <- add_option(parser, "--sample_id", type = "character",
                      help = "A string describing the sample ID. This must be a column that exists in the design matrix.",
                      metavar = "string")
 
+parser <- add_option(parser, "--replicate_group_id", type = "character",
+                     help = "A string describing the replicate group ID. This must be a column that exists in the design matrix.",
+                     metavar = "string")
+
 parser <- add_option(parser, "--group_id", type = "character",
                      help = "A string describing the experimental group ID. This must be a column that exists in the design matrix.",
                      metavar = "string")
@@ -234,6 +238,7 @@ args<-parseString(args,
     ,"test_pairs_file"
     ,"formula_string"
     ,"sample_id"
+    , "replicate_group_id"
     ,"group_id"
     ,"row_id"
     ,"file_prefix"
@@ -252,6 +257,18 @@ if(isArgumentDefined(args,"plots_format"))
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
   args$group_pattern <- "\\d+"
+}
+
+## Clean up replicate group ID and then take default value
+if (  ! isArgumentDefined(args,"replicate_group_id") ) {
+  logwarn("Replicate_group_id is NA")
+  args$replicate_group_id <- NA
+}
+
+if ( is.na(args$replicate_group_id ) &
+     ( !is.na(args$group_id ) |
+       args$group_id == "")) {
+  args$replicate_group_id <- args$group_id
 }
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -314,6 +331,14 @@ if (length(which(c(args$sample_id, args$group_id) %in% colnames(design_mat_cln))
   q()
 }
 
+if ( !is.na(args$replicate_group_id) &
+     args$replicate_group_id != args$group_id )  {
+  if( length(which(c(args$replicate_group_id) %in% colnames(design_mat_cln))) != 1)  {
+    logerror("replicate_group_id is not matching to the column names used in the design matrix.")
+    q()
+  }
+}
+
 cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -335,8 +360,6 @@ for( format_ext in args$plots_format) {
   )
   logdebug(captured_output)
 }
-
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cln_dat_wide_cleaned <- NA
@@ -384,7 +407,7 @@ vroom::vroom_write(cln_dat_wide, file.path(args$output_dir, "raw_counts_after_re
 
 ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
                                                      !!rlang::sym(args$sample_id),
-                                                     !!rlang::sym(args$group_id))
+                                                     !!rlang::sym(args$replicate_group_id))
 
 logdebug(ruvIII_replicates_matrix)
 
