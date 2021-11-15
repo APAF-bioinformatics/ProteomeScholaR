@@ -496,11 +496,16 @@ allPhosphositesPivotWider <- function(all_phos_sites_long_tbl,
                                       num_phospho_site_col = phospho_sty ) {
  cols_to_use <- "replicate"
 
+  temp_tbl <- all_phos_sites_long_tbl
+
   if ( !is.na( additional_cols) & additional_cols != "" ) {
-    cols_to_use <-c( additional_cols, "replicate")
+    cols_to_use <-c(  "replicate", additional_cols)
+
+    temp_tbl <- all_phos_sites_long_tbl %>%
+      mutate_at( across( additional_cols, toupper) )
   }
 
-  all_phos_sites_wide_tbl <-  all_phos_sites_long_tbl %>%
+  all_phos_sites_wide_tbl <-  temp_tbl %>%
     pivot_wider( id_cols = c( evidence_id, uniprot_acc, gene_names,
                               protein_site_positions, phos_15mer_seq,
                            as_name(enquo( phospho_site_prob_col)),
@@ -531,12 +536,24 @@ uniquePhosphositesSummariseLongList <- function(all_phos_sites_long_tbl,
       cols_to_use <- c( usual_columns, additional_cols)
     }
 
-    input_tbl %>%
+    temp_tbl <- input_tbl %>%
       group_by( across({{ cols_to_use }}) ) %>%
       # uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, experiment, replicate
       summarise( value =  method( value) ,
                  maxquant_row_ids= paste0(evidence_id, collapse=";") ) %>%
-      ungroup
+      ungroup  %>%
+      muate( replicate = toupper(replicate))
+
+
+    output_tbl <- temp_tbl
+    if ( !is.na( additional_cols) & additional_cols != "" ) {
+
+      output_tbl <- temp_tbl %>%
+      mutate_at( across( additional_cols, toupper) )
+
+    }
+
+    return( output_tbl)
   }
 
   summary_funcs <- list( mean=mean, median=median, sum=sum)
