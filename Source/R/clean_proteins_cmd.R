@@ -7,7 +7,7 @@
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#Test if BioManager is installed 
+#Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
   BiocManager::install()
@@ -210,7 +210,7 @@ if("group_pattern" %in% args) {
 }
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-## Read fasta file 
+## Read fasta file
 # colnames(aa_seq_tbl)
 
 fasta_meta_file<-file.path(args$tmp_dir,args$fasta_meta_file)
@@ -289,7 +289,6 @@ if (args$group_pattern != "") {
     distinct
 
   colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2") %>%
-    toupper() %>%
     str_replace_all("UNIPROT_ACC", "uniprot_acc")
 
 } else {
@@ -301,7 +300,6 @@ if (args$group_pattern != "") {
     distinct
 
   colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1") %>%
-    toupper() %>%
     str_replace_all("UNIPROT_ACC", "uniprot_acc")
 
 }
