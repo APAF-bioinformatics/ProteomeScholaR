@@ -560,26 +560,38 @@ uniquePhosphositesSummariseWideList <- function(summarised_long_tbl_list,
     }
 
   summarised_wide_tbl_list <- purrr::map( summarised_long_tbl_list, ~{ . %>%
-    mutate( maxquant_row_ids = paste0( paste(all_of(additional_cols), sep="_") , "(", maxquant_row_ids, ")") ) %>%
-    pivot_wider( id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
+      mutate( maxquant_row_ids = paste0( paste(!!rlang::sym(additional_cols), sep="_") , "(", maxquant_row_ids, ")") ) %>%
+      pivot_wider( id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
                   names_from = all_of(cols_to_use),
                   values_from=c("value") )%>%
                   unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
 
+  ## Summarize MaxQuant evidence IDs from different multiplex experiment
+  clean_maxquant_ids <- function(input_tab ) {
+    maxquant_ids_tbl <- input_tab  %>%
+      group_by( sites_id) %>%
+      summarise( maxquant_row_ids = paste(maxquant_row_ids, collapse=",")  ) %>%
+      ungroup()
 
-  maxquant_ids_tbl <-    summarised_wide_tbl_list  %>%
-    group_by( sites_id) %>%
-    summarise( maxquant_row_ids = paste(maxquant_row_ids, sep=";")  ) %>%
-    ungroup()
 
+    values_tbl <- input_tab %>%
+      dplyr::select(-maxquant_row_ids) %>%
+      group_by( sites_id) %>%
+      summarise_all( ~sum(., na.rm=TRUE)) %>%
+      ungroup()
 
-  values_tbl <- summarised_wide_tbl_list %>%
-    dplyr::select(-maxquant_row_ids) %>%
-    group_by( sites_id) %>%
-    summarise_all( ~sum(., na.rm=TRUE)) %>%
-    ungroup()
+    output_tab <- values_tbl %>%
+      left_join( maxquant_ids_tbl, by="sites_id") %>%
+      relocate( maxquant_row_ids, .after="sites_id")
 
-  return( values_tbl)
+    return( output_tab)
+
+  }
+
+  summarised_wide_tbl_cln_list <- purrr::map( summarised_wide_tbl_list, clean_maxquant_ids)
+
+  return( summarised_wide_tbl_cln_list)
+
 
 }
 # The values for sum is way too large, so I think it is going to be median or mean
