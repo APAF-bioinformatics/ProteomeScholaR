@@ -84,6 +84,16 @@ parser <- add_option(parser, c( "--p_value_cutoff"), type = "double", default = 
                      help = "The p-value cutoff for identifying a kinase as significant by KinSwingR",
                      metavar = "integer")
 
+
+parser <- add_option(parser, c( "--p_value_cutoff"), type = "double", default = 0.05,
+                     help = "The p-value cutoff for identifying a kinase as significant by KinSwingR",
+                     metavar = "integer")
+
+out_tab_lfc_p_value_cutoff <- 0.05
+out_tab_motif_p_value_cutoff <- 0.2 
+out_tab_swing_p_value_cutoff <- 0.2
+
+
 parser <- add_option(parser, c( "--kinase_specificity"), type = "character",
                      help = "Specificity of the kinase. One of Ser/Thr kinase= ST, Tyr kinase = Y, or Ser/Thr/Tyr kinase = STY",
                      metavar = "integer")
@@ -670,6 +680,9 @@ purrr::walk2( selected_scores_list,
 ```
 
 
+```{r}
+
+```
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
