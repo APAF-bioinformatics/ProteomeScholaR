@@ -502,7 +502,7 @@ allPhosphositesPivotWider <- function(all_phos_sites_long_tbl,
     cols_to_use <-c(  "replicate", additional_cols)
 
     temp_tbl <- all_phos_sites_long_tbl %>%
-      mutate_at( across( additional_cols, toupper) )
+      mutate_at( additional_cols, toupper )
   }
 
   all_phos_sites_wide_tbl <-  temp_tbl %>%
@@ -549,7 +549,7 @@ uniquePhosphositesSummariseLongList <- function(all_phos_sites_long_tbl,
     if ( !is.na( additional_cols) & additional_cols != "" ) {
 
       output_tbl <- temp_tbl %>%
-      mutate_at( across( additional_cols, toupper) )
+      mutate_at(  additional_cols, toupper)
 
     }
 
