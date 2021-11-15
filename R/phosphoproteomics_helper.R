@@ -555,16 +555,31 @@ uniquePhosphositesSummariseWideList <- function(summarised_long_tbl_list,
 
       cols_to_use <- c("replicate")
 
-    if ( !is.na( additional_cols) & additional_cols != "" ) {
-      cols_to_use <- c( "replicate", additional_cols)
-    }
+      summarised_wide_tbl_list_edited <- NA
+      if ( !is.na( additional_cols) & additional_cols != "" ) {
+        cols_to_use <- c( "replicate", additional_cols)
 
-  summarised_wide_tbl_list <- purrr::map( summarised_long_tbl_list, ~{ . %>%
-      mutate( maxquant_row_ids = paste0( paste(!!rlang::sym(additional_cols), sep="_") , "(", maxquant_row_ids, ")") ) %>%
-      pivot_wider( id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
-                  names_from = all_of(cols_to_use),
-                  values_from=c("value") )%>%
-                  unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
+        experiment_col <- additional_cols[[1]]
+
+        summarised_wide_tbl_list_edited <- purrr::map( summarised_long_tbl_list, ~{ . %>%
+            ## When there is additional cols use the first additional cols and add it to the maxquant_row_ids
+            mutate( maxquant_row_ids = paste0( paste(!!rlang::sym(experiment_col ), sep="_") , "(", maxquant_row_ids, ")") ) %>%
+            pivot_wider( id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
+                         names_from = all_of(cols_to_use),
+                         values_from=c("value") )%>%
+            unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
+      } else {
+
+        summarised_wide_tbl_list_edited <- purrr::map( summarised_long_tbl_list, ~{
+            ## When there is additional cols use the first additional cols and add it to the maxquant_row_ids
+            pivot_wider( .,
+                         id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
+                         names_from = all_of(cols_to_use),
+                         values_from=c("value") )%>%
+            unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
+      }
+
+
 
   ## Summarize MaxQuant evidence IDs from different multiplex experiment
   clean_maxquant_ids <- function(input_tab ) {
@@ -588,7 +603,7 @@ uniquePhosphositesSummariseWideList <- function(summarised_long_tbl_list,
 
   }
 
-  summarised_wide_tbl_cln_list <- purrr::map( summarised_wide_tbl_list, clean_maxquant_ids)
+  summarised_wide_tbl_cln_list <- purrr::map( summarised_wide_tbl_list_edited, clean_maxquant_ids)
 
   return( summarised_wide_tbl_cln_list)
 
