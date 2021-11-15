@@ -542,7 +542,7 @@ uniquePhosphositesSummariseLongList <- function(all_phos_sites_long_tbl,
       summarise( value =  method( value) ,
                  maxquant_row_ids= paste0(evidence_id, collapse=";") ) %>%
       ungroup  %>%
-      muate( replicate = toupper(replicate))
+      mutate( replicate = toupper(replicate))
 
 
     output_tbl <- temp_tbl
