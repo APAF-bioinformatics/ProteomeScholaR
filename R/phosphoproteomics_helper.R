@@ -604,6 +604,11 @@ uniquePhosphositesSummariseWideList <- function(summarised_long_tbl_list,
         left_join( maxquant_ids_tbl, by="sites_id") %>%
         relocate( maxquant_row_ids, .after="sites_id")
 
+      colnames( output_tab) <- colnames( output_tab ) %>%
+        toupper( ) %>%
+        str_replace_all( "SITES_ID", "sites_id")  %>%
+        str_replace_all( "MAXQUANT_ROW_IDS", "maxquant_row_ids")
+
       return( output_tab)
 
     }

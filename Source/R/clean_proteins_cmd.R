@@ -288,7 +288,9 @@ if (args$group_pattern != "") {
     dplyr::select(uniprot_acc, matches(args$group_pattern), -contains(c("razor", "unique"))) %>%
     distinct
 
-  colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2")
+  colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1_\\2") %>%
+    toupper( ) %>%
+    str_replace_all( "UNIPROT_ACC", "uniprot_acc")
 
 } else {
 
@@ -298,7 +300,9 @@ if (args$group_pattern != "") {
     dplyr::select(uniprot_acc, matches(column_pattern), -contains(c("razor", "unique"))) %>%
     distinct
 
-  colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1")
+  colnames(evidence_tbl_filt) <- str_replace_all(colnames(evidence_tbl_filt), extract_replicate_group, "\\1") %>%
+    toupper( ) %>%
+    str_replace_all( "UNIPROT_ACC", "uniprot_acc")
 
 }
 
