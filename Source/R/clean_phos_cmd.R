@@ -7,7 +7,7 @@
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#Test if BioManager is installed 
+#Test if BioManager is installed
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
    BiocManager::install(version = "3.13")
@@ -34,6 +34,7 @@ p_load(optparse)
 p_load(tictoc)
 p_load(configr)
 p_load(logging)
+p_load(janitor)
 
 tic()
 
@@ -179,12 +180,12 @@ if(!file.exists( file.path( fasta_meta_file))) {
   aa_seq_tbl <- readRDS( file.path( fasta_meta_file))
 }
 
-  
+
 ## Add the row id column and create a column containing the cleaned  peptide
 loginfo("Get row ID and get cleaned peptide sequence.")
 evidence_tbl_cleaned <- addColumnsToEvidenceTbl(evidence_janitor )
-  
-  
+
+
 ## Get best accession per entry, work out peptides mapped to multiple genes
 loginfo("Use decision tree to get best accession per phosphosite evidence entry")
 #TODO:leading_proteins and evidence_id are hard coded, remove or make args
@@ -212,7 +213,7 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
                                                                accession_col = leading_proteins,
                                                                phospho_site_prob_col = phospho_sty_probabilities,
                                                                num_phospho_site_col = phospho_sty )
-  
+
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -220,15 +221,15 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
 loginfo("Add peptide start and end position")
 peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl , aa_seq_tbl )
 
-  
+
 ## Get the phosphosites position string
 loginfo("Add string listing the positions of phosphosites")
 phosphosite_pos_string_tbl <- addPhosphositesPositionsString(peptide_start_and_end )
-  
+
 ## Get the string listing all the 15-mer sequences, each sequence has the phosphorylation site in the middle
 loginfo("Add string listing all 15-mer sequences, each sequence has phosphosite in the center")
 get_15_mer_tbl <- addXMerStrings(phosphosite_pos_string_tbl, padding_length=7)
-  
+
 ## Get peptides with at least one phosphosite over threshold. Find all peptides with same sites as another peptides that contained at least one phosphosies >= threshold.
 loginfo("Get high conf. peptides (e.g. phosphosites >= threshold). Get peptide W/ same sites as high conf. peptide.")
 get_15_mer_tbl_filt <- filterByScoreAndGetSimilarPeptides(get_15_mer_tbl,
@@ -259,31 +260,31 @@ summarised_long_tbl_list <- uniquePhosphositesSummariseLongList(paralog_sites_lo
 loginfo("Summarise abundance values for each unique phosphosites, wide format")
 summarised_wide_tbl_list <- uniquePhosphositesSummariseWideList(summarised_long_tbl_list,
                                                                 additional_cols)
-  
+
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-results_list  <- list( summarised_wide_list = summarised_wide_tbl_list, 
-                summarised_long_list = summarised_long_tbl_list, 
-                all_phos_sites_wide  = all_phos_sites_wide_tbl, 
+results_list  <- list( summarised_wide_list = summarised_wide_tbl_list,
+                summarised_long_list = summarised_long_tbl_list,
+                all_phos_sites_wide  = all_phos_sites_wide_tbl,
                 all_phos_sites_long  = all_phos_sites_long_tbl )
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-output_files <- map_chr( list(  "mean", "median", "sum"), 
+output_files <- map_chr( list(  "mean", "median", "sum"),
                          ~file.path(args$output_dir, paste0(., "_phoshpsites.tsv" )  ) )
 
-walk2(  results_list$summarised_wide_list, 
+walk2(  results_list$summarised_wide_list,
        output_files,
        ~vroom::vroom_write( .x, .y))
 
-vroom::vroom_write( results_list$all_phos_sites_wide, 
+vroom::vroom_write( results_list$all_phos_sites_wide,
          file.path(args$output_dir, "all_phos_sites_wide_tbl.tsv" ))
 
-saveRDS( results_list$summarised_long_list, 
+saveRDS( results_list$summarised_long_list,
          file.path(args$output_dir, "summarised_long_tbl_list.RDS" ))
 
-saveRDS( results_list$summarised_wide_list, 
+saveRDS( results_list$summarised_wide_list,
          file.path(args$output_dir, "summarised_wide_tbl_list.RDS" ))
 
 
