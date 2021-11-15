@@ -559,18 +559,27 @@ uniquePhosphositesSummariseWideList <- function(summarised_long_tbl_list,
       cols_to_use <- c( "replicate", additional_cols)
     }
 
-  summarised_wide_tbl_list <- purrr::map( summarised_long_tbl_list, ~{
-    pivot_wider(., id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
+  summarised_wide_tbl_list <- purrr::map( summarised_long_tbl_list, ~{ . %>%
+    mutate( maxquant_row_ids = paste0( paste(all_of(additional_cols), sep="_") , "(", maxquant_row_ids, ")") ) %>%
+    pivot_wider( id_cols = c("uniprot_acc", "gene_names", "protein_site_positions", "phos_15mer_seq", "maxquant_row_ids"),
                   names_from = all_of(cols_to_use),
                   values_from=c("value") )%>%
                   unite( "sites_id", uniprot_acc, gene_names, protein_site_positions, phos_15mer_seq, sep="!" ) }  )
 
 
+  maxquant_ids_tbl <-    summarised_wide_tbl_list  %>%
+    group_by( sites_id) %>%
+    summarise( maxquant_row_ids = paste(maxquant_row_ids, sep=";")  ) %>%
+    ungroup()
 
 
+  values_tbl <- summarised_wide_tbl_list %>%
+    dplyr::select(-maxquant_row_ids) %>%
+    group_by( sites_id) %>%
+    summarise_all( ~sum(., na.rm=TRUE)) %>%
+    ungroup()
 
-
-  return( summarised_wide_tbl_list)
+  return( values_tbl)
 
 }
 # The values for sum is way too large, so I think it is going to be median or mean
