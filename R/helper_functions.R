@@ -207,4 +207,25 @@ isArgumentDefined<-function(arg_list,parameter){
 
 #' @export
 cmriFormatter <- function(record) { sprintf('CMRI Bioinformatics %s [%s] | %s', record$levelname, record$timestamp, record$msg) }
+
+
+#' @export
+setArgsDefault <- function(args, value_name, as_func, default_val=NA ) {
+
+  if(isArgumentDefined(args, value_name))
+  {
+    args<-parseType(args,
+                    c(value_name)
+                    ,as_func)
+  }else {
+    logwarn(paste0( value_name, " is undefined, default value set to ", as.character(default_val), "."))
+    args[[ value_name ]] <- default_val
+  }
+
+  return(args)
+}
+
+
+
+
 #=====================================================================================================

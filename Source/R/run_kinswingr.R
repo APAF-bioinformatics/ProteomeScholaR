@@ -58,27 +58,27 @@ parser <- add_option(parser, c("-t","--tmp_dir"), type = "character", default = 
                      help = "Directory path for temporary files.",
                      metavar = "string")
 
-parser <- add_option(parser, c( "--num_cores"), type = "integer", default = 1,
+parser <- add_option(parser, c( "--num_cores"), type = "integer",
                      help = "The number of cores used for the computation.",
                      metavar = "integer")
 
-parser <- add_option(parser, c( "--random_seed"), type = "integer", default = 123456,
+parser <- add_option(parser, c( "--random_seed"), type = "integer",
                      help = "The number of cores used for the computation.",
                      metavar = "integer")
 
-parser <- add_option(parser, c( "--motif_score_iteration"), type = "integer", default = 1000,
+parser <- add_option(parser, c( "--motif_score_iteration"), type = "integer",
                      help = "The number iterations for scoring each substrate against kinase motifs.",
                      metavar = "integer")
 
-parser <- add_option(parser, c( "--swing_iteration"), type = "integer", default = 1000,
+parser <- add_option(parser, c( "--swing_iteration"), type = "integer",
                      help = "The number iterations for swing score calcualtions.",
                      metavar = "integer")
 
-parser <- add_option(parser, c( "--min_num_sites_per_kinase"), type = "integer", default = 10,
+parser <- add_option(parser, c( "--min_num_sites_per_kinase"), type = "integer",
                      help = "The minimum number of known substrates for each kinase",
                      metavar = "integer")
 
-parser <- add_option(parser, c( "--p_value_cutoff"), type = "double", default = 0.05,
+parser <- add_option(parser, c( "--p_value_cutoff"), type = "double",
                      help = "The p-value cutoff for identifying a kinase as significant by KinSwingR",
                      metavar = "integer")
 
@@ -174,6 +174,13 @@ ks_file <-  file.path( args$phosphosite_db_dir, "Kinase_Substrate_Dataset")
 testRequiredFiles(c( args$norm_phos_logfc_file,
                      args$uniprot_kinase_file
 ))
+
+## Set default values
+args <- setArgsDefault(args, "random_seed", as_func=as.integer, default_val=123456 )
+args <- setArgsDefault(args, "motif_score_iteration", as_func=as.integer, default_val=1000 )
+args <- setArgsDefault(args, "swing_iteration", as_func=as.integer, default_val=1000 )
+args <- setArgsDefault(args, "min_num_sites_per_kinase", as_func=as.integer, default_val=10 )
+args <- setArgsDefault(args, "num_cores", as_func=as.integer, default_val=1 )
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------

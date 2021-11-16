@@ -53,46 +53,46 @@ parser <- OptionParser(add_help_option = TRUE)
 
 #Note: options with default values are ignored in the configuration file parsing.
 parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default = FALSE,
-                     help = "Print debugging output")
+                     help = "Print debugging output  [default %default]")
 
 parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
-                     help = "Only print critical information to the console.")
+                     help = "Only print critical information to the console.  [default %default]")
 
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
-                     help = "Deactivate backup of previous run.")
+                     help = "Deactivate backup of previous run.  [default %default]")
 
 parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
-                     help = "Configuration file.",
+                     help = "Configuration file.  [default %default]",
                      metavar = "string")
 
 parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis",
-                     help = "Directory path for all results files.",
+                     help = "Directory path for all results files.  [default %default]",
                      metavar = "string")
 
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
-                     help = "Name of the logging file.",
+                     help = "Name of the logging file.  [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double", default = NA,
+parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double",
                      help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
                      metavar = "double")
 
 #Options without a default value have the following priority: configuration file < command line argument
 parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer",
-                     help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group [default %default]",
+                     help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group",
                      metavar = "integer")
 
 parser <- add_option(parser, "--abundance_threshold", type = "integer",
-                     help = "Abundance threshold above which the protein in the sample is accepted for analysis [default %default]",
+                     help = "Abundance threshold above which the protein in the sample is accepted for analysis",
                      metavar = "integer")
 
 
 parser <- add_option(parser, "--group_pattern", type = "character",
-                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
+                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment.",
                      metavar = "string")
 
 parser <- add_option(parser, "--q_val_thresh", type = "double",
-                     help = "q-value threshold below which a protein has statistically significant differetial expression [default %default]",
+                     help = "q-value threshold below which a protein has statistically significant differetial expression",
                      metavar = "double")
 
 parser <- add_option(parser, "--ruv_k", type = "integer",
@@ -129,6 +129,10 @@ parser <- add_option(parser, "--design_matrix_file", type = "character",
 
 parser <- add_option(parser, "--sample_id", type = "character",
                      help = "A string describing the sample ID. This must be a column that exists in the design matrix.",
+                     metavar = "string")
+
+parser <- add_option(parser, "--replicate_group_id", type = "character",
+                     help = "A string describing the replicate group ID. This must be a column that exists in the design matrix.",
                      metavar = "string")
 
 parser <- add_option(parser, "--group_id", type = "character",
@@ -200,9 +204,26 @@ testRequiredFiles(c(
 ))
 
 
-args<-parseType(args,
-  c("q_val_thresh")
-                ,as.double)
+if(isArgumentDefined(args,"treat_lfc_cutoff"))
+{
+  args<-parseType(args,
+                  c("treat_lfc_cutoff")
+                  ,as.double)
+}else {
+  logwarn("treat_lfc_cutoff is undefined, default value set to NA")
+  args$treat_lfc_cutoff<-NA
+}
+
+
+if(isArgumentDefined(args,"q_val_thresh"))
+{
+  args<-parseType(args,
+                  c("q_val_thresh")
+                  ,as.double)
+}else {
+  logwarn("q_val_thresh is undefined, default value set to NaN.")
+  args$q_val_thresh<-NaN
+}
 
 args<-parseType(args,
   c("ruv_k"
@@ -217,6 +238,7 @@ args<-parseString(args,
     ,"test_pairs_file"
     ,"formula_string"
     ,"sample_id"
+    , "replicate_group_id"
     ,"group_id"
     ,"row_id"
     ,"file_prefix"
@@ -235,6 +257,18 @@ if(isArgumentDefined(args,"plots_format"))
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
   args$group_pattern <- "\\d+"
+}
+
+## Clean up replicate group ID and then take default value
+if (  ! isArgumentDefined(args,"replicate_group_id") ) {
+  logwarn("Replicate_group_id is NA")
+  args$replicate_group_id <- NA
+}
+
+if ( is.na(args$replicate_group_id ) &
+     ( !is.na(args$group_id ) |
+       args$group_id == "")) {
+  args$replicate_group_id <- args$group_id
 }
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -297,6 +331,14 @@ if (length(which(c(args$sample_id, args$group_id) %in% colnames(design_mat_cln))
   q()
 }
 
+if ( !is.na(args$replicate_group_id) &
+     args$replicate_group_id != args$group_id )  {
+  if( length(which(c(args$replicate_group_id) %in% colnames(design_mat_cln))) != 1)  {
+    logerror("replicate_group_id is not matching to the column names used in the design matrix.")
+    q()
+  }
+}
+
 cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -318,8 +360,6 @@ for( format_ext in args$plots_format) {
   )
   logdebug(captured_output)
 }
-
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cln_dat_wide_cleaned <- NA
@@ -367,7 +407,7 @@ vroom::vroom_write(cln_dat_wide, file.path(args$output_dir, "raw_counts_after_re
 
 ruvIII_replicates_matrix <- getRuvIIIReplicateMatrix(design_mat_cln,
                                                      !!rlang::sym(args$sample_id),
-                                                     !!rlang::sym(args$group_id))
+                                                     !!rlang::sym(args$replicate_group_id))
 
 logdebug(ruvIII_replicates_matrix)
 
@@ -540,6 +580,23 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Draw the RLE and PCA plots.")
+rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
+                                         design_matrix = design_mat_cln,
+                                         sample_id_column = !!rlang::sym(args$sample_id),
+                                         group_column = !!rlang::sym(args$group_id),
+                                         list_of_descriptions = list("Before RUVIII", "After RUVIII"))
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("rle_pca_plots.",format_ext))
+  captured_output<-capture.output(
+    ggsave(plot = rle_pca_plots_arranged, filename =  file_name, limitsize = FALSE)
+    , type = "message"
+  )
+  logdebug(captured_output)
+}
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
 
 list_rnorm.log.quant.ruv.r1 <- NA
@@ -578,24 +635,6 @@ saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
 #                      sort_by_column =q.mod,
 #                      results_dir = args$output_dir,
 #                      file_suffix = "_round_1_ruv.tsv")
-
-
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-loginfo("Draw the RLE and PCA plots.")
-rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
-                                         design_matrix = design_mat_cln,
-                                         sample_id_column = !!rlang::sym(args$sample_id),
-                                         group_column = !!rlang::sym(args$group_id),
-                                         list_of_descriptions = list("Before RUVIII", "After RUVIII"))
-for( format_ext in args$plots_format) {
-  file_name<-file.path(args$output_dir,paste0("rle_pca_plots.",format_ext))
-  captured_output<-capture.output(
-    ggsave(plot = rle_pca_plots_arranged, filename =  file_name, limitsize = FALSE)
-    , type = "message"
-  )
-  logdebug(captured_output)
-}
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Prepare data for drawing the volcano plots")
