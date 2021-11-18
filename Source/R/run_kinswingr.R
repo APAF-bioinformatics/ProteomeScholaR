@@ -102,6 +102,16 @@ parser <- add_option(parser, "--uniprot_other_kinase_file", type="character",
                      help="File listing the UniProt accession of atypical and other kinases and their UniProt Keywords.",
                      metavar="string")
 
+
+parser <- add_option(parser, "--log_fc_column_name", type="character",
+                     help="Column name in the input file that contains the log fold-change values of the phosphosites.",
+                     metavar="string")
+
+
+parser <- add_option(parser, "--fdr_column_name", type="character",
+                     help="Column name in the input file that contains the false discovery rate values of the phosphosites.",
+                     metavar="string")
+
 parser <- add_option(parser, c("-o", "--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
@@ -181,7 +191,8 @@ args <- setArgsDefault(args, "motif_score_iteration", as_func=as.integer, defaul
 args <- setArgsDefault(args, "swing_iteration", as_func=as.integer, default_val=1000 )
 args <- setArgsDefault(args, "min_num_sites_per_kinase", as_func=as.integer, default_val=10 )
 args <- setArgsDefault(args, "num_cores", as_func=as.integer, default_val=1 )
-
+args <- setArgsDefault(args, "log_fc_column_name", as_func=as.integer, default_val="norm_phos_logFC" )
+args <- setArgsDefault(args, "fdr_column_name", as_func=as.integer, default_val="combined_q_mod" )
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -272,6 +283,17 @@ logdebug(captured_output)
 loginfo("Set number of cores for parallel computation.")
 register(SnowParam(workers = args$num_cores))
 
+## ---------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Check log fold-change and FDR column names exists in input file.")
+
+
+if ( ! args$log_fc_column_name %in% colnames(de_phos ) ) {
+  logerror("Column '%s' is not found in the input table.",args$log_fc_column_name )
+}
+
+if ( ! args$fdr_column_name %in% colnames(de_phos ) ) {
+  logerror("Column '%s' is not found in the input table.",args$fdr_column_name)
+}
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Filter the correct subset of kinases for the analysis.")
@@ -382,8 +404,11 @@ annotated_data_pre_residue_filter <- de_phos %>%
   dplyr::mutate( peptide_copy = peptide) %>%
   dplyr::filter(  !str_detect( peptide, "X"))   %>%
   dplyr::select(sites_id, comparison, uniprot_acc, gene_name, peptide, peptide_copy, position, residue,
-                norm_phos_logFC, combined_q_mod, is_multisite) %>%
+                !!rlang::sym(args$log_fc_column_name)),
+                !!rlang::sym(args$fdr_column_name)), is_multisite) %>%
   unite( annotation,  uniprot_acc, gene_name, position, peptide_copy , sep="|"  )
+
+
 
 annotated_data <- annotated_data_pre_residue_filter %>%
   dplyr::filter(  str_detect(  args$kinase_specificity, residue )  )  %>%

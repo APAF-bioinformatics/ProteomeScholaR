@@ -383,8 +383,7 @@ if ("max_num_samples_miss_per_group" %in% names(args)) {
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-if (length(cln_dat_wide_cleaned) - 1 != length(cols_for_analysis) |
-  length(cols_for_analysis) != length(intersect(colnames(cln_dat_wide_cleaned)[-1], cols_for_analysis))) {
+if ( length(cols_for_analysis) != length(intersect(colnames(cln_dat_wide_cleaned)[-1], cols_for_analysis))) {
   logerror("Column names in design matrix table not consistent with column names in abundance table.")
   q()
 }
