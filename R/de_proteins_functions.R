@@ -764,7 +764,9 @@ runTestsContrasts <- function(data,
                               p_value_column = p.mod,
                               q_value_column = q.mod,
                               weights = NA,
-                              treat_lfc_cutoff = NA) {
+                              treat_lfc_cutoff = NA,
+                              eBayes_trend = FALSE,
+                              eBayes_robust = FALSE) {
 
   ff <- as.formula(formula_string)
   mod_frame <- model.frame(ff, design_matrix)
@@ -788,14 +790,13 @@ runTestsContrasts <- function(data,
 
   cfit <- contrasts.fit(fit, contrasts = contr.matrix)
 
-  eb.fit <- eBayes(cfit)
-
   ## Run treat over here
   t.fit <- NA
   if( !is.na( treat_lfc_cutoff)) {
-    t.fit <- treat(eb.fit, lfc=as.double(treat_lfc_cutoff)) ## assign log fold change threshold below which is scientifically not relevant
+    t.fit <- treat( cfit, lfc=as.double(treat_lfc_cutoff),
+                    trend= eBayes_trend, robust = eBayes_robust) ## assign log fold change threshold below which is scientifically not relevant
   } else {
-    t.fit <- eb.fit
+    t.fit <- eBayes(cfit, trend= eBayes_trend, robust =eBayes_robust)
   }
 
   result_tables <- purrr::map(contrast_strings,

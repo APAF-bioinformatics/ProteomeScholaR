@@ -77,6 +77,15 @@ parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double",
                      help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
                      metavar = "double")
 
+parser <- add_option(parser, c( "--eBayes_trend"), type = "double",
+                     help = "logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.",
+                     metavar = "double")
+
+
+parser <- add_option(parser, c( "--eBayes_robust"), type = "double",
+                     help = "logical, should the estimation of df.prior and var.prior be robustified against outlier sample variances?.",
+                     metavar = "double")
+
 #Options without a default value have the following priority: configuration file < command line argument
 parser <- add_option(parser, "--max_num_samples_miss_per_group", type = "integer",
                      help = "Remove protein if it exceeds this maximum number of samples with missing values per experimental group",
@@ -204,15 +213,19 @@ testRequiredFiles(c(
 ))
 
 
-if(isArgumentDefined(args,"treat_lfc_cutoff"))
-{
-  args<-parseType(args,
-                  c("treat_lfc_cutoff")
-                  ,as.double)
-}else {
-  logwarn("treat_lfc_cutoff is undefined, default value set to NA")
-  args$treat_lfc_cutoff<-NA
-}
+# if(isArgumentDefined(args,"treat_lfc_cutoff"))
+# {
+#   args<-parseType(args,
+#                   c("treat_lfc_cutoff")
+#                   ,as.double)
+# }else {
+#   logwarn("treat_lfc_cutoff is undefined, default value set to NA")
+#   args$treat_lfc_cutoff<-NA
+# }
+
+args <- setArgsDefault(args, "treat_lfc_cutoff", as_func=as.double, default_val=NA )
+args <- setArgsDefault(args, "eBayes_trend", as_func=as.logical, default_val=FALSE )
+args <- setArgsDefault(args, "eBayes_robust", as_func=as.logical, default_val=FALSE )
 
 
 if(isArgumentDefined(args,"q_val_thresh"))
@@ -389,7 +402,7 @@ if ( length(cols_for_analysis) != length(intersect(colnames(cln_dat_wide_cleaned
 }
 
 # Sort the columns in the abundance table according
-if (length(which(colnames(cln_dat_wide_cleaned)[-1] == cols_for_analysis)) != length(cols_for_analysis)) {
+if (length(which(colnames(cln_dat_wide_cleaned)[-1] %in% cols_for_analysis)) != length(cols_for_analysis)) {
   logwarn("Sorting the order of the column of the abundance matrix according to the order in the design matrix.")
 }
 
@@ -511,7 +524,9 @@ list_rnorm.log.quant.ruv.r0 <- runTestsContrasts(counts_rnorm.log.quant,
                                                  design_matrix = design_mat_cln,
                                                  formula_string = args$formula_string,
                                                  weights = NA,
-                                                 treat_lfc_cutoff = as.double(args$treat_lfc_cutoff))
+                                                 treat_lfc_cutoff = as.double(args$treat_lfc_cutoff),
+                                                 eBayes_trend = as.logical(args$eBayes_trend),
+                                                 eBayes_robust = as.logical(args$eBayes_robust))
 
 myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
 # }
@@ -600,18 +615,6 @@ loginfo("Compare the different experimental groups and obtain lists of different
 
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
-# if( limma_method == "pairs") {
-#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,
-#                                            cols_for_analysis, sample_rows_lists,
-#                                            type_of_grouping,
-#                                            design_matrix = design_mat_cln,
-#                                            formula_string= "~ 0 + group ",
-#                                            contrast_variable="group",
-#                                            weights=NA)
-#
-#   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-#
-# } else if ( limma_method == "contrasts") {
 
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
@@ -624,7 +627,7 @@ myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
 saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
          file.path(args$output_dir, "fit.eb.RDS" ) )
-# }
+
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

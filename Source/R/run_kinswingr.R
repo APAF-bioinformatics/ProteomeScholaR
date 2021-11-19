@@ -191,8 +191,8 @@ args <- setArgsDefault(args, "motif_score_iteration", as_func=as.integer, defaul
 args <- setArgsDefault(args, "swing_iteration", as_func=as.integer, default_val=1000 )
 args <- setArgsDefault(args, "min_num_sites_per_kinase", as_func=as.integer, default_val=10 )
 args <- setArgsDefault(args, "num_cores", as_func=as.integer, default_val=1 )
-args <- setArgsDefault(args, "log_fc_column_name", as_func=as.integer, default_val="norm_phos_logFC" )
-args <- setArgsDefault(args, "fdr_column_name", as_func=as.integer, default_val="combined_q_mod" )
+args <- setArgsDefault(args, "log_fc_column_name", as_func=as.character, default_val="norm_phos_logFC" )
+args <- setArgsDefault(args, "fdr_column_name", as_func=as.character, default_val="combined_q_mod" )
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -254,7 +254,7 @@ if( ! file.exists( uniprot_other_kinase_file )) {
 
   atypical_and_other <- batchQueryEvidence(uniprot_acc_tbl, uniprot_acc_column="uniprot_acc", uniprot_handle=up,
                                 uniprot_columns = list_of_sp_columns)
-  saveRDS( atypical_and_other, file.path(args$tmp_dir, uniprot_other_kinase_file))
+  saveRDS( atypical_and_other, file.path( uniprot_other_kinase_file))
 
 }
 
@@ -404,17 +404,14 @@ annotated_data_pre_residue_filter <- de_phos %>%
   dplyr::mutate( peptide_copy = peptide) %>%
   dplyr::filter(  !str_detect( peptide, "X"))   %>%
   dplyr::select(sites_id, comparison, uniprot_acc, gene_name, peptide, peptide_copy, position, residue,
-                !!rlang::sym(args$log_fc_column_name)),
-                !!rlang::sym(args$fdr_column_name)), is_multisite) %>%
+                one_of( c( as.character(args$log_fc_column_name), as.character(args$fdr_column_name))), is_multisite) %>%
   unite( annotation,  uniprot_acc, gene_name, position, peptide_copy , sep="|"  )
-
-
 
 annotated_data <- annotated_data_pre_residue_filter %>%
   dplyr::filter(  str_detect(  args$kinase_specificity, residue )  )  %>%
   dplyr::filter( str_sub( peptide, 8, 8) == residue) %>%
-  dplyr::rename( fc = norm_phos_logFC,
-                 pval = combined_q_mod)
+  dplyr::rename( fc = args$log_fc_column_name,
+                 pval = args$fdr_column_name)
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Perform analysis of data from each contrast")
