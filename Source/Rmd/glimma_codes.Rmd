@@ -43,17 +43,13 @@ eb.fit$contrasts
 
 ```{r}
 
-prot_annot_tbl_cln <- annot_tbl %>%
+prot_annot_tbl_cln <- prot_annot_tbl %>%
   dplyr::select( uniprot_acc, UNIPROT_GENENAME, `PROTEIN-NAMES`) %>%
   dplyr::mutate( gene_name = purrr::map_chr(UNIPROT_GENENAME, ~str_split(., ":") %>% purrr::map_chr(1) )) %>%
   dplyr::mutate( prot_name = purrr::map_chr(`PROTEIN-NAMES`, ~str_split(., ":") %>% purrr::map_chr(1) )) %>%
   dplyr::select(-UNIPROT_GENENAME, -`PROTEIN-NAMES`) %>%
   distinct()
   
-```
-
-```{r}
-
 ```
 
 ```{r}
