@@ -123,6 +123,10 @@ parser <- add_option(parser, c("-l", "--log_file"), type = "character", default 
                      help = "Name of the logging file.",
                      metavar = "string")
 
+parser <- add_option(parser, "--plots_format", type = "character",
+                     help = "A comma separated strings to indicate the fortmat output for the plots [pdf,png,svg].",
+                     metavar = "string")
+
 #parse command line arguments first.
 args <- parse_args(parser)
 
@@ -142,6 +146,10 @@ args <- parse_args(parser)
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "phos_kinase_substrate"), args)
+}
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -154,10 +162,7 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "phos_kinase_substrate"), args)
-}
+
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
@@ -175,7 +180,9 @@ testRequiredArguments(args, c(
   "uniprot_kinase_file",
   "norm_phos_logfc_file",
   "uniprot_other_kinase_file",
-  "output_dir"
+  "output_dir",
+  "p_value_cutoff",
+  "plots_format"
 ))
 
 
@@ -186,6 +193,16 @@ testRequiredFiles(c( args$norm_phos_logfc_file,
 ))
 
 ## Set default values
+
+if(isArgumentDefined(args,"plots_format"))
+{
+  args <- parseList(args,
+                    c("plots_format"))
+}else {
+  logwarn("plots_format is undefined, default output set to pdf.")
+  args$plots_format <- list("pdf")
+}
+
 args <- setArgsDefault(args, "random_seed", as_func=as.integer, default_val=123456 )
 args <- setArgsDefault(args, "motif_score_iteration", as_func=as.integer, default_val=1000 )
 args <- setArgsDefault(args, "swing_iteration", as_func=as.integer, default_val=1000 )
@@ -193,6 +210,7 @@ args <- setArgsDefault(args, "min_num_sites_per_kinase", as_func=as.integer, def
 args <- setArgsDefault(args, "num_cores", as_func=as.integer, default_val=1 )
 args <- setArgsDefault(args, "log_fc_column_name", as_func=as.character, default_val="norm_phos_logFC" )
 args <- setArgsDefault(args, "fdr_column_name", as_func=as.character, default_val="combined_q_mod" )
+args <- setArgsDefault(args, "p_value_cutoff", as_func=as.double, default_val=0.05 )
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -707,10 +725,10 @@ kinase_volcano_plot <- function(
                                  swing < 0 ~ p_less) ) %>%
     mutate( colour = case_when( p_value < p_value_threshold ~ "Significant",
                                 TRUE ~ "Not significant")) %>%
-    mutate(kinase_label = case_when( p_value < p_value_threshold  &
+    mutate(kinase_label = case_when( p_value < p_value_threshold * 2  &
                                        n > n_cutoff ~ kinase,
                                      TRUE ~ "")) %>%
-    ggplot( aes( x=swing, y = -log10(p_value), size=n , col=colour, label=kinase_label), alpha=0.5)  +
+    ggplot( aes( x=swing, y = -log10(p_value), size=n , col=colour, label=kinase_label, alpha=0.5))  +
     theme_bw () +
     geom_point( ) +
     scale_color_manual( values = c("grey", my_colours[list_position]), name="Is significant" ) +
@@ -718,26 +736,26 @@ kinase_volcano_plot <- function(
     ylab( expression("Significance, -log"[10]*"(P)") ) +
     xlab( paste0( x_label_name[list_position], ", ", kinase_type_string)) +
     geom_hline(aes(yintercept = -log10(p_value_threshold)), linetype=3)  +
-    geom_text_repel( show.legend = FALSE, size = 3 )
+    geom_text_repel( show.legend = FALSE, size = 5 ) +
+    theme(text = element_text(size = 20))
 
 }
 
 partial_kinase_volcano_plot <-  partial( kinase_volcano_plot,
-           x_label_name = c("Patient - Healthy", "Patient - Untreated", "Unreated - Healthy"),
-           kinase_type = "ST",
+           x_label_name = swing_out_list$comparison,
+           kinase_type = args$kinase_specificity,
            p_value_threshold = args$p_value_cutoff,
            n_cutoff = args$min_num_sites_per_kinase)
 
 kinase_volcano_plot <- purrr::map( seq_along(swing_out_list$comparison),
              ~partial_kinase_volcano_plot(list_position =.))
 
-purrr::walk2( kinase_volcano_plot, swing_out_list$comparison,
-              ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_volcano_plot_", args$kinase_specificity, "_",  .y, ".pdf" )),
-                       plot=.x) )
+for( format_ext in args$plots_format) {
+  purrr::walk2( kinase_volcano_plot, swing_out_list$comparison,
+                ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_volcano_plot_", args$kinase_specificity, "_",  .y, ".", format_ext )),
+                         plot=.x) )
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------
-#kinase_volcano_plot
+}
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
@@ -799,22 +817,23 @@ plotAvgLogfcKnownSites <- function( list_position,
                                   p_less < p_value_cutoff ) ~ "Significant",
                                 TRUE ~ "Not significant" )) %>%
     dplyr::mutate( my_kinase = case_when( counts >= 10 |
-                                            ( p_greater < p_value_cutoff |
-                                              p_less < p_value_cutoff ) ~ kinase,
+                                            ( p_greater < p_value_cutoff *1.1 |
+                                              p_less < p_value_cutoff *1.1 ) ~ kinase,
                                           TRUE ~ "") ) %>%
-    ggplot(aes( y = avg_fc, x = swing, label = my_kinase, size = counts,  color=colour ), alpha=0.5) +
+    ggplot(aes( y = avg_fc, x = swing, label = my_kinase, size = counts,  color=colour, alpha=0.5 )) +
     geom_point() +
-    geom_text_repel(show.legend = FALSE, size = 3) +
+    geom_text_repel(show.legend = FALSE, size = 5) +
     scale_color_manual( values = c("grey", my_colours[list_position]), name="Is significant" ) +
-    ylab( paste0(y_label_name[list_position], ", ", expression(  "av. Substrate log[2](intensity) difference") ) ) +
-    xlab( paste0( y_label_name[list_position], ", ", kinase_type_string))
+    ylab( substitute( paste(a , ", Mean substrate log"[2],"(intensity) difference"), list(a=y_label_name[list_position]) ) ) +
+    xlab( paste0( y_label_name[list_position], ", ", kinase_type_string)) +
+    theme(text = element_text(size = 20))
 
   return( avg_logfc_vs_swing_score_plot)
 }
 
 
 partial_plotAvgLogfcKnownSites <-  partial( plotAvgLogfcKnownSites,
-           y_label_name = c("Patient - Healthy", "Patient - Untreated", "Unreated - Healthy"),
+           y_label_name = swing_out_list$comparison,
             brewer_pal_set= "Set1",
            kinase_type = args$kinase_specificity,
            p_value_cutoff = args$p_value_cutoff)
@@ -823,17 +842,14 @@ partial_plotAvgLogfcKnownSites <-  partial( plotAvgLogfcKnownSites,
 kinase_avg_logfc <- purrr::map( seq_along(swing_out_list$comparison),
                                 ~partial_plotAvgLogfcKnownSites(.) )
 
-
-purrr::walk2( kinase_avg_logfc, swing_out_list$comparison,
-              ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_avg_logfc_of_known_sites_", args$kinase_specificity, "_",  .y, ".pdf" )),
-                       plot=.x) )
-
-
-
-## ----------------------------------------------------------------------------------------------------------------------------------------
-  colnames(de_phos )
-
-
+for( format_ext in args$plots_format) {
+  purrr::walk2( kinase_avg_logfc, swing_out_list$comparison,
+                ~ggsave( filename=file.path(args$output_dir,
+                                            paste0( "kinase_avg_logfc_of_known_sites_",
+                                                    args$kinase_specificity, "_", .y,
+                                                    ".", format_ext )),
+                         plot=.x) )
+}
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -844,5 +860,9 @@ te<-toc(quiet = TRUE)
 loginfo("%f sec elapsed",te$toc-te$tic)
 writeLines(capture.output(sessionInfo()), file.path(args$output_dir,"sessionInfo.txt"))
 
-
-
+# y_label_name <- c("hello")
+# list_position <- 1
+# iris %>%
+# ggplot( aes(x=Petal.Width, y=Sepal.Length)) +
+#   geom_point() +
+#   labs (title = substitute( paste(a , ", Mean substrate log"[2],"(intensity) difference"), list(a=y_label_name[list_position]) ) )

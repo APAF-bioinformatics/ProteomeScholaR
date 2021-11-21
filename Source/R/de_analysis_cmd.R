@@ -4,7 +4,6 @@
 # Email: cmri-bioinformatics@cmri.org.au
 # Children’s Medical Research Institute, finding cures for childhood genetic diseases
 
-
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #Test if BioManager is installed
@@ -26,6 +25,7 @@ p_load(plotly)
 p_load(vroom)
 p_load(ggplot2)
 p_load(ggpubr)
+p_load(ggrepel)
 p_load(magrittr)
 p_load(knitr)
 p_load(rlang)
@@ -685,7 +685,7 @@ ggsave(filename = file_name, plot = volplot_gg.all, width = 7.29, height = 6)
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Count the number of up or down significnat differentially expressed proteins.")
 
-num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.log.quant,
+num_sig_da_molecules <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.log.quant,
                                                                     myRes_rnorm.log.quant.ruv.r1),
                                            list_of_descriptions = list("No RUV",
                                                                            "RUV applied"),
@@ -694,10 +694,10 @@ num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.
 
 
 for( format_ext in args$plots_format) {
-  file_name<-file.path(args$output_dir,paste0("num_de_genes_barplot.",format_ext))
+  file_name<-file.path(args$output_dir,paste0("num_differentially_abundant_barplot.",format_ext))
   captured_output<-capture.output(
 ggsave(filename = file_name,
-       plot = num_sig_de_genes$plot,
+       plot = num_sig_da_molecules$plot,
        height = 10,
        width = 7)
     , type = "message"
@@ -705,9 +705,9 @@ ggsave(filename = file_name,
   logdebug(captured_output)
 }
 
-vroom::vroom_write(num_sig_de_genes$table,
+vroom::vroom_write(num_sig_da_molecules$table,
                    file.path(args$output_dir,
-                                    "num_significant_de_genes_all.tab"))
+                                    "num_significant_differentially_abundant_all.tab"))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -199,9 +199,11 @@ plotPca <- function(data,
     rownames_to_column(quo_name(enquo(sample_id_column))) %>%
     left_join(design_matrix, by = quo_name(enquo(sample_id_column))) %>%
     ggplot(aes(PC1, PC2, col = {{group_column}}, label = {{sample_id_column}})) +
-    geom_text() +
+    geom_point( ) +
+    geom_text_repel( show.legend = FALSE, size = 5 ) +
     labs(title = title) +
-    theme(legend.title = element_blank())
+    theme(legend.title = element_blank()) +
+    theme(text = element_text(size = 15))
 
   output
 }
@@ -245,7 +247,9 @@ plotRle <- function(Y, rowinfo = NULL, probs = c(0.05, 0.25, 0.5, 0.75,
     ) +
     theme(axis.title.y = element_blank(), axis.text.y = element_text(size = rel(1.5))) +
     geom_hline(yintercept = 0) +
-    coord_cartesian(ylim = ylim)
+    coord_cartesian(ylim = ylim) +
+    theme(text = element_text(size = 15))
+
   if (!is.null(rowinfo))
     if (ncol(rowinfo) == 1)
       rleplot = rleplot + aes(fill = rowinfo) + labs(fill = "")
@@ -485,7 +489,8 @@ plotVolcano <- function(selected_data,
     xlab("Log fold changes") +
     ylab("-log10 q-value") +
     theme(legend.position = "none") +
-    facet_grid(analysis_type ~ comparison)
+    facet_grid(analysis_type ~ comparison) +
+    theme(text = element_text(size = 20))
 
   volplot_gg.all
 }
@@ -1370,3 +1375,44 @@ mergeWithEntrezId <- function(input_table, lookup_table) {
               excluded_duplicates = excluded_duplicates))
 }
 
+##--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#'Plot the volcano plot and MA plot using the Glimma interactive plot function
+#'@param eb.fit The output from eBayes or treat function from the limma package.
+#'@param coefficient One column name from the eb.fit$coefficient data table.
+#'@param annot A data frame with the same number of proteins as in the eb.fit object.
+#'@param row_id_column The row id used to join the annot table with the eb.fit$p.value table
+#'@param output_dir The directory to save the HTML glimma output files.
+#'@export p.adj.method A character string specifying p-value adjustment method. Currently only 'qvalue' is supported
+interactivePlotsGlimma <- function (eb.fit, coefficient, annot, row_id_column = uniprot_acc, output_dir, p.adj.method = "qvalue") {
+
+  createDirIfNotExists(output_dir)
+
+  glimma_p_adj_method <- p.adj.method
+  if(p.adj.method=="qvalue") {
+    eb.fit$p.value <- mutate_all( as.data.frame(eb.fit$p.value),  function(x){qvalue(x)$q })
+    glimma_p_adj_method <- "none"
+  } else {
+    logerror("interactivePlotsGlimma: no p.adj.method other than qvalue support at the moment.")
+  }
+
+  join_condition <- rlang::set_names( c("uniprot_acc"),
+                                      c(quo_name(enquo(row_id_column))) )
+
+  annot_temp <- eb.fit$p.value %>%
+    as.data.frame() %>%
+    rownames_to_column("uniprot_acc")  %>%
+    dplyr::select( uniprot_acc)%>%
+    left_join(annot, by=join_condition) %>%
+    dplyr::select(-uniprot_acc)
+
+  glimmaMA( eb.fit, coef=coefficient, anno= annot_temp,
+            html= file.path(output_dir, paste0( "MA_plot_", coefficient, ".html")),
+            p.adj.method=glimma_p_adj_method )
+
+  glimmaVolcano( eb.fit, coef=coefficient, anno= annot_temp,
+                 html= file.path(output_dir, paste0("Volcano_plot_", coefficient, ".html")),
+                 p.adj.method=glimma_p_adj_method)
+}
+
+##--------------------------------------------------------------------------------------------------------------------------------------------------------------

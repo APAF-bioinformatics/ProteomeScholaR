@@ -8,17 +8,58 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
+#Test if BioManager is installed
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+  BiocManager::install()
+}
 
-eb.fit <- readRDS( "/home/ignatius/PostDoc/2021/neuropsych2021/Results/de_analysis/fit.eb.RDS")
-library(Glimma)
+# load pacman package manager
+if (!require(pacman)) {
+  install.packages("pacman")
+  library(pacman)
+}
 
-glimmaMA(eb.fit)
-glimmaVolcano(eb.fit)
-glimmaMDS(eb.fit)
+p_load(Glimma)
+p_load(tidyverse)
+p_load(ProteomeRiver)
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+```{r}
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+eb.fit <- readRDS( "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/de_analysis/fit.eb.RDS")
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+prot_annot_tbl <- vroom::vroom("/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/annot_proteins/de_proteins_long_annot.tsv")
+prot_output_dir <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/proteomics_plots"
+
+
+```
+
+```{r}
+names(eb.fit)
+
+eb.fit$contrasts
+```
+
+```{r}
+
+prot_annot_tbl_cln <- annot_tbl %>%
+  dplyr::select( uniprot_acc, UNIPROT_GENENAME, `PROTEIN-NAMES`) %>%
+  dplyr::mutate( gene_name = purrr::map_chr(UNIPROT_GENENAME, ~str_split(., ":") %>% purrr::map_chr(1) )) %>%
+  dplyr::mutate( prot_name = purrr::map_chr(`PROTEIN-NAMES`, ~str_split(., ":") %>% purrr::map_chr(1) )) %>%
+  dplyr::select(-UNIPROT_GENENAME, -`PROTEIN-NAMES`) %>%
+  distinct()
+  
+```
+
+```{r}
+
+```
+
+```{r}
+#eb.fit$coefficients
+purrr::walk( colnames(eb.fit$coefficients), 
+             ~interactivePlotsGlimma(eb.fit, ., prot_annot_tbl_cln, uniprot_acc,
+                                     output_dir=prot_output_dir, "qvalue") )
+
+```
