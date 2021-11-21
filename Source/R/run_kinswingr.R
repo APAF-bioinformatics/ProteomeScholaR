@@ -50,7 +50,7 @@ parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default 
 parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
                      help = "Only print critical information to the console.")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "/home/ignatius/PostDoc/2021/MultiPhos2021/Source/PLoS_2019/config_phos.ini",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
                      help = "Configuration file.",
                      metavar = "string")
 
