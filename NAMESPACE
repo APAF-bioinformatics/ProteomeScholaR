@@ -87,3 +87,9 @@ export(testRequiredFiles)
 export(uniprotGoIdToTerm)
 export(uniquePhosphositesSummariseLongList)
 export(uniquePhosphositesSummariseWideList)
+export(plotProteinsGlimmaMA)
+export(plotProteinsGlimmaVolcano)
+export(plotPhosNormGlimmaVolcano)
+
+
+

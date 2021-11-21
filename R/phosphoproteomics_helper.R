@@ -732,4 +732,58 @@ processMultisiteEvidence <- function(fasta_file,
 
 }
 
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' Plot the phosphosites volcano plot using the Glimma interactive plot function
+#' @param phos_tbl The table listing all differentially abundant phosphopeptides, results normalized by protein log fold-changes wherever possible.
+#' @param comparison_name A value in the comparison column of the phos_table input table.
+#' @param output_dir The directory to save the HTML glimma output files. IF NA, this function return the HTMLwidget object.
+#'@return htmlwidget object or NA if output_dir argument is specified.
+#'@export
+
+plotPhosNormGlimmaVolcano <- function (phos_tbl, comparison_name, output_dir=NA) {
+
+  createDirectoryIfNotExists(output_dir)
+
+  filtered_tbl <- phos_tbl %>%
+    dplyr::filter( comparison == comparison_name ) %>%
+    dplyr::mutate(neg_log_10_q_mod = -log10(combined_q_mod)) %>%
+    dplyr::mutate( status = case_when ( combined_q_mod < 0.05 & norm_phos_logFC < 0 ~ -1,
+                                        combined_q_mod < 0.05 & norm_phos_logFC > 0 ~ 1,
+                                        TRUE ~ 0 ) ) %>%
+    dplyr::rename( protein_names = "PROTEIN-NAMES")
+
+  x <- filtered_tbl %>%
+    dplyr::pull( norm_phos_logFC )
+
+  y <- filtered_tbl  %>%
+    dplyr::pull( neg_log_10_q_mod )
+
+  status <- filtered_tbl %>%
+    dplyr::pull( status)
+
+  annot <- filtered_tbl %>%
+    dplyr::select( gene_name, residue, position, protein_names, sequence, uniprot_acc)
+
+  output_file <- NA
+  if( is.na(output_dir ) ) {
+    output_file <- NULL
+  } else {
+    output_file <- file.path(output_dir, paste0("Volcano_plot_", comparison_name, ".html"))
+  }
+
+  glimmaXY(
+    x,
+    y,
+    xlab = "log2FC", # expression("log[2] fold-change")
+    ylab = "negLog10Qvalue", # expression("-log[10](q-value)")
+    status = status,
+    anno = annot,
+    html= output_file)
+
+}
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 

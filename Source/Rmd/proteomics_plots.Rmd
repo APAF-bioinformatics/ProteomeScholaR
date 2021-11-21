@@ -36,12 +36,6 @@ prot_output_dir <- "/home/ignatius/PostDoc/2021/Podocyte_2021/Results/Part_1/pro
 ```
 
 ```{r}
-names(eb.fit)
-
-eb.fit$contrasts
-```
-
-```{r}
 
 prot_annot_tbl_cln <- prot_annot_tbl %>%
   dplyr::select( uniprot_acc, UNIPROT_GENENAME, `PROTEIN-NAMES`) %>%
@@ -55,7 +49,22 @@ prot_annot_tbl_cln <- prot_annot_tbl %>%
 ```{r}
 #eb.fit$coefficients
 purrr::walk( colnames(eb.fit$coefficients), 
-             ~interactivePlotsGlimma(eb.fit, ., prot_annot_tbl_cln, uniprot_acc,
+             ~plotProteinsGlimmaMA(eb.fit, ., prot_annot_tbl_cln, uniprot_acc,
                                      output_dir=prot_output_dir, "qvalue") )
 
 ```
+
+
+```{r}
+purrr::walk( colnames(eb.fit$coefficients), 
+             ~plotProteinsGlimmaVolcano(eb.fit, ., prot_annot_tbl_cln, uniprot_acc,
+                                     output_dir=prot_output_dir, "qvalue") )
+```
+
+
+
+
+
+
+
+
