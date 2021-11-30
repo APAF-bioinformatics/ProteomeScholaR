@@ -313,6 +313,11 @@ if ( ! args$fdr_column_name %in% colnames(de_phos ) ) {
   logerror("Column '%s' is not found in the input table.",args$fdr_column_name)
 }
 
+if(  ! args$log_fc_column_name %in% colnames(de_phos )  |
+     ! args$fdr_column_name %in% colnames(de_phos )  ) {
+  stop()
+}
+
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Filter the correct subset of kinases for the analysis.")
 
@@ -424,6 +429,9 @@ annotated_data_pre_residue_filter <- de_phos %>%
   dplyr::select(sites_id, comparison, uniprot_acc, gene_name, peptide, peptide_copy, position, residue,
                 one_of( c( as.character(args$log_fc_column_name), as.character(args$fdr_column_name))), is_multisite) %>%
   unite( annotation,  uniprot_acc, gene_name, position, peptide_copy , sep="|"  )
+
+
+annotated_data_pre_residue_filter %>% colnames()
 
 annotated_data <- annotated_data_pre_residue_filter %>%
   dplyr::filter(  str_detect(  args$kinase_specificity, residue )  )  %>%
