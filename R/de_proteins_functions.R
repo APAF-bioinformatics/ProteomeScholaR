@@ -995,7 +995,7 @@ subsetQuery <- function(data, subset, accessions_col_name, uniprot_handle, unipr
 
   # print(head(my_keys))
 
-  UniProt.ws::select(up,
+  UniProt.ws::select(uniprot_handle,
                      keys = my_keys,
                      columns = uniprot_columns,
                      keytype = "UNIPROTKB")
