@@ -144,13 +144,11 @@ logdebug(captured_output)
 
 
 phospho_tbl <- phospho_tbl_orig %>%
-  dplyr::select(sites_id, q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
-  mutate( phosphosites_id_copy = sites_id ) %>%
-  separate(phosphosites_id_copy, sep="!", into=c("uniprot_acc", "gene_symbol", "positions", "peptide")) %>%
+  dplyr::select(sites_id,  uniprot_acc, gene_name, position, residue, sequence,  q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
   dplyr::rename( phos_maxquant_row_ids = "maxquant_row_ids" )
 
 phospho_cln <- phospho_tbl %>%
-  separate_rows(uniprot_acc, sep="[\\:;]")
+  separate_rows(uniprot_acc, position, residue, sequence, sep=":")
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -167,13 +165,11 @@ proteins_tbl <- proteins_tbl_orig %>%
   dplyr::rename( prot_maxquant_row_ids = "maxquant_row_id")
 
 proteins_cln <- proteins_tbl  %>%
-  mutate( uniprot_acc_copy = uniprot_acc) %>%
-  separate_rows(uniprot_acc_copy, sep="[\\:;]")
-
+  separate_rows(uniprot_acc,   sep=":")
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc_copy) %>% pull(uniprot_acc_copy)
+proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
 phospho_uniprot_list <- phospho_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
 prot_phos_uniprot_list <- intersect( proteins_uniprot_list,
            phospho_uniprot_list )
@@ -187,24 +183,27 @@ logdebug(prot_phos_uniprot_list %>% length())
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo( "Normalisation of the phosphopeptide abundance with the protein abundance.")
 basic_data_shared <- proteins_cln %>%
-  inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",
+  inner_join( phospho_cln, by=c("uniprot_acc" = "uniprot_acc",
                                 "comparison" = "comparison"), suffix=c(".phos", ".prot") ) %>%
   mutate( norm_phos_logFC = log2FC.phos - log2FC.prot) %>%
   mutate( adj_qmod.prot  = ifelse(sign(q.mod.phos)  ==  sign(q.mod.prot), 1-q.mod.prot,  q.mod.prot  )) %>%
   mutate( combined_q_mod = 1-pchisq(-2*( log(q.mod.phos) + log(adj_qmod.prot)   ), 2*2 )  ) %>%
   dplyr::mutate( status  = "Phos_and_Prot") %>%
-  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc,  log2FC.phos, q.mod.phos,  log2FC.prot, q.mod.prot, status, phos_maxquant_row_ids, prot_maxquant_row_ids )   %>%
+  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc, position, residue, sequence,
+                log2FC.phos, q.mod.phos,  log2FC.prot, q.mod.prot, status, phos_maxquant_row_ids, prot_maxquant_row_ids )   %>%
   arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
   distinct() %>%
   as.data.frame
 
 basic_data_phospho_only <- phospho_cln %>%
-  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc_copy" ,
+  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc" ,
                                 "comparison" = "comparison") )  %>%
+  anti_join( basic_data_shared, by=c("sites_id" = "sites_id")) %>%
   dplyr::mutate(norm_phos_logFC =  log2FC, combined_q_mod = q.mod) %>%
   dplyr::rename( log2FC.phos= log2FC, q.mod.phos = q.mod ) %>%
   dplyr::mutate( status  = "Phos_Only")%>%
-  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc, log2FC.phos, q.mod.phos, status, phos_maxquant_row_ids)    %>%
+  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc, position, residue, sequence,
+                log2FC.phos, q.mod.phos, status, phos_maxquant_row_ids)    %>%
   arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
   distinct() %>%
   as.data.frame
@@ -212,8 +211,8 @@ basic_data_phospho_only <- phospho_cln %>%
 basic_data <- basic_data_shared %>%
   bind_rows(basic_data_phospho_only)
 
- if (nrow(basic_data) != nrow(phospho_cln)){
-   logwarning("nrow(basic_data) != nrow(phospho_cln)")
+ if (nrow(basic_data %>% distinct(sites_id)) != nrow(phospho_cln %>% distinct(sites_id))){
+   logwarn("nrow(basic_data) != nrow(phospho_cln)")
  }
 
 
@@ -224,7 +223,7 @@ vroom::vroom_write( basic_data, file.path( args$output_dir,  "norm_phosphosite_l
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Join normalized phosphopeptide abundance table with phosphosite annotations")
 annotation_from_phospho_tbl <- phospho_tbl_orig %>%
-  dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc)
+  dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc,  -position, -residue, -sequence)
 
 annotated_phos_tbl <- basic_data %>%
   left_join( annotation_from_phospho_tbl, by=c("sites_id" = "sites_id",
