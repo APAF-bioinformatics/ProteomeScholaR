@@ -34,6 +34,7 @@ p_load(optparse)
 p_load(tictoc)
 p_load(configr)
 p_load(logging)
+p_load(writexl)
 
 tic()
 
@@ -525,7 +526,7 @@ de_phos_long_annot <- de_phos_long %>%
   distinct()
 
 vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
-
+writexl::write_xlsx(de_phos_long_annot, file.path(args$output_dir,  str_replace(args$output_long_file, "\\..*", ".xlsx")  ))
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 te<-toc(quiet = TRUE)
