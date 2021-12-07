@@ -190,7 +190,7 @@ plotPca <- function(data,
                     design_matrix,
                     sample_id_column = Sample_ID,
                     group_column = group,
-                    title, ...) {
+                    title = NA, sample_label = TRUE, ...) {
 
   pca.res <- pca(t(as.matrix(data)))
 
@@ -199,11 +199,19 @@ plotPca <- function(data,
     rownames_to_column(quo_name(enquo(sample_id_column))) %>%
     left_join(design_matrix, by = quo_name(enquo(sample_id_column))) %>%
     ggplot(aes(PC1, PC2, col = {{group_column}}, label = {{sample_id_column}})) +
-    geom_point( ) +
-    geom_text_repel( show.legend = FALSE, size = 5 ) +
-    labs(title = title) +
+    geom_point( )   +
     theme(legend.title = element_blank()) +
     theme(text = element_text(size = 15))
+
+  if( sample_lable == TRUE) {
+    output <- output +
+      geom_text_repel( show.legend = FALSE, size = 5 )
+  }
+
+  if ( !is.na(title)) {
+    output <- output +
+      labs(title = title)
+  }
 
   output
 }
