@@ -203,7 +203,7 @@ plotPca <- function(data,
     theme(legend.title = element_blank()) +
     theme(text = element_text(size = 15))
 
-  if( sample_lable == TRUE) {
+  if( sample_label == TRUE) {
     output <- output +
       geom_text_repel( show.legend = FALSE, size = 5 )
   }
