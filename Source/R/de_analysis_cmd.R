@@ -23,6 +23,7 @@ p_load(tictoc)
 p_load(tidyverse)
 p_load(plotly)
 p_load(vroom)
+p_load(writexl)
 p_load(ggplot2)
 p_load(ggpubr)
 p_load(ggrepel)
@@ -76,6 +77,11 @@ parser <- add_option(parser, c("-l", "--log_file"), type = "character", default 
 parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double",
                      help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
                      metavar = "double")
+
+
+parser <- add_option(parser, c( "--normalization"), type = "character",
+                     help = "character string specifying the normalization method to be used. Choices are none, scale, quantile or cyclicloess",
+                     metavar = "string")
 
 parser <- add_option(parser, c( "--eBayes_trend"), type = "double",
                      help = "logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.",
@@ -284,6 +290,16 @@ if ( is.na(args$replicate_group_id ) &
   args$replicate_group_id <- args$group_id
 }
 
+## Check the normalization option
+if ( ! isArgumentDefined(args$normalization ) ) {
+  logwarn("normalization is NA, defaults to the 'scale' method")
+  args$normalization <- "scale"
+}
+
+if (  ! args$normalization %in% c("none", "scale", "quantile", "cyclicloess") ) {
+  logerror( paste0("the normalization method specified ", args$normalization, " is not valid, please check carefully."))
+}
+
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # test_pairs <- NA
@@ -412,8 +428,13 @@ loginfo("Assign the indexing row names to the data frame.")
 counts_filt <- cln_dat_wide %>%
   column_to_rownames(args$row_id)
 
-vroom::vroom_write(cln_dat_wide, file.path(args$output_dir, "raw_counts_after_removing_empty_rows.tsv"))
+vroom::vroom_write( cln_dat_wide,
+                    file.path(args$output_dir,
+                              "raw_counts_after_removing_empty_rows.tsv"))
 
+writexl::write_xlsx( cln_dat_wide,
+                     file.path( args$output_dir,
+                                "raw_counts_after_removing_empty_rows.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -469,13 +490,18 @@ counts_na.log <- log2(counts_na)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Median centering.")
-counts_na.log.quant <- normalizeBetweenArrays(counts_na.log, method = "scale")
+counts_na.log.quant <- normalizeBetweenArrays(counts_na.log, method = args$normalization)
 
 
-vroom::vroom_write(as.data.frame(counts_na.log.quant) %>%
+vroom::vroom_write( as.data.frame(counts_na.log.quant) %>%
                      rownames_to_column(args$row_id),
-                   file.path(args$output_dir, "counts_after_median_scaling_before_imputation.tsv"))
+                    file.path( args$output_dir,
+                               "counts_after_median_scaling_before_imputation.tsv"))
 
+writexl::write_xlsx( as.data.frame(counts_na.log.quant) %>%
+                      rownames_to_column(args$row_id),
+                     file.path( args$output_dir,
+                                "counts_after_median_scaling_before_imputation.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -492,10 +518,15 @@ counts_rnorm.is_nan <- counts_rnorm.log.quant %>%
   as.matrix
 
 
-vroom::vroom_write(as.data.frame(counts_rnorm.log.quant) %>%
+vroom::vroom_write( as.data.frame(counts_rnorm.log.quant) %>%
                      rownames_to_column(args$row_id),
-                   file.path(args$output_dir, "counts_after_median_scaling_and_imputation.tsv"))
+                    file.path( args$output_dir,
+                               "counts_after_median_scaling_and_imputation.tsv"))
 
+writexl::write_xlsx( as.data.frame(counts_rnorm.log.quant) %>%
+                      rownames_to_column(args$row_id),
+                     file.path( args$output_dir,
+                                "counts_after_median_scaling_and_imputation.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Run statistical tests without RUV.")
@@ -555,6 +586,11 @@ vroom::vroom_write(data.frame(temp_col = names(control_genes_index),
                    file.path(args$output_dir, "ctrl_genes_list_ruv3.tsv"),
                    delim = "\t")
 
+writexl::write_xlsx( data.frame( temp_col = names(control_genes_index),
+                                 is_control_genes = control_genes_index) %>%
+                       set_colnames(c(args$row_id, "is_control_genes")),
+                     file.path(args$output_dir, "ctrl_genes_list_ruv3.xlsx"))
+
 loginfo("Total Num. Genes %d", length(control_genes_index))
 
 loginfo("Num. Control Genes %d", length(which(control_genes_index)))
@@ -592,6 +628,11 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                      as.data.frame %>%
                      rownames_to_column(args$row_id),
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
+
+writexl::write_xlsx(counts_rnorm.log.ruvIII_v1 %>%
+                     as.data.frame %>%
+                     rownames_to_column(args$row_id),
+                   file.path(args$output_dir, "normalized_counts_after_ruv.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Draw the RLE and PCA plots.")
@@ -660,6 +701,9 @@ selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
   vroom::vroom_write(file.path(args$output_dir, "lfc_qval_long.tsv"))
 
+selected_data %>%
+  dplyr:::select(-colour, -lqm) %>%
+  writexl::write_xlsx(file.path(args$output_dir, "lfc_qval_long.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -707,7 +751,12 @@ ggsave(filename = file_name,
 
 vroom::vroom_write(num_sig_da_molecules$table,
                    file.path(args$output_dir,
-                                    "num_significant_differentially_abundant_all.tab"))
+                             "num_significant_differentially_abundant_all.tab"))
+
+
+writexl::write_xlsx(num_sig_da_molecules$table,
+                    file.path(args$output_dir,
+                              "num_significant_differentially_abundant_all.xlsx"))
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -760,8 +809,13 @@ de_proteins_wide <- selected_data %>%
 
 #logdebug(head(de_proteins_wide))
 
-vroom::vroom_write(de_proteins_wide, file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
+vroom::vroom_write( de_proteins_wide,
+                    file.path( args$output_dir,
+                               paste0(args$file_prefix, "_wide.tsv")))
 
+writexl::write_xlsx( de_proteins_wide,
+                     file.path( args$output_dir,
+                                paste0(args$file_prefix, "_wide.xlsx")))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Create long format output file")
@@ -821,12 +875,15 @@ de_proteins_long <- selected_data %>%
   arrange( comparison, q.mod, log2FC) %>%
   distinct()
 
-
 #head(de_proteins_long)
 
+vroom::vroom_write( de_proteins_long,
+                    file.path( args$output_dir,
+                               paste0(args$file_prefix, "_long.tsv")))
 
-vroom::vroom_write(de_proteins_long, file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
-
+writexl::write_xlsx( de_proteins_long,
+                    file.path( args$output_dir,
+                               paste0(args$file_prefix, "_long.xlsx")))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 te<-toc(quiet = TRUE)
