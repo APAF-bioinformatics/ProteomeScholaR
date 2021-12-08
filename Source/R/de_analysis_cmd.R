@@ -291,7 +291,7 @@ if ( is.na(args$replicate_group_id ) &
 }
 
 ## Check the normalization option
-if ( ! isArgumentDefined(args$normalization ) ) {
+if ( ! isArgumentDefined(args, "normalization" ) ) {
   logwarn("normalization is NA, defaults to the 'scale' method")
   args$normalization <- "scale"
 }
