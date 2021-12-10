@@ -713,7 +713,7 @@ kinase_volcano_plot <- function(
     mutate(kinase_label = case_when( p_value < p_value_threshold  &
                                        n > n_cutoff ~ kinase,
                                      TRUE ~ "")) %>%
-    ggplot( aes( x=swing, y = -log10(p_value), size=n , col=colour, label=kinase_label), alpha=0.5)  +
+    ggplot( aes( x=swing, y = -log10(p_value + 10^-100), size=n , col=colour, label=kinase_label), alpha=0.5)  +
     theme_bw () +
     geom_point( ) +
     scale_color_manual( values = c("grey", my_colours[list_position]), name="Is significant" ) +
