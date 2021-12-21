@@ -62,12 +62,12 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.  [default %default]")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "config.ini",
                      help = "Configuration file.  [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis",
-                     help = "Directory path for all results files.  [default %default]",
+parser <- add_option(parser, c("-o", "--output_dir"), type = "character",
+                     help = "Directory path for all results files.",
                      metavar = "string")
 
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
@@ -108,6 +108,10 @@ parser <- add_option(parser, "--group_pattern", type = "character",
 
 parser <- add_option(parser, "--q_val_thresh", type = "double",
                      help = "q-value threshold below which a protein has statistically significant differetial expression",
+                     metavar = "double")
+
+parser <- add_option(parser, "--control_genes_q_val_thresh", type = "double",
+                     help = "q-value threshold below which a protein has statistically significant differetial expression, used for control genes",
                      metavar = "double")
 
 parser <- add_option(parser, "--ruv_k", type = "integer",
@@ -170,6 +174,14 @@ parser <- add_option(parser, "--plots_format", type = "character",
 args <- parse_args(parser)
 
 
+
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config="de_analysis"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="de_analysis" )
+
 createOutputDir(args$output_dir, args$no_backup)
 
 ## Logger configuration
@@ -180,10 +192,6 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "de_analysis"), args)
-}
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
@@ -201,6 +209,7 @@ testRequiredArguments(args, c(
   , "formula_string"
   , "ruv_k"
   , "q_val_thresh"
+  , "control_genes_q_val_thresh"
   , "num_neg_ctrl"
   , "ruv_method"
   , "sample_id"
@@ -244,6 +253,18 @@ if(isArgumentDefined(args,"q_val_thresh"))
   args$q_val_thresh<-NaN
 }
 
+if(isArgumentDefined(args,"control_genes_q_val_thresh"))
+{
+  args<-parseType(args,
+                  c("control_genes_q_val_thresh")
+                  ,as.double)
+}else {
+  logwarn("control_genes_q_val_thresh is undefined, default value set to NaN.")
+  args$control_genes_q_val_thresh<-NaN
+}
+
+
+
 args<-parseType(args,
   c("ruv_k"
     ,"num_neg_ctrl"
@@ -276,6 +297,8 @@ if(isArgumentDefined(args,"plots_format"))
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
   args$group_pattern <- "\\d+"
+} else {
+  args$group_pattern <- toupper(args$group_pattern)
 }
 
 ## Clean up replicate group ID and then take default value
@@ -335,20 +358,14 @@ if (length(which(str_detect(setdiff(colnames(evidence_tbl_filt), args$row_id), a
   q()
 }
 
-
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-loginfo("Remove empty proteins without abundance data.")
-cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
-                                                          col_pattern = args$group_pattern,
-                                                          row_id = !!rlang::sym(args$row_id))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Read design matrix file.")
 
 captured_output<-capture.output(
-design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
-  as.data.frame() %>%
-  dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
-    ,type = "message"
+  design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
+  ,type = "message"
 )
 logdebug(captured_output)
 
@@ -369,6 +386,17 @@ if ( !is.na(args$replicate_group_id) &
 }
 
 cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Get table with columns for analysis.")
+
+evidence_tbl_col <- evidence_tbl_filt[, c(args$row_id, cols_for_analysis) ]
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Remove empty proteins without abundance data.")
+cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_col,
+                                                          col_pattern = args$group_pattern,
+                                                          row_id = !!rlang::sym(args$row_id))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Count the total number of missing values in total
@@ -476,7 +504,6 @@ ggsave(filename = file_name, plot = plot_num_missing_values,limitsize = FALSE)
   logdebug(captured_output)
 }
 
-
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Mark entries with zero values as NA, take log of values.")
 na_values_marker <- (counts_filt == 0)
@@ -578,7 +605,7 @@ control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
                                            design_matrix = design_mat_cln,
                                            group_column = args$group_id,
                                            num_neg_ctrl = args$num_neg_ctrl,
-                                           q_val_thresh = args$q_val_thresh)
+                                           q_val_thresh = args$control_genes_q_val_thresh)
 
 vroom::vroom_write(data.frame(temp_col = names(control_genes_index),
                               is_control_genes = control_genes_index) %>%
@@ -693,7 +720,7 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
                                     comparison_column = comparison,
                                     expression_column = expression,
                                     facet_column = analysis_type,
-                                    q_val_thresh = 0.05) %>%
+                                    q_val_thresh = args$q_val_thresh ) %>%
   dplyr::rename(log2FC = "logFC")
 
 ## Write all the results in one single table
@@ -712,7 +739,7 @@ loginfo("Print the volcano plots")
 volplot_gg.all <- plotVolcano(selected_data,
                               log_q_value_column = lqm,
                               log_fc_column = log2FC,
-                              q_val_thresh = 0.05,
+                              q_val_thresh = args$q_val_thresh,
                               formula_string = "analysis_type ~ comparison")
 
 

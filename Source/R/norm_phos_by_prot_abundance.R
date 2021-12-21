@@ -58,7 +58,7 @@ parser <- add_option(parser, c("-c","--config"), type = "character", default = "
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "norm_phos_by_prot_abundance", dest = "output_dir",
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -86,6 +86,12 @@ parser <- add_option(parser, "--plots_format", type = "character",
 #parse comand line arguments first.
 args <- parse_args(parser)
 
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "norm_phos_by_prot_abundance"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="norm_phos_by_prot_abundance" )
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -98,10 +104,6 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "norm_phos_by_prot_abundance"), args)
-}
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)

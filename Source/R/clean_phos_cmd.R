@@ -154,7 +154,8 @@ args<-parseString(args,
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-additional_cols <- str_split(  args$add_cols_string, ",")[[1]]
+additional_cols <- str_split(  args$add_cols_string, ",")[[1]] %>%
+  map_chr( tolower)
 col_pattern <- janitor::make_clean_names( args$col_pattern_string)
 
 captured_output<-capture.output(
