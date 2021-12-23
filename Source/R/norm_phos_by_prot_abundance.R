@@ -239,6 +239,12 @@ annotated_phos_tbl <- basic_data %>%
 
 vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
 
+writexl::write_xlsx(annotated_phos_tbl %>%
+                      mutate_at( list_of_long_columns, ~substr(., 1, 32760) ),
+                    file.path(args$output_dir, "norm_phosphosite_lfc_minus_protein_lfc_annotated.xlsx")  )
+
+
+
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare before and after normalization with protein abundance")
 before_prot_norm <- phospho_cln %>%
