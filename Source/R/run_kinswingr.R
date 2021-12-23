@@ -255,7 +255,7 @@ loginfo("Download information from UniProt.")
 uniprot_other_kinase_file<-file.path(args$tmp_dir,args$uniprot_other_kinase_file)
 if( ! file.exists( uniprot_other_kinase_file )) {
 
-  up <- UniProt.ws(taxId=args$taxonomy_id )
+  up <- UniProt.ws(taxId=as.integer(args$taxonomy_id ))
   list_of_sp_columns <- c("EXISTENCE"
                           , "SCORE"
                           , "REVIEWED"
