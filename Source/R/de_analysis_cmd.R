@@ -297,10 +297,7 @@ if(isArgumentDefined(args,"plots_format"))
 if (args$group_pattern == "") {
   logwarn("Empty group pattern string, using \\d+")
   args$group_pattern <- "\\d+"
-} else {
-  args$group_pattern <- toupper(args$group_pattern)
 }
-
 ## Clean up replicate group ID and then take default value
 if (  ! isArgumentDefined(args,"replicate_group_id") ) {
   logwarn("Replicate_group_id is NA")
