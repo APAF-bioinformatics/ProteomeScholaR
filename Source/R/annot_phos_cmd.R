@@ -529,6 +529,19 @@ de_phos_long_annot <- de_phos_long %>%
   distinct()
 
 vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
+
+list_of_long_columns <- intersect(colnames(de_proteins_longer_annot), c("protein_names",
+                                                                        "ENSEMBL",
+                                                                        "PROTEIN-NAMES",
+                                                                        "KEYWORDS",
+                                                                        "GO-ID",
+                                                                        "go_biological_process",
+                                                                        "go_cellular_compartment",
+                                                                        "go_molecular_function",
+                                                                        "reactome_term",
+                                                                        "majority_protein_ids") )
+
+
 writexl::write_xlsx(de_phos_long_annot %>%
                       mutate_at( list_of_long_columns, ~substr(., 1, 32760) ),
                     file.path(args$output_dir,  str_replace(args$output_long_file, "\\..*", ".xlsx")  ))
