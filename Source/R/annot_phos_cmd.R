@@ -530,7 +530,7 @@ de_phos_long_annot <- de_phos_long %>%
 
 vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
 
-list_of_long_columns <- intersect(colnames(de_proteins_longer_annot), c("protein_names",
+list_of_long_columns <- intersect(colnames(de_phos_long_annot), c("protein_names",
                                                                         "ENSEMBL",
                                                                         "PROTEIN-NAMES",
                                                                         "KEYWORDS",

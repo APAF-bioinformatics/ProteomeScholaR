@@ -240,7 +240,7 @@ annotated_phos_tbl <- basic_data %>%
 vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
 
 
-list_of_long_columns <- intersect(colnames(de_proteins_longer_annot), c("protein_names",
+list_of_long_columns <- intersect(colnames(annotated_phos_tbl), c("protein_names",
                                                                         "ENSEMBL",
                                                                         "PROTEIN-NAMES",
                                                                         "KEYWORDS",
