@@ -466,7 +466,7 @@ uniprot_dat_multiple_acc <- uniprot_acc_tbl %>%
   arrange( uniprot_acc, acc_order_id) %>%
   group_by(uniprot_acc ) %>%
   summarise( across( .cols=setdiff( colnames( uniprot_dat_cln), "UNIPROTKB")   , ~paste(., collapse=":"))   ) %>%
-  ungroup()   %>%
+  ungroup() %>%
   dplyr::rename( UNIPROT_GENENAME = "GENENAME")
 
 
