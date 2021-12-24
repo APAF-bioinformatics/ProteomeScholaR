@@ -127,7 +127,18 @@ parseFastaFile <- function(fasta_file) {
 #' @export
 chooseBestAccession <- function(input_tbl, acc_detail_tab, accessions_column, group_id) {
 
-  resolve_acc_helper <- input_tbl %>%
+  input_tbl_del_obsolete <- input_tbl %>%
+    mutate( uniprot_acc = str_split( {{accessions_column}}, ";") ) %>%
+    unnest( uniprot_acc )   %>%
+    mutate( cleaned_acc = cleanIsoformNumber(uniprot_acc)) %>%
+    left_join( acc_detail_tab,
+               by=c("uniprot_acc" = "uniprot_acc",
+                    "cleaned_acc" = "cleaned_acc") ) %>%
+    mutate( {{accessions_column}} :=  case_when(is.na(seq) ~ proteins,
+                                          TRUE ~ {{accessions_column}})  ) %>%
+    dplyr::select(one_of(colnames( evidence_tbl_cleaned )))
+
+  resolve_acc_helper <- input_tbl_del_obsolete %>%
     dplyr::select( {{group_id}}, {{accessions_column}}, cleaned_peptide) %>%
     mutate( uniprot_acc = str_split( {{accessions_column}}, ";") ) %>%
     unnest( uniprot_acc )   %>%

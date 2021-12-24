@@ -275,8 +275,13 @@ filterPeptideAndExtractProbabilities <- function(evidence_tbl_cleaned, accession
   sites_probability_filt <- sites_probability_tbl %>%
     dplyr::filter( !is.na(uniprot_acc) )
 
+  no_uniprot_acc <-  sites_probability_tbl %>%
+    dplyr::filter( is.na(uniprot_acc) )
 
-  return(sites_probability_filt )
+
+  return(  list( cleaned=sites_probability_filt,
+                 faulty=no_uniprot_acc
+                 )  )
 
 }
 

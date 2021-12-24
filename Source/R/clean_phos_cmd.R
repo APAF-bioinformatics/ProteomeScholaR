@@ -220,7 +220,7 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Get the peptide start and end position for each peptide
 loginfo("Add peptide start and end position")
-peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl , aa_seq_tbl )
+peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl$cleaned , aa_seq_tbl )
 
 
 ## Get the phosphosites position string
@@ -268,7 +268,8 @@ summarised_wide_tbl_list <- uniquePhosphositesSummariseWideList(summarised_long_
 results_list  <- list( summarised_wide_list = summarised_wide_tbl_list,
                 summarised_long_list = summarised_long_tbl_list,
                 all_phos_sites_wide  = all_phos_sites_wide_tbl,
-                all_phos_sites_long  = all_phos_sites_long_tbl )
+                all_phos_sites_long  = all_phos_sites_long_tbl,
+                faulty_uniprot_acc =  sites_probability_tbl$faulty )
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

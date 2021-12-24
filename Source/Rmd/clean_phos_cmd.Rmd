@@ -216,16 +216,74 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
                                                                phospho_site_prob_col = phospho_sty_probabilities,
                                                                num_phospho_site_col = phospho_sty )
 ```
+
 ```{r}
-sites_probability_tbl %>%
-  dplyr::filter(str_detect( sequence, "QESED") & str_detect(gene_name, toupper("Rbmx2")) ) 
+  evidence_tbl_del_obsolete <- evidence_tbl_cleaned %>%
+    mutate( uniprot_acc = str_split( leading_proteins, ";") ) %>%
+    unnest( uniprot_acc )   %>%
+    mutate( cleaned_acc = cleanIsoformNumber(uniprot_acc)) %>%
+    left_join( aa_seq_tbl,
+               by=c("uniprot_acc" = "uniprot_acc",
+                    "cleaned_acc" = "cleaned_acc") ) %>%
+    mutate( leading_proteins =  case_when(is.na(seq) ~ proteins,
+                                          TRUE ~ leading_proteins)  ) %>%
+    dplyr::select(one_of(colnames( evidence_tbl_cleaned )))
+    
+  
 
 
-evidence_tbl_filt %>%
-  dplyr::filter( str_detect(proteins, "B0BN49") & str_detect( sequence, "QESED") ) 
 
-	
+  resolve_acc_helper <- evidence_tbl_del_obsolete %>%
+    dplyr::select( evidence_id, proteins, leading_proteins, cleaned_peptide) %>%
+    mutate( uniprot_acc = str_split( leading_proteins, ";") ) %>%
+    unnest( uniprot_acc )   %>%
+    mutate( cleaned_acc = cleanIsoformNumber(uniprot_acc)) %>%
+    left_join( aa_seq_tbl,
+               by=c("uniprot_acc" = "uniprot_acc",
+                    "cleaned_acc" = "cleaned_acc") ) %>%
+    ## Just a sanity check that the peptide is actually in the sequence
+    dplyr::filter( str_detect( seq, cleaned_peptide  )) %>%
+    dplyr::select(evidence_id, one_of(c( "uniprot_acc", "gene_name", "cleaned_acc", "proteins",
+                                          "protein_evidence", "status", "is_isoform", "isoform_num", "seq_length"  ))) %>%
+    distinct %>%
+    arrange( evidence_id, protein_evidence, status, is_isoform, desc(seq_length), isoform_num )
+
+  print( colnames(head(resolve_acc_helper)) )
+
+  resolve_acc_helper %>%
+dplyr::filter(  str_detect(uniprot_acc, "F1LMQ9") | str_detect(uniprot_acc, "B0BN49"))
+  
+
+  score_isoforms <- resolve_acc_helper %>%
+    mutate( gene_name = ifelse( is.na(gene_name) | gene_name == "", "NA", gene_name)) %>%
+    group_by( evidence_id,  gene_name ) %>%
+    arrange( evidence_id,  protein_evidence,
+             status, is_isoform, desc(seq_length), isoform_num, cleaned_acc )  %>%
+    mutate(ranking = row_number()) %>%
+    ungroup
+
+
+  print( colnames(head(score_isoforms)) )
+
+  ## For each gene name find the uniprot_acc with the lowest ranking
+
+  my_group_id <- enquo(group_id)
+
+  join_names <- set_names( c(quo_name(my_group_id), "ranking", "gene_name" ) ,
+                           c(quo_name(my_group_id), "ranking", "gene_name" ) )
+
+  group_gene_names_and_uniprot_accs <- score_isoforms %>%
+    distinct( evidence_id, gene_name, ranking ) %>%
+    dplyr::filter( ranking == 1) %>%
+    left_join( score_isoforms %>%
+                 dplyr::select( evidence_id, ranking, gene_name, uniprot_acc),
+               by = join_names )   %>%
+    dplyr::select(-ranking)
 ```
+
+
+
+
 
 
 ```{r}
@@ -233,8 +291,6 @@ evidence_tbl_filt %>%
 # accession_col = leading_proteins
 # phospho_site_prob_col = phospho_sty_probabilities
 # num_phospho_site_col = phospho_sty
-
-
 
   step1 <- evidence_tbl_cleaned %>%
     ## Must be a phosphopeptide (at least one site)
@@ -277,13 +333,6 @@ evidence_tbl_filt %>%
     step4 %>%
   dplyr::filter( str_detect(proteins, "B0BN49") & str_detect( sequence, "QESED") ) 
 
-    accession_gene_name_tbl %>%
-      dplyr::filter( str_detect(gene_name, "Rbmx2"))
-    
-    accession_gene_name_tbl %>%
-      dplyr::filter( str_detect(uniprot_acc, "B0BN49"))
-    
-    
       sites_probability_filt <- step4 %>%
     dplyr::filter( !is.na(uniprot_acc) )
       
@@ -298,7 +347,7 @@ evidence_tbl_filt %>%
 ```{r}
 ## Get the peptide start and end position for each peptide
 loginfo("Add peptide start and end position")
-peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl , aa_seq_tbl )
+peptide_start_and_end <- addPeptideStartAndEnd(sites_probability_tbl$cleaned , aa_seq_tbl )
 
 
 ## Get the phosphosites position string
