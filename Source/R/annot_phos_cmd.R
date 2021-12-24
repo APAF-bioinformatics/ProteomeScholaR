@@ -420,7 +420,7 @@ loginfo("Download information from UniProt.")
 uniprot_file<-file.path(args$tmp_dir,args$uniprot_file)
 if( ! file.exists( uniprot_file )) {
 
-  up <- UniProt.ws(taxId=9606 ) # Get information kinases from the human proteome
+  up <- UniProt.ws(taxId=args$taxonomy_id ) # Get information kinases from the human proteome
   list_of_sp_columns <- c("EXISTENCE"
                           , "SCORE"
                           , "REVIEWED"

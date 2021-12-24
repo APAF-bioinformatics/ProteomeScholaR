@@ -256,8 +256,6 @@ filterPeptideAndExtractProbabilities <- function(evidence_tbl_cleaned, accession
     dplyr::filter( map2_lgl(best_phos_prob, best_phos_pos, ~{length(.x) == length(.y)} )) %>%
     left_join( accession_gene_name_tbl, by="evidence_id") %>%
     dplyr::select( one_of( c( "best_phos_prob", "best_phos_pos",
-
-
                               colnames(accession_gene_name_tbl),
                               colnames( evidence_tbl_cleaned))),
                    {{phospho_site_prob_col}},
