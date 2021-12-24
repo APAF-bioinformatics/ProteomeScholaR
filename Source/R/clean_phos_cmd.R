@@ -283,6 +283,10 @@ walk2(  results_list$summarised_wide_list,
 vroom::vroom_write( results_list$all_phos_sites_wide,
          file.path(args$output_dir, "all_phos_sites_wide_tbl.tsv" ))
 
+vroom::vroom_write( sites_probability_tbl$faulty,
+                    file.path(args$output_dir, "faulty_sites.tsv" ) )
+
+
 saveRDS( results_list$summarised_long_list,
          file.path(args$output_dir, "summarised_long_tbl_list.RDS" ))
 
