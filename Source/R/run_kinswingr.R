@@ -158,6 +158,9 @@ if (args$config != "") {
   args <- config.list.merge(eval.config(file = args$config, config = "phos_kinase_substrate"), args)
 }
 
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="phos_kinswingr" )
+
+
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
 
@@ -643,6 +646,15 @@ compileKinswingerResults <- function( list_position ) {
     distinct( uniprot_acc) %>%
     mutate(is_kinase_phosphorylated = 1)
 
+  selected_columns <- intersect( colnames(de_phos),
+                                 c( "sites_id", "PROTEIN-NAMES", "reactome_term",
+                                "KINASE",
+                                "ON_FUNCTION",
+                                "ON_PROCESS",
+                                "ON_PROT_INTERACT",
+                                "ON_OTHER_INTERACT",
+                                "REG_SITES_NOTES"))
+
   selected_scores_list_help <- scores_list$pwms_scores[[list_position]]$peptide_p %>%
     pivot_longer( cols= !(contains("annotation") | contains("peptide")),
                   names_to="kinase",
@@ -658,30 +670,28 @@ compileKinswingerResults <- function( list_position ) {
                   dplyr::select( annotation, sites_id),
                 by=c("annotation" = "annotation")) %>%
     left_join( de_phos %>%
-                 dplyr::select( sites_id, `PROTEIN-NAMES`, reactome_term,
-                                KINASE,
-                                ON_FUNCTION,
-                                ON_PROCESS,
-                                ON_PROT_INTERACT,
-                                ON_OTHER_INTERACT,
-                                REG_SITES_NOTES ),
+                 dplyr::select( one_of( selected_columns ) ),
                by=c("sites_id" = "sites_id")) %>%
-    dplyr::mutate( kinase_copy = KINASE ) %>%
-    dplyr::rename( known_upstream_kinase = "kinase_copy") %>%
-    dplyr::rename( one_known_kinase = "KINASE") %>%
-    separate_rows( one_known_kinase , sep= "//")  %>%
-    dplyr::mutate( one_known_kinase = toupper(one_known_kinase) )  %>%
     left_join( phosphositeplus %>%
                  distinct( GENE, kinase), by=c("kinase" = "kinase") ) %>%
     dplyr::mutate( substrate_gene_name  = str_split(annotation, "\\|") %>% purrr::map_chr(2)) %>%
-    dplyr::mutate( prediction_match_known_kinase = case_when( kinase == one_known_kinase ~ TRUE,
-                                                              TRUE ~ FALSE) )  %>%
-    dplyr::select(-one_known_kinase) %>%
     left_join( uniprot_kinases %>%
                  dplyr::select(-KEYWORDS),
                by= c("GENE" = "gene_name")) %>%
     dplyr::rename( kinase_gene_name = "GENE") %>%
     distinct()
+
+  if( "KINASE" %in% selected_columns) {
+    selected_scores_list_help <- selected_scores_list_help %>%
+      dplyr::mutate( kinase_copy = KINASE ) %>%
+      dplyr::rename( known_upstream_kinase = "kinase_copy") %>%
+      dplyr::rename( one_known_kinase = "KINASE") %>%
+      separate_rows( one_known_kinase , sep= "//")  %>%
+      dplyr::mutate( one_known_kinase = toupper(one_known_kinase) )  %>%
+      dplyr::mutate( prediction_match_known_kinase = case_when( kinase == one_known_kinase ~ TRUE,
+                                                                TRUE ~ FALSE) )  %>%
+      dplyr::select(-one_known_kinase)
+  }
 
   ## Use mouse or human uniprot accession if it makes sense to do so.
   selected_scores_list <- selected_scores_list_help
@@ -695,29 +705,27 @@ compileKinswingerResults <- function( list_position ) {
       distinct()
   }
 
-
-
   return( selected_scores_list)
 }
 
 
 
 
-selected_scores_list <- purrr::map( seq_along(swing_out_list$comparison),
-             ~compileKinswingerResults(.))
+  selected_scores_list <- purrr::map( seq_along(swing_out_list$comparison),
+               ~compileKinswingerResults(.))
 
-names( selected_scores_list) <- swing_out_list$comparison
+  names( selected_scores_list) <- swing_out_list$comparison
 
 
 
-purrr::walk2( selected_scores_list,
-              swing_out_list$comparison,
-              ~vroom::vroom_write( .x,
-                                   file.path( args$output_dir,
-                                              paste0( "selected_kinase_substrate_",
-                                                      args$kinase_specificity, "_",
-                                                      .y ,
-                                                      ".tsv" )) ) )
+  purrr::walk2( selected_scores_list,
+                swing_out_list$comparison,
+                ~vroom::vroom_write( .x,
+                                     file.path( args$output_dir,
+                                                paste0( "selected_kinase_substrate_",
+                                                        args$kinase_specificity, "_",
+                                                        .y ,
+                                                        ".tsv" )) ) )
 
 
 

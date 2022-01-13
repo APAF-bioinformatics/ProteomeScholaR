@@ -404,7 +404,7 @@ table_value <- table(is.infinite(data.matrix(log2(cln_dat_wide_unsorted[, c(coln
 loginfo("Count the number of missing values for each sample before removing proteins with some missing values: %d",
         table_value["TRUE"])
 
-plot_num_missing_values_before <- plotNumMissingVales(cln_dat_wide_unsorted[, cols_for_analysis])
+plot_num_missing_values_before <- plotNumMissingValues(cln_dat_wide_unsorted[, cols_for_analysis])
 
 for( format_ext in args$plots_format) {
   file_name<-file.path(args$output_dir,paste0("num_missing_values_before_filtering.",format_ext))
@@ -490,7 +490,7 @@ logdebug(ruvIII_replicates_matrix)
 loginfo("Count the number of missing values for each sample: %d",table(is.infinite(data.matrix(log2(counts_filt)))))
 
 
-plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
+plot_num_missing_values <- plotNumMissingValues(counts_filt[, cols_for_analysis])
 
 for( format_ext in args$plots_format) {
   file_name<-file.path(args$output_dir,paste0("num_missing_values.",format_ext))
@@ -498,6 +498,21 @@ for( format_ext in args$plots_format) {
 ggsave(filename = file_name, plot = plot_num_missing_values,limitsize = FALSE)
     ,type = "message"
 )
+  logdebug(captured_output)
+}
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+loginfo("Count the number of values available for each sample: %d",table(!is.infinite(data.matrix(log2(counts_filt)))))
+
+plot_num_of_values <- plotNumOfValues(counts_filt[, cols_for_analysis])
+
+for( format_ext in args$plots_format) {
+  file_name<-file.path(args$output_dir,paste0("num_of_values.",format_ext))
+  captured_output<-capture.output(
+    ggsave(filename = file_name, plot = plot_num_of_values, limitsize = FALSE)
+    ,type = "message"
+  )
   logdebug(captured_output)
 }
 

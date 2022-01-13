@@ -37,20 +37,60 @@ removeEmptyRows <- function(input_table, col_pattern, row_id) {
 #'@param input_table  Data matrix with each row as a protein and each column a sample.
 #'@return A ggplot2 bar plot showing the number of missing values per column.
 #'@export
-plotNumMissingVales <- function(input_table) {
+plotNumMissingValues <- function(input_table, sort_by_counts=TRUE) {
 
-  plot_num_missing_values <- apply(data.matrix(log2(input_table)), 2,
+ count_values <- apply(data.matrix(log2(input_table)), 2,
                                    function(x) { length(which(is.infinite(x))) }) %>%
     t %>%
     t %>%
     set_colnames("No. of Missing Values") %>%
     as.data.frame %>%
-    rownames_to_column("Samples ID") %>%
+    rownames_to_column("Samples ID")
+
+  if( sort_by_counts == TRUE) {
+    count_values <- count_values %>%
+      arrange(`No. of Missing Values`) %>%
+      mutate( `Samples ID` = factor( `Samples ID`, levels=`Samples ID`))
+  }
+
+  plot_num_missing_values <- count_values  %>%
     ggplot(aes(x = `Samples ID`, y = `No. of Missing Values`)) +
     geom_bar(stat = "identity") +
     theme(axis.text.x = element_text(angle = 90))
 
   plot_num_missing_values
+}
+
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' Plot the number of values available in each sample
+#'@param input_table  Data matrix with each row as a protein and each column a sample.
+#'@return A ggplot2 bar plot showing the number of available values per column.
+#'@export
+plotNumOfValues <- function(input_table, sort_by_counts=TRUE) {
+
+  count_values <- apply(data.matrix(log2(input_table)), 2,
+                        function(x) { length(which(!is.infinite(x))) }) %>%
+    t %>%
+    t %>%
+    set_colnames("No. of Values") %>%
+    as.data.frame %>%
+    rownames_to_column("Samples ID")
+
+  if( sort_by_counts == TRUE) {
+    count_values <- count_values %>%
+      arrange(`No. of Values`) %>%
+      mutate( `Samples ID` = factor( `Samples ID`, levels=`Samples ID`))
+  }
+
+  plot_num_of_values <- count_values %>%
+    ggplot(aes(x = `Samples ID`, y = `No. of Values`)) +
+    geom_bar(stat = "identity") +
+    theme(axis.text.x = element_text(angle = 90))
+
+  plot_num_of_values
 }
 
 

@@ -228,10 +228,6 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
     mutate( leading_proteins =  case_when(is.na(seq) ~ proteins,
                                           TRUE ~ leading_proteins)  ) %>%
     dplyr::select(one_of(colnames( evidence_tbl_cleaned )))
-    
-  
-
-
 
   resolve_acc_helper <- evidence_tbl_del_obsolete %>%
     dplyr::select( evidence_id, proteins, leading_proteins, cleaned_peptide) %>%
@@ -282,6 +278,14 @@ dplyr::filter(  str_detect(uniprot_acc, "F1LMQ9") | str_detect(uniprot_acc, "B0B
 ```
 
 
+```{r}
+accession_gene_name_tbl %>%
+  dplyr::filter( uniprot_acc  == "B5DEL4" )
+
+aa_seq_tbl %>%
+    dplyr::filter( uniprot_acc  == "B5DEL4" )
+
+```
 
 
 
