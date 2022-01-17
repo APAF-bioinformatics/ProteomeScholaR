@@ -43,4 +43,4 @@ vignettes/*.pdf
 
 #Doxygen generated files
 *.Rd
-NAMESPACE
+*NAMESPACE
