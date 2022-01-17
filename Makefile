@@ -72,9 +72,7 @@ install:intro setdirs
 	@$(RSCRIPTEXEC) $(SCRIPTS)/aux/install.R
 	@$(REXEC) CMD INSTALL -l $(RLIB) ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
-	@cp -r $(SCRIPTS)/shell/* $(PREFIX)/$(PROJECT)/Source/shell
 	@chmod +x $(PREFIX)/$(PROJECT)/Source/R/*
-	@chmod +x $(PREFIX)/$(PROJECT)/Source/shell/*
 	@cp -r $(TEST)/* $(PREFIX)/$(PROJECT)/test/
 	@echo '	'
 	@echo 'append $(PREFIX)/$(PROJECT)/Source/R to your PATH environment variable'
