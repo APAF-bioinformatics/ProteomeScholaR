@@ -56,7 +56,7 @@ parser <- add_option(parser, c("-c","--config"), type = "character", default = "
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "annot_phos", dest = "output_dir",
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -113,6 +113,12 @@ parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "unipr
 #parse command line arguments first.
 args <- parse_args(parser)
 
+#parse and merge the configuration file options.
+if (args$config != "") {
+   args <- config.list.merge(eval.config(file = args$config, config = "annot_phos"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="annot_phos" )
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -525,6 +531,22 @@ de_phos_long_annot <- de_phos_long %>%
   distinct()
 
 vroom::vroom_write(de_phos_long_annot, file.path(args$output_dir,args$output_long_file ))
+
+
+list_of_long_columns <- intersect(colnames(de_phos_long_annot), c("protein_names",
+                                                                  "ENSEMBL",
+                                                                  "PROTEIN-NAMES",
+                                                                  "KEYWORDS",
+                                                                  "GO-ID",
+                                                                  "go_biological_process",
+                                                                  "go_cellular_compartment",
+                                                                  "go_molecular_function",
+                                                                  "reactome_term",
+                                                                  "majority_protein_ids") )
+
+writexl::write_xlsx(de_phos_long_annot %>%
+                      mutate_at( list_of_long_columns, ~substr(., 1, 32760) ),
+                     file.path(args$output_dir,  str_replace(args$output_long_file, "\\..*", ".xlsx")  ))
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -979,7 +979,8 @@ cleanIsoformNumber <- function(string) {
 
 
 # Filter for a batch and run analysis on that batch of uniprot accession keys only.
-subsetQuery <- function(data, subset, accessions_col_name, uniprot_handle, uniprot_columns = c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH")) {
+subsetQuery <- function(data, subset, accessions_col_name, uniprot_handle, uniprot_columns = c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH"),
+                        uniprot_keytype = "UNIPROTKB") {
 
 
   # print(subset)
@@ -987,12 +988,14 @@ subsetQuery <- function(data, subset, accessions_col_name, uniprot_handle, unipr
     dplyr::filter(round == subset) %>%
     pull({ { accessions_col_name } })
 
-  # print(head(my_keys))
+   # print(my_keys)
+
+  # print(uniprot_keytype)
 
   UniProt.ws::select(up,
                      keys = my_keys,
                      columns = uniprot_columns,
-                     keytype = "UNIPROTKB")
+                     keytype = uniprot_keytype)
 }
 
 
@@ -1012,7 +1015,8 @@ batchQueryEvidenceHelper <- function(uniprot_acc_tbl, uniprot_acc_column) {
 ## Run evidence collection online, giving a table of keys (uniprot_acc_tbl) and the column name (uniprot_acc_column)
 #'@export
 batchQueryEvidence <- function(uniprot_acc_tbl, uniprot_acc_column, uniprot_handle,
-                               uniprot_columns = c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH")) {
+                               uniprot_columns = c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH"),
+                               uniprot_keytype = "UNIPROTKB") {
 
   # uniprot_evidence_levels <- c("Evidence at protein level",
   #                              "Evidence at transcript level",
@@ -1028,7 +1032,8 @@ batchQueryEvidence <- function(uniprot_acc_tbl, uniprot_acc_column, uniprot_hand
                                   data = all_uniprot_acc,
                                   accessions_col_name = { { uniprot_acc_column } },
                                   uniprot_handle = uniprot_handle,
-                                  uniprot_columns = uniprot_columns)
+                                  uniprot_columns = uniprot_columns,
+                                  uniprot_keytype = uniprot_keytype)
 
   rounds_list <- all_uniprot_acc %>%
     distinct(round) %>%
@@ -1040,6 +1045,46 @@ batchQueryEvidence <- function(uniprot_acc_tbl, uniprot_acc_column, uniprot_hand
 
   return(all_uniprot_evidence)
 }
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# The UniProt.ws::select function limits the number of keys queried to 100. This gives a batch number for it to be queried in batches.
+batchQueryEvidenceHelperGeneId <- function(input_tbl, gene_id_column) {
+
+  all_uniprot_acc <- input_tbl %>%
+    dplyr::select({ { gene_id_column } }) %>%
+    arrange({ { gene_id_column } }) %>%
+    dplyr::mutate(round = ceiling(row_number() / 100))  ## 100 is the maximum number of queries at one time
+}
+
+batchQueryEvidenceGeneId <- function(input_tbl, gene_id_column, uniprot_handle,
+                               uniprot_columns = c("EXISTENCE", "SCORE", "REVIEWED", "GENENAME", "PROTEIN-NAMES", "LENGTH")) {
+
+
+  all_gene_id <- batchQueryEvidenceHelperGeneId(input_tbl,
+                                              { { gene_id_column } })
+
+
+  partial_subset_query <- partial(subsetQuery,
+                                  data = all_gene_id,
+                                  accessions_col_name = { { gene_id_column } },
+                                  uniprot_handle = uniprot_handle,
+                                  uniprot_columns = uniprot_columns,
+                                  uniprot_keytype = "GENENAME")
+
+  rounds_list <- all_gene_id %>%
+    distinct(round) %>%
+    arrange(round) %>%
+    pull(round)
+
+  all_uniprot_evidence <- purrr::map(rounds_list, ~{ partial_subset_query(subset = .) }) %>%
+    bind_rows
+
+  return(all_uniprot_evidence)
+}
+
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -24,6 +24,7 @@ p_load(tictoc)
 p_load(tidyverse)
 p_load(plotly)
 p_load(vroom)
+p_load(writexl)
 p_load(ggplot2)
 p_load(ggpubr)
 p_load(magrittr)
@@ -61,12 +62,12 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.  [default %default]")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "config.ini",
                      help = "Configuration file.  [default %default]",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "de_analysis",
-                     help = "Directory path for all results files.  [default %default]",
+parser <- add_option(parser, c("-o", "--output_dir"), type = "character",
+                     help = "Directory path for all results files.",
                      metavar = "string")
 
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
@@ -75,6 +76,18 @@ parser <- add_option(parser, c("-l", "--log_file"), type = "character", default 
 
 parser <- add_option(parser, c( "--treat_lfc_cutoff"), type = "double",
                      help = "The minimum log2-fold-change below which changes not considered scientifically meaningful. Used in treat function of the limma library.",
+                     metavar = "double")
+
+parser <- add_option(parser, c( "--normalization"), type = "character",
+                     help = "character string specifying the normalization method to be used. Choices are none, scale, quantile or cyclicloess",
+                     metavar = "string")
+
+parser <- add_option(parser, c( "--eBayes_trend"), type = "double",
+                     help = "logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.",
+                     metavar = "double")
+
+parser <- add_option(parser, c( "--eBayes_robust"), type = "double",
+                     help = "logical, should the estimation of df.prior and var.prior be robustified against outlier sample variances?.",
                      metavar = "double")
 
 #Options without a default value have the following priority: configuration file < command line argument
@@ -86,6 +99,9 @@ parser <- add_option(parser, "--abundance_threshold", type = "integer",
                      help = "Abundance threshold above which the protein in the sample is accepted for analysis",
                      metavar = "integer")
 
+parser <- add_option(parser, "--control_genes_q_val_thresh", type = "double",
+                     help = "q-value threshold below which a protein has statistically significant differetial expression, used for control genes",
+                     metavar = "double")
 
 parser <- add_option(parser, "--group_pattern", type = "character",
                      help = "Regular expression pattern to identify columns with abundance values belonging to the experiment.",
@@ -93,6 +109,10 @@ parser <- add_option(parser, "--group_pattern", type = "character",
 
 parser <- add_option(parser, "--q_val_thresh", type = "double",
                      help = "q-value threshold below which a protein has statistically significant differetial expression",
+                     metavar = "double")
+
+parser <- add_option(parser, "--control_genes_q_val_thresh", type = "double",
+                     help = "q-value threshold below which a protein has statistically significant differetial expression, used for control genes",
                      metavar = "double")
 
 parser <- add_option(parser, "--ruv_k", type = "integer",
@@ -154,6 +174,12 @@ parser <- add_option(parser, "--plots_format", type = "character",
 #parse comand line arguments first.
 args <- parse_args(parser)
 
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config="de_analysis"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="de_analysis" )
 
 createOutputDir(args$output_dir, args$no_backup)
 
@@ -186,6 +212,7 @@ testRequiredArguments(args, c(
   , "formula_string"
   , "ruv_k"
   , "q_val_thresh"
+  , "control_genes_q_val_thresh"
   , "num_neg_ctrl"
   , "ruv_method"
   , "sample_id"
@@ -204,16 +231,19 @@ testRequiredFiles(c(
 ))
 
 
-if(isArgumentDefined(args,"treat_lfc_cutoff"))
-{
-  args<-parseType(args,
-                  c("treat_lfc_cutoff")
-                  ,as.double)
-}else {
-  logwarn("treat_lfc_cutoff is undefined, default value set to NA")
-  args$treat_lfc_cutoff<-NA
-}
+#if(isArgumentDefined(args,"treat_lfc_cutoff"))
+# {
+#   args<-parseType(args,
+#                   c("treat_lfc_cutoff")
+#                   ,as.double)
+# }else {
+#   logwarn("treat_lfc_cutoff is undefined, default value set to NA")
+#   args$treat_lfc_cutoff<-NA
+# }
 
+args <- setArgsDefault(args, "treat_lfc_cutoff", as_func=as.double, default_val=NA )
+args <- setArgsDefault(args, "eBayes_trend", as_func=as.logical, default_val=FALSE )
+args <- setArgsDefault(args, "eBayes_robust", as_func=as.logical, default_val=FALSE )
 
 if(isArgumentDefined(args,"q_val_thresh"))
 {
@@ -224,6 +254,18 @@ if(isArgumentDefined(args,"q_val_thresh"))
   logwarn("q_val_thresh is undefined, default value set to NaN.")
   args$q_val_thresh<-NaN
 }
+
+
+if(isArgumentDefined(args,"control_genes_q_val_thresh"))
+{
+  args<-parseType(args,
+                  c("control_genes_q_val_thresh")
+                  ,as.double)
+}else {
+  logwarn("control_genes_q_val_thresh is undefined, default value set to NaN.")
+  args$control_genes_q_val_thresh<-NaN
+}
+
 
 args<-parseType(args,
   c("ruv_k"
@@ -271,6 +313,16 @@ if ( is.na(args$replicate_group_id ) &
   args$replicate_group_id <- args$group_id
 }
 
+## Check the normalization option
+if ( ! isArgumentDefined(args, "normalization" ) ) {
+  logwarn("normalization is NA, defaults to the 'scale' method")
+  args$normalization <- "scale"
+}
+
+if (  ! args$normalization %in% c("none", "scale", "quantile", "cyclicloess") ) {
+  logerror( paste0("the normalization method specified ", args$normalization, " is not valid, please check carefully."))
+}
+
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # test_pairs <- NA
@@ -308,18 +360,13 @@ if (length(which(str_detect(setdiff(colnames(evidence_tbl_filt), args$row_id), a
 
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-loginfo("Remove empty proteins without abundance data.")
-cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
-                                                          col_pattern = args$group_pattern,
-                                                          row_id = !!rlang::sym(args$row_id))
-## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Read design matrix file.")
 
-captured_output<-capture.output(
-design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
-  as.data.frame() %>%
-  dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
-    ,type = "message"
+captured_output <- capture.output(
+  design_mat_cln <- vroom::vroom(args$design_matrix_file) %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!rlang::sym(args$sample_id) := as.character(!!rlang::sym(args$sample_id)))
+  ,type = "message"
 )
 logdebug(captured_output)
 
@@ -340,6 +387,18 @@ if ( !is.na(args$replicate_group_id) &
 }
 
 cols_for_analysis <- design_mat_cln %>% pull(as.name(args$sample_id))
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Get table with columns for analysis.")
+
+evidence_tbl_col <- evidence_tbl_filt[, c(args$row_id, cols_for_analysis) ]
+
+
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Remove empty proteins without abundance data.")
+cln_dat_wide_unsorted <- ProteomeRiver::removeEmptyRows(evidence_tbl_filt,
+                                                        col_pattern = args$group_pattern,
+                                                        row_id = !!rlang::sym(args$row_id))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Count the total number of missing values in total
@@ -383,14 +442,13 @@ if ("max_num_samples_miss_per_group" %in% names(args)) {
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-if (length(cln_dat_wide_cleaned) - 1 != length(cols_for_analysis) |
-  length(cols_for_analysis) != length(intersect(colnames(cln_dat_wide_cleaned)[-1], cols_for_analysis))) {
+if ( length(cols_for_analysis) != length(intersect(colnames(cln_dat_wide_cleaned)[-1], cols_for_analysis))) {
   logerror("Column names in design matrix table not consistent with column names in abundance table.")
   q()
 }
 
 # Sort the columns in the abundance table according
-if (length(which(colnames(cln_dat_wide_cleaned)[-1] == cols_for_analysis)) != length(cols_for_analysis)) {
+if (length(which(colnames(cln_dat_wide_cleaned)[-1] %in% cols_for_analysis)) != length(cols_for_analysis)) {
   logwarn("Sorting the order of the column of the abundance matrix according to the order in the design matrix.")
 }
 
@@ -400,8 +458,13 @@ loginfo("Assign the indexing row names to the data frame.")
 counts_filt <- cln_dat_wide %>%
   column_to_rownames(args$row_id)
 
-vroom::vroom_write(cln_dat_wide, file.path(args$output_dir, "raw_counts_after_removing_empty_rows.tsv"))
+vroom::vroom_write( cln_dat_wide,
+                    file.path( args$output_dir,
+                               "raw_counts_after_removing_empty_rows.tsv"))
 
+writexl::write_xlsx( cln_dat_wide,
+                     file.path( args$output_dir,
+                                "raw_counts_after_removing_empty_rows.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -431,7 +494,6 @@ logdebug(ruvIII_replicates_matrix)
 ## Count the total number of missing values in total
 loginfo("Count the number of missing values for each sample: %d",table(is.infinite(data.matrix(log2(counts_filt)))))
 
-
 plot_num_missing_values <- plotNumMissingVales(counts_filt[, cols_for_analysis])
 
 for( format_ext in args$plots_format) {
@@ -443,6 +505,19 @@ ggsave(filename = file_name, plot = plot_num_missing_values,limitsize = FALSE)
   logdebug(captured_output)
 }
 
+## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+loginfo("Count the number of values available for each sample: %d",table(!is.infinite(data.matrix(log2(counts_filt)))))
+
+plot_num_of_values <- plotNumOfValues(counts_filt[, cols_for_analysis])
+
+for( format_ext in args$plots_format) {
+  file_name <- file.path(args$output_dir,paste0("num_of_values.",format_ext))
+  captured_output <- capture.output(
+    ggsave(filename = file_name, plot = plot_num_of_values, limitsize = FALSE)
+    ,type = "message" )
+  logdebug(captured_output)
+}
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Mark entries with zero values as NA, take log of values.")
@@ -454,16 +529,19 @@ counts_na[na_values_marker] <- NA
 
 counts_na.log <- log2(counts_na)
 
-
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Median centering.")
-counts_na.log.quant <- normalizeBetweenArrays(counts_na.log, method = "scale")
+counts_na.log.quant <- normalizeBetweenArrays(counts_na.log, method = args$normalization)
 
 
 vroom::vroom_write(as.data.frame(counts_na.log.quant) %>%
                      rownames_to_column(args$row_id),
                    file.path(args$output_dir, "counts_after_median_scaling_before_imputation.tsv"))
 
+writexl::write_xlsx( as.data.frame(counts_na.log.quant) %>%
+                       rownames_to_column(args$row_id),
+                     file.path( args$output_dir,
+                                "counts_after_median_scaling_before_imputation.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -479,11 +557,14 @@ counts_rnorm.is_nan <- counts_rnorm.log.quant %>%
   mutate_all(~{ !is.finite(.) }) %>%
   as.matrix
 
+vroom::vroom_write( as.data.frame(counts_rnorm.log.quant) %>%
+                      rownames_to_column(args$row_id),
+                    file.path(args$output_dir, "counts_after_median_scaling_and_imputation.tsv"))
 
-vroom::vroom_write(as.data.frame(counts_rnorm.log.quant) %>%
-                     rownames_to_column(args$row_id),
-                   file.path(args$output_dir, "counts_after_median_scaling_and_imputation.tsv"))
-
+writexl::write_xlsx( as.data.frame(counts_rnorm.log.quant) %>%
+                       rownames_to_column(args$row_id),
+                     file.path( args$output_dir,
+                                "counts_after_median_scaling_and_imputation.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Run statistical tests without RUV.")
@@ -495,28 +576,16 @@ type_of_grouping <- getTypeOfGrouping(design_matrix = design_mat_cln, group_id =
 list_rnorm.log.quant.ruv.r0 <- NA
 myRes_rnorm.log.quant <- NA
 
-# if( limma_method == "pairs") {
-#
-#   list_rnorm.log.quant.ruv.r0 <- runTests(ID, counts_rnorm.log.quant, test_pairs,  cols_for_analysis, sample_rows_lists, type_of_grouping,
-#                                   design_matrix = design_mat_cln, formula_string= paste0("~ 0 + ", args$group_id),
-#                                   contrast_variable=args$group_id,
-#                                   weights=NA)
-#
-#   myRes_rnorm.log.quant <- extract_results(list_rnorm.log.quant.ruv.r0)
-#
-# } else if ( limma_method == "contrasts") {
-
-
 list_rnorm.log.quant.ruv.r0 <- runTestsContrasts(counts_rnorm.log.quant,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
                                                  design_matrix = design_mat_cln,
                                                  formula_string = args$formula_string,
                                                  weights = NA,
-                                                 treat_lfc_cutoff = as.double(args$treat_lfc_cutoff))
+                                                 treat_lfc_cutoff = as.double(args$treat_lfc_cutoff),
+                                                 eBayes_trend = as.logical(args$eBayes_trend),
+                                                 eBayes_robust = as.logical(args$eBayes_robust))
 
 myRes_rnorm.log.quant <- list_rnorm.log.quant.ruv.r0$results
-# }
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print( "Save the list of differentially expressed proteins, without using RUV.")
@@ -533,13 +602,18 @@ control_genes_index <- getNegCtrlProtAnova(counts_rnorm.log.quant,
                                            design_matrix = design_mat_cln,
                                            group_column = args$group_id,
                                            num_neg_ctrl = args$num_neg_ctrl,
-                                           q_val_thresh = args$q_val_thresh)
+                                           q_val_thresh = args$control_genes_q_val_thresh)
 
 vroom::vroom_write(data.frame(temp_col = names(control_genes_index),
                               is_control_genes = control_genes_index) %>%
                      set_colnames(c(args$row_id, "is_control_genes")),
                    file.path(args$output_dir, "ctrl_genes_list_ruv3.tsv"),
                    delim = "\t")
+
+writexl::write_xlsx( data.frame( temp_col = names(control_genes_index),
+                                 is_control_genes = control_genes_index) %>%
+                       set_colnames(c(args$row_id, "is_control_genes")),
+                     file.path(args$output_dir, "ctrl_genes_list_ruv3.xlsx"))
 
 loginfo("Total Num. Genes %d", length(control_genes_index))
 
@@ -579,6 +653,11 @@ vroom::vroom_write(counts_rnorm.log.ruvIII_v1 %>%
                      rownames_to_column(args$row_id),
                    file.path(args$output_dir, "normalized_counts_after_ruv.tsv"))
 
+writexl::write_xlsx(counts_rnorm.log.ruvIII_v1 %>%
+                      as.data.frame %>%
+                      rownames_to_column(args$row_id),
+                    file.path(args$output_dir, "normalized_counts_after_ruv.xlsx"))
+
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Draw the RLE and PCA plots.")
 rle_pca_plots_arranged <- rlePcaPlotList(list_of_data_matrix = list(counts_rnorm.log.quant, counts_rnorm.log.ruvIII_v1),
@@ -595,24 +674,11 @@ for( format_ext in args$plots_format) {
   logdebug(captured_output)
 }
 
-
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare the different experimental groups and obtain lists of differentially expressed proteins.")
 
 list_rnorm.log.quant.ruv.r1 <- NA
 myRes_rnorm.log.quant.ruv.r1 <- NA
-# if( limma_method == "pairs") {
-#   list_rnorm.log.quant.ruv.r1 <- runTests( ID, counts_rnorm.log.ruvIII_v1, test_pairs,
-#                                            cols_for_analysis, sample_rows_lists,
-#                                            type_of_grouping,
-#                                            design_matrix = design_mat_cln,
-#                                            formula_string= "~ 0 + group ",
-#                                            contrast_variable="group",
-#                                            weights=NA)
-#
-#   myRes_rnorm.log.quant.ruv.r1 <- extract_results(list_rnorm.log.quant.ruv.r1)
-#
-# } else if ( limma_method == "contrasts") {
 
 list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
                                                  contrast_strings = contrasts_tbl[, 1][[1]],
@@ -622,11 +688,8 @@ list_rnorm.log.quant.ruv.r1 <- runTestsContrasts(counts_rnorm.log.ruvIII_v1,
 
 myRes_rnorm.log.quant.ruv.r1 <- list_rnorm.log.quant.ruv.r1$results
 
-
 saveRDS( list_rnorm.log.quant.ruv.r1$fit.eb,
          file.path(args$output_dir, "fit.eb.RDS" ) )
-# }
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print("Save the lists of diffierentially expressed proteins (e.g. log fold-change, q-values).")
@@ -650,7 +713,7 @@ selected_data <- getSignificantData(list_of_de_tables = list(myRes_rnorm.log.qua
                                     comparison_column = comparison,
                                     expression_column = expression,
                                     facet_column = analysis_type,
-                                    q_val_thresh = 0.05) %>%
+                                    q_val_thresh = args$q_val_thresh) %>%
   dplyr::rename(log2FC = "logFC")
 
 ## Write all the results in one single table
@@ -658,6 +721,9 @@ selected_data %>%
   dplyr:::select(-colour, -lqm) %>%
   vroom::vroom_write(file.path(args$output_dir, "lfc_qval_long.tsv"))
 
+selected_data %>%
+  dplyr:::select(-colour, -lqm) %>%
+  writexl::write_xlsx(file.path(args$output_dir, "lfc_qval_long.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -666,36 +732,32 @@ loginfo("Print the volcano plots")
 volplot_gg.all <- plotVolcano(selected_data,
                               log_q_value_column = lqm,
                               log_fc_column = log2FC,
-                              q_val_thresh = 0.05,
+                              q_val_thresh = args$q_val_thresh,
                               formula_string = "analysis_type ~ comparison")
 
 
 for( format_ext in args$plots_format) {
-  file_name<-file.path(args$output_dir,paste0("volplot_gg_all.",format_ext))
-  captured_output<capture.output(
-ggsave(filename = file_name, plot = volplot_gg.all, width = 7.29, height = 6)
-    , type = "message"
-  )
+  file_name <- file.path(args$output_dir,paste0("volplot_gg_all.",format_ext))
+  captured_output <- capture.output(
+    ggsave(filename = file_name, plot = volplot_gg.all, width = 7.29, height = 6)
+    , type = "message" )
   logdebug(captured_output)
 }
-
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Count the number of up or down significnat differentially expressed proteins.")
 
-num_sig_de_genes <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.log.quant,
+num_sig_de_molecules <- printCountDeGenesTable(list_of_de_tables = list(myRes_rnorm.log.quant,
                                                                     myRes_rnorm.log.quant.ruv.r1),
                                            list_of_descriptions = list("No RUV",
                                                                            "RUV applied"),
                                            formula_string = "analysis_type ~ comparison")
 
-
-
 for( format_ext in args$plots_format) {
   file_name<-file.path(args$output_dir,paste0("num_de_genes_barplot.",format_ext))
   captured_output<-capture.output(
 ggsave(filename = file_name,
-       plot = num_sig_de_genes$plot,
+       plot = num_sig_de_molecules$plot,
        height = 10,
        width = 7)
     , type = "message"
@@ -703,10 +765,13 @@ ggsave(filename = file_name,
   logdebug(captured_output)
 }
 
-vroom::vroom_write(num_sig_de_genes$table,
+vroom::vroom_write(num_sig_de_molecules$table,
                    file.path(args$output_dir,
-                                    "num_significant_de_genes_all.tab"))
+                             "num_significant_differentially_abundant_all.tab"))
 
+writexl::write_xlsx(num_sig_da_molecules$table,
+                    file.path(args$output_dir,
+                              "num_significant_differentially_abundant_all.xlsx"))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Print p-values distribution figure")
@@ -758,9 +823,13 @@ de_proteins_wide <- selected_data %>%
 
 #logdebug(head(de_proteins_wide))
 
-vroom::vroom_write(de_proteins_wide, file.path(args$output_dir, paste0(args$file_prefix, "_wide.tsv")))
+vroom::vroom_write( de_proteins_wide,
+                    file.path( args$output_dir,
+                               paste0(args$file_prefix, "_wide.tsv")))
 
-
+writexl::write_xlsx( de_proteins_wide,
+                     file.path( args$output_dir,
+                                paste0(args$file_prefix, "_wide.xlsx")))
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Create long format output file")
 
@@ -819,12 +888,15 @@ de_proteins_long <- selected_data %>%
   arrange( comparison, q.mod, log2FC) %>%
   distinct()
 
-
 #head(de_proteins_long)
 
+vroom::vroom_write( de_proteins_long,
+                    file.path( args$output_dir,
+                               paste0(args$file_prefix, "_long.tsv")))
 
-vroom::vroom_write(de_proteins_long, file.path(args$output_dir, paste0(args$file_prefix, "_long.tsv")))
-
+writexl::write_xlsx( de_proteins_long,
+                     file.path( args$output_dir,
+                                paste0(args$file_prefix, "_long.xlsx")))
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 te<-toc(quiet = TRUE)

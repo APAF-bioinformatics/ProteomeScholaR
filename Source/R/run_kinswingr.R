@@ -50,7 +50,7 @@ parser <- add_option(parser, c("-d", "--debug"), action = "store_true", default 
 parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default = FALSE,
                      help = "Only print critical information to the console.")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "/home/ignatius/PostDoc/2021/Podocyte_2021/Source/Part_1/config_phos.ini",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "config.ini",
                      help = "Configuration file.",
                      metavar = "string")
 
@@ -82,6 +82,10 @@ parser <- add_option(parser, c( "--p_value_cutoff"), type = "double",
                      help = "The p-value cutoff for identifying a kinase as significant by KinSwingR",
                      metavar = "integer")
 
+parser <- add_option(parser, c( "--ggrepel_p_value_cutoff"), type = "double",
+                     help = "The p-value cutoff for showing the kinase name in the volcano plot",
+                     metavar = "integer")
+
 parser <- add_option(parser, c( "--kinase_specificity"), type = "character",
                      help = "Specificity of the kinase. One of Ser/Thr kinase= ST, Tyr kinase = Y, or Ser/Thr/Tyr kinase = STY",
                      metavar = "integer")
@@ -102,6 +106,19 @@ parser <- add_option(parser, "--uniprot_other_kinase_file", type="character",
                      help="File listing the UniProt accession of atypical and other kinases and their UniProt Keywords.",
                      metavar="string")
 
+
+parser <- add_option(parser, "--log_fc_column_name", type="character",
+                     help="Column name in the input file that contains the log fold-change values of the phosphosites.",
+                     metavar="string")
+
+parser <- add_option(parser,  "--taxonomy_id", type="integer", dest = "taxonomy_id",
+                     help="The NCBI taxonomy ID of the organism being investigated (e.g. M. musculus=10090, H. sapien=9606).",
+                     metavar="integer")
+
+parser <- add_option(parser, "--fdr_column_name", type="character",
+                     help="Column name in the input file that contains the false discovery rate values of the phosphosites.",
+                     metavar="string")
+
 parser <- add_option(parser, c("-o", "--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
@@ -111,6 +128,10 @@ parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", defa
 
 parser <- add_option(parser, c("-l", "--log_file"), type = "character", default = "output.log",
                      help = "Name of the logging file.",
+                     metavar = "string")
+
+parser <- add_option(parser, "--plots_format", type = "character",
+                     help = "A comma separated strings to indicate the fortmat output for the plots [pdf,png,svg].",
                      metavar = "string")
 
 #parse command line arguments first.
@@ -132,6 +153,13 @@ args <- parse_args(parser)
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "phos_kinase_substrate"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="phos_kinswingr" )
+
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -144,10 +172,7 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "phos_kinase_substrate"), args)
-}
+
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
@@ -165,7 +190,11 @@ testRequiredArguments(args, c(
   "uniprot_kinase_file",
   "norm_phos_logfc_file",
   "uniprot_other_kinase_file",
-  "output_dir"
+  "output_dir",
+  "p_value_cutoff",
+  "ggrepel_p_value_cutoff",
+  "plots_format",
+  "taxonomy_id"
 ))
 
 
@@ -176,12 +205,24 @@ testRequiredFiles(c( args$norm_phos_logfc_file,
 ))
 
 ## Set default values
+
+if(isArgumentDefined(args,"plots_format"))
+{
+  args <- parseList(args,
+                    c("plots_format"))
+}else {
+  logwarn("plots_format is undefined, default output set to pdf.")
+  args$plots_format <- list("pdf")
+}
+
 args <- setArgsDefault(args, "random_seed", as_func=as.integer, default_val=123456 )
 args <- setArgsDefault(args, "motif_score_iteration", as_func=as.integer, default_val=1000 )
 args <- setArgsDefault(args, "swing_iteration", as_func=as.integer, default_val=1000 )
 args <- setArgsDefault(args, "min_num_sites_per_kinase", as_func=as.integer, default_val=10 )
 args <- setArgsDefault(args, "num_cores", as_func=as.integer, default_val=1 )
-
+args <- setArgsDefault(args, "log_fc_column_name", as_func=as.character, default_val="norm_phos_logFC" )
+args <- setArgsDefault(args, "fdr_column_name", as_func=as.character, default_val="combined_q_mod" )
+args <- setArgsDefault(args, "p_value_cutoff", as_func=as.double, default_val=0.05 )
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -216,8 +257,8 @@ logdebug(captured_output)
 loginfo("Download information from UniProt.")
 uniprot_other_kinase_file<-file.path(args$tmp_dir,args$uniprot_other_kinase_file)
 if( ! file.exists( uniprot_other_kinase_file )) {
-
-  up <- UniProt.ws(taxId=9606 )
+  human_taxonomy_id <- 9606
+  up <- UniProt.ws(taxId=human_taxonomy_id)
   list_of_sp_columns <- c("EXISTENCE"
                           , "SCORE"
                           , "REVIEWED"
@@ -243,7 +284,7 @@ if( ! file.exists( uniprot_other_kinase_file )) {
 
   atypical_and_other <- batchQueryEvidence(uniprot_acc_tbl, uniprot_acc_column="uniprot_acc", uniprot_handle=up,
                                 uniprot_columns = list_of_sp_columns)
-  saveRDS( atypical_and_other, file.path(args$tmp_dir, uniprot_other_kinase_file))
+  saveRDS( atypical_and_other, file.path( uniprot_other_kinase_file))
 
 }
 
@@ -272,6 +313,22 @@ logdebug(captured_output)
 loginfo("Set number of cores for parallel computation.")
 register(SnowParam(workers = args$num_cores))
 
+## ---------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Check log fold-change and FDR column names exists in input file.")
+
+
+if ( ! args$log_fc_column_name %in% colnames(de_phos ) ) {
+  logerror("Column '%s' is not found in the input table.",args$log_fc_column_name )
+}
+
+if ( ! args$fdr_column_name %in% colnames(de_phos ) ) {
+  logerror("Column '%s' is not found in the input table.",args$fdr_column_name)
+}
+
+if(  ! args$log_fc_column_name %in% colnames(de_phos )  |
+     ! args$fdr_column_name %in% colnames(de_phos )  ) {
+  stop()
+}
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Filter the correct subset of kinases for the analysis.")
@@ -382,14 +439,17 @@ annotated_data_pre_residue_filter <- de_phos %>%
   dplyr::mutate( peptide_copy = peptide) %>%
   dplyr::filter(  !str_detect( peptide, "X"))   %>%
   dplyr::select(sites_id, comparison, uniprot_acc, gene_name, peptide, peptide_copy, position, residue,
-                norm_phos_logFC, combined_q_mod, is_multisite) %>%
+                one_of( c( as.character(args$log_fc_column_name), as.character(args$fdr_column_name))), is_multisite) %>%
   unite( annotation,  uniprot_acc, gene_name, position, peptide_copy , sep="|"  )
+
+
+annotated_data_pre_residue_filter %>% colnames()
 
 annotated_data <- annotated_data_pre_residue_filter %>%
   dplyr::filter(  str_detect(  args$kinase_specificity, residue )  )  %>%
   dplyr::filter( str_sub( peptide, 8, 8) == residue) %>%
-  dplyr::rename( fc = norm_phos_logFC,
-                 pval = combined_q_mod)
+  dplyr::rename( fc = args$log_fc_column_name,
+                 pval = args$fdr_column_name)
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Perform analysis of data from each contrast")
@@ -434,7 +494,10 @@ if(file.exists(file.path(rds_dir,  paste0("kinswingr_scores_list_", args$kinase_
   set.seed(args$random_seed )
   tic()
 
-  print( purrr::map_int(grouped_annotated_data$data, ~nrow(as.data.frame(.) )))
+  loginfo(paste( "Number of sites per contrast: ",
+                 paste( names(grouped_annotated_data$data), collapse=", "),
+                 paste( purrr::map_int(grouped_annotated_data$data, ~nrow(as.data.frame(.) )), collapse=", ") ) )
+
   scores_list <-  grouped_annotated_data %>%
     dplyr::mutate( pwms_scores = purrr::map( data, ~scoreSequences(input_data = as.data.frame(.),
                                                                    pwm_in = pwms,
@@ -583,6 +646,15 @@ compileKinswingerResults <- function( list_position ) {
     distinct( uniprot_acc) %>%
     mutate(is_kinase_phosphorylated = 1)
 
+  selected_columns <- intersect( colnames(de_phos),
+                                 c( "sites_id", "PROTEIN-NAMES", "reactome_term",
+                                "KINASE",
+                                "ON_FUNCTION",
+                                "ON_PROCESS",
+                                "ON_PROT_INTERACT",
+                                "ON_OTHER_INTERACT",
+                                "REG_SITES_NOTES"))
+
   selected_scores_list_help <- scores_list$pwms_scores[[list_position]]$peptide_p %>%
     pivot_longer( cols= !(contains("annotation") | contains("peptide")),
                   names_to="kinase",
@@ -598,30 +670,28 @@ compileKinswingerResults <- function( list_position ) {
                   dplyr::select( annotation, sites_id),
                 by=c("annotation" = "annotation")) %>%
     left_join( de_phos %>%
-                 dplyr::select( sites_id, `PROTEIN-NAMES`, reactome_term,
-                                KINASE,
-                                ON_FUNCTION,
-                                ON_PROCESS,
-                                ON_PROT_INTERACT,
-                                ON_OTHER_INTERACT,
-                                REG_SITES_NOTES ),
+                 dplyr::select( one_of( selected_columns ) ),
                by=c("sites_id" = "sites_id")) %>%
-    dplyr::mutate( kinase_copy = KINASE ) %>%
-    dplyr::rename( known_upstream_kinase = "kinase_copy") %>%
-    dplyr::rename( one_known_kinase = "KINASE") %>%
-    separate_rows( one_known_kinase , sep= "//")  %>%
-    dplyr::mutate( one_known_kinase = toupper(one_known_kinase) )  %>%
     left_join( phosphositeplus %>%
                  distinct( GENE, kinase), by=c("kinase" = "kinase") ) %>%
     dplyr::mutate( substrate_gene_name  = str_split(annotation, "\\|") %>% purrr::map_chr(2)) %>%
-    dplyr::mutate( prediction_match_known_kinase = case_when( kinase == one_known_kinase ~ TRUE,
-                                                              TRUE ~ FALSE) )  %>%
-    dplyr::select(-one_known_kinase) %>%
     left_join( uniprot_kinases %>%
                  dplyr::select(-KEYWORDS),
                by= c("GENE" = "gene_name")) %>%
     dplyr::rename( kinase_gene_name = "GENE") %>%
     distinct()
+
+  if( "KINASE" %in% selected_columns) {
+    selected_scores_list_help <- selected_scores_list_help %>%
+      dplyr::mutate( kinase_copy = KINASE ) %>%
+      dplyr::rename( known_upstream_kinase = "kinase_copy") %>%
+      dplyr::rename( one_known_kinase = "KINASE") %>%
+      separate_rows( one_known_kinase , sep= "//")  %>%
+      dplyr::mutate( one_known_kinase = toupper(one_known_kinase) )  %>%
+      dplyr::mutate( prediction_match_known_kinase = case_when( kinase == one_known_kinase ~ TRUE,
+                                                                TRUE ~ FALSE) )  %>%
+      dplyr::select(-one_known_kinase)
+  }
 
   ## Use mouse or human uniprot accession if it makes sense to do so.
   selected_scores_list <- selected_scores_list_help
@@ -635,29 +705,27 @@ compileKinswingerResults <- function( list_position ) {
       distinct()
   }
 
-
-
   return( selected_scores_list)
 }
 
 
 
 
-selected_scores_list <- purrr::map( seq_along(swing_out_list$comparison),
-             ~compileKinswingerResults(.))
+  selected_scores_list <- purrr::map( seq_along(swing_out_list$comparison),
+               ~compileKinswingerResults(.))
 
-names( selected_scores_list) <- swing_out_list$comparison
+  names( selected_scores_list) <- swing_out_list$comparison
 
 
 
-purrr::walk2( selected_scores_list,
-              swing_out_list$comparison,
-              ~vroom::vroom_write( .x,
-                                   file.path( args$output_dir,
-                                              paste0( "selected_kinase_substrate_",
-                                                      args$kinase_specificity, "_",
-                                                      .y ,
-                                                      ".tsv" )) ) )
+  purrr::walk2( selected_scores_list,
+                swing_out_list$comparison,
+                ~vroom::vroom_write( .x,
+                                     file.path( args$output_dir,
+                                                paste0( "selected_kinase_substrate_",
+                                                        args$kinase_specificity, "_",
+                                                        .y ,
+                                                        ".tsv" )) ) )
 
 
 
@@ -665,11 +733,12 @@ purrr::walk2( selected_scores_list,
 loginfo("Plot kinase-level volcano plot.")
 
 kinase_volcano_plot <- function(
-  x_label_name, # <- c("Patient - Healthy", "Patient - Untreated", "Unreated - Healthy")
+  x_label_name,
   kinase_type = "ST",
   list_position,
   brewer_pal_set = "Set1",
   p_value_threshold = 0.05,
+  ggrepel_p_value_cutoff = 0.05,
   n_cutoff = 10 ) {
 
   swing_scores_tbl <- swing_out_list$swing_result[[list_position]]$scores
@@ -680,42 +749,54 @@ kinase_volcano_plot <- function(
 
   my_colours <- brewer.pal(length(swing_out_list$comparison), brewer_pal_set)
 
-  swing_scores_tbl %>%
+
+  significance_tbl <- swing_scores_tbl %>%
     mutate( p_value = case_when( swing >=0 ~ p_greater,
                                  swing < 0 ~ p_less) ) %>%
     mutate( colour = case_when( p_value < p_value_threshold ~ "Significant",
                                 TRUE ~ "Not significant")) %>%
-    mutate(kinase_label = case_when( p_value < p_value_threshold  &
+    mutate( colour = factor( colour, levels=c(  "Not significant", "Significant") )) %>%
+    mutate( colour_vector = case_when( colour == "Not significant" ~ "grey",
+                                       colour == "Significant" ~ my_colours[list_position] ) )
+
+  scale_colour_vector <- significance_tbl %>%
+    arrange( colour) %>%
+    distinct( colour_vector) %>%
+    pull( colour_vector)
+
+  significance_tbl%>%
+    mutate(kinase_label = case_when( p_value < ggrepel_p_value_cutoff  &
                                        n > n_cutoff ~ kinase,
                                      TRUE ~ "")) %>%
-    ggplot( aes( x=swing, y = -log10(p_value), size=n , col=colour, label=kinase_label), alpha=0.5)  +
+    ggplot( aes( x=swing, y = -log10(p_value + .Machine$double.eps ), size=n , col=colour, label=kinase_label, alpha=0.5))  +
     theme_bw () +
     geom_point( ) +
-    scale_color_manual( values = c("grey", my_colours[list_position]), name="Is significant" ) +
+    scale_color_manual( values =scale_colour_vector , name="Is significant" ) +
     scale_size_continuous(name = "Num. substrates") +
     ylab( expression("Significance, -log"[10]*"(P)") ) +
     xlab( paste0( x_label_name[list_position], ", ", kinase_type_string)) +
     geom_hline(aes(yintercept = -log10(p_value_threshold)), linetype=3)  +
-    geom_text_repel( show.legend = FALSE, size = 3 )
+    geom_text_repel( show.legend = FALSE, size = 5 ) +
+    theme(text = element_text(size = 20))
 
 }
 
 partial_kinase_volcano_plot <-  partial( kinase_volcano_plot,
-           x_label_name = c("Patient - Healthy", "Patient - Untreated", "Unreated - Healthy"),
-           kinase_type = "ST",
+           x_label_name = swing_out_list$comparison,
+           kinase_type = args$kinase_specificity,
            p_value_threshold = args$p_value_cutoff,
-           n_cutoff = args$min_num_sites_per_kinase)
+           n_cutoff = args$min_num_sites_per_kinase,
+           ggrepel_p_value_cutoff = args$ggrepel_p_value_cutoff)
 
 kinase_volcano_plot <- purrr::map( seq_along(swing_out_list$comparison),
              ~partial_kinase_volcano_plot(list_position =.))
 
-purrr::walk2( kinase_volcano_plot, swing_out_list$comparison,
-              ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_volcano_plot_", args$kinase_specificity, "_",  .y, ".pdf" )),
-                       plot=.x) )
+for( format_ext in args$plots_format) {
+  purrr::walk2( kinase_volcano_plot, swing_out_list$comparison,
+                ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_volcano_plot_", args$kinase_specificity, "_",  .y, ".", format_ext )),
+                         plot=.x) )
 
-
-## ----------------------------------------------------------------------------------------------------------------------------------------
-#kinase_volcano_plot
+}
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
@@ -724,7 +805,8 @@ plotAvgLogfcKnownSites <- function( list_position,
                                     y_label_name,
                                     brewer_pal_set= "Set1",
                                     kinase_type,
-                                    p_value_cutoff = 0.05) {
+                                    p_value_cutoff = 0.05,
+                                    ggrepel_p_value_cutoff = 0.05) {
 
   kinase_type_string <- case_when( kinase_type == "ST" ~ "predicted Ser/Thr PK activity",
                             kinase_type == "Y" ~ "predicted Tyr PK activity",
@@ -736,18 +818,21 @@ plotAvgLogfcKnownSites <- function( list_position,
 
   fc_pval_tab <- scores_list$data[[list_position]]
 
-  up_or_down_kinases <- swing_out_list$swing_result[[list_position]]$scores
+  up_or_down_kinases <- swing_out_list$swing_result[[list_position]]$scores %>%
+    dplyr::filter(  p_greater < p_value_cutoff | p_less < p_value_cutoff )
 
   motif_score_table <- scores_list$pwms_scores[[list_position]]$peptide_scores %>%
     pivot_longer( cols= !(contains("annotation") | contains("peptide")),
                   names_to="kinase",
                   values_to = "motif.score")
 
-  selected_scores_list <- scores_list$pwms_scores[[list_position]]$peptide_p %>%
+   peptide_p_long_tbl <- scores_list$pwms_scores[[list_position]]$peptide_p %>%
     pivot_longer( cols= !(contains("annotation") | contains("peptide")),
                   names_to="kinase",
-                  values_to = "motif.p.value") %>%
-    left_join( motif_score_table, by=c("annotation" = "annotation",
+                  values_to = "motif.p.value")
+
+  selected_scores_list <- peptide_p_long_tbl %>%
+     left_join( motif_score_table, by=c("annotation" = "annotation",
                                        "peptide" = "peptide",
                                        "kinase" = "kinase")) %>%
     inner_join( up_or_down_kinases, by=c( "kinase" = "kinase")) %>%
@@ -769,48 +854,55 @@ plotAvgLogfcKnownSites <- function( list_position,
                median_fc = median(fc),
                total_fc = sum(fc),
                counts = n()) %>%
-    ungroup
+    ungroup %>%
+    dplyr::filter( counts >= 5 )
 
   avg_logfc_vs_swing_score_plot <- avg_logfc_vs_swing_score %>%
-    dplyr::filter( counts >= 5 | p_greater < p_value_cutoff | p_less < p_value_cutoff )  %>%
     mutate( colour = case_when( ( p_greater < p_value_cutoff |
                                   p_less < p_value_cutoff ) ~ "Significant",
                                 TRUE ~ "Not significant" )) %>%
     dplyr::mutate( my_kinase = case_when( counts >= 10 |
-                                            ( p_greater < p_value_cutoff |
-                                              p_less < p_value_cutoff ) ~ kinase,
+                                            ( p_greater < ggrepel_p_value_cutoff |
+                                              p_less < ggrepel_p_value_cutoff ) ~ kinase,
                                           TRUE ~ "") ) %>%
-    ggplot(aes( y = avg_fc, x = swing, label = my_kinase, size = counts,  color=colour ), alpha=0.5) +
+    ggplot(aes( y = avg_fc, x = swing, label = my_kinase, size = counts,  color=colour, alpha=0.5 )) +
     geom_point() +
-    geom_text_repel(show.legend = FALSE, size = 3) +
+    geom_text_repel(show.legend = FALSE, size = 5) +
     scale_color_manual( values = c("grey", my_colours[list_position]), name="Is significant" ) +
-    ylab( paste0(y_label_name[list_position], ", ", expression(  "av. Substrate log[2](intensity) difference") ) ) +
-    xlab( paste0( y_label_name[list_position], ", ", kinase_type_string))
+    ylab( substitute( paste(a , ", Mean substrate log"[2],"(intensity) difference"), list(a=y_label_name[list_position]) ) ) +
+    xlab( paste0( y_label_name[list_position], ", ", kinase_type_string)) +
+    theme(text = element_text(size = 20))
 
   return( avg_logfc_vs_swing_score_plot)
 }
 
+# scores_list <- readRDS( "/home/ignatius/PostDoc/2021/Tautomycetin_2021/Results/phos_kinswingr_ST_exp1/kinswingr_scores_list_ST.RDS" )
+# swing_out_list <- readRDS( "/home/ignatius/PostDoc/2021/Tautomycetin_2021/Results/phos_kinswingr_ST_exp1/kinswingr_swing_out_list_ST.RDS" )
 
-partial_plotAvgLogfcKnownSites <-  partial( plotAvgLogfcKnownSites,
-           y_label_name = c("Patient - Healthy", "Patient - Untreated", "Unreated - Healthy"),
-            brewer_pal_set= "Set1",
-           kinase_type = args$kinase_specificity,
-           p_value_cutoff = args$p_value_cutoff)
-
-
-kinase_avg_logfc <- purrr::map( seq_along(swing_out_list$comparison),
-                                ~partial_plotAvgLogfcKnownSites(.) )
+## Do this only if the species is Human or Mouse
+if( args$taxonomy_id %in% c(9060, 10090) ) {
 
 
-purrr::walk2( kinase_avg_logfc, swing_out_list$comparison,
-              ~ggsave( filename=file.path(args$output_dir, paste0(  "kinase_avg_logfc_of_known_sites_", args$kinase_specificity, "_",  .y, ".pdf" )),
-                       plot=.x) )
+  partial_plotAvgLogfcKnownSites <-  partial( plotAvgLogfcKnownSites,
+                                              y_label_name = swing_out_list$comparison,
+                                              brewer_pal_set= "Set1",
+                                              kinase_type = args$kinase_specificity,
+                                              p_value_cutoff = args$p_value_cutoff,
+                                              ggrepel_p_value_cutoff = args$ggrepel_p_value_cutoff)
 
 
+  kinase_avg_logfc <- purrr::map( seq_along(swing_out_list$comparison),
+                                  ~partial_plotAvgLogfcKnownSites(.) )
 
-## ----------------------------------------------------------------------------------------------------------------------------------------
-  colnames(de_phos )
-
+  for( format_ext in args$plots_format) {
+    purrr::walk2( kinase_avg_logfc, swing_out_list$comparison,
+                  ~ggsave( filename=file.path(args$output_dir,
+                                              paste0( "kinase_avg_logfc_of_known_sites_",
+                                                      args$kinase_specificity, "_", .y,
+                                                      ".", format_ext )),
+                           plot=.x) )
+  }
+}
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
@@ -822,5 +914,9 @@ te<-toc(quiet = TRUE)
 loginfo("%f sec elapsed",te$toc-te$tic)
 writeLines(capture.output(sessionInfo()), file.path(args$output_dir,"sessionInfo.txt"))
 
-
-
+# y_label_name <- c("hello")
+# list_position <- 1
+# iris %>%
+# ggplot( aes(x=Petal.Width, y=Sepal.Length)) +
+#   geom_point() +
+#   labs (title = substitute( paste(a , ", Mean substrate log"[2],"(intensity) difference"), list(a=y_label_name[list_position]) ) )

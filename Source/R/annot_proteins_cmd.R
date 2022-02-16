@@ -55,11 +55,11 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.")
 
-parser <- add_option(parser, c("-c", "--config"), type = "character", default = "", dest = "config",
+parser <- add_option(parser, c("-c", "--config"), type = "character", default = "config.ini", dest = "config",
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o", "--output_dir"), type = "character", default = "annot_proteins", dest = "output_dir",
+parser <- add_option(parser, c("-o", "--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -111,6 +111,13 @@ parser <- add_option(parser,  "--uniprot_file", type="character",  dest = "unipr
 #parse comand line arguments first.
 args <- parse_args(parser)
 
+#parse and merge the configuration file options.
+if (args$config != "") {
+   args <- config.list.merge(eval.config(file = args$config, config = "annot_proteins"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="annot_proteins" )
+
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -122,11 +129,6 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
-
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "annot_proteins"), args)
-}
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
@@ -335,6 +337,22 @@ de_proteins_longer_annot <- de_proteins_longer %>%
   distinct()
 
 vroom::vroom_write(de_proteins_longer_annot, file.path(args$output_dir,args$output_long_file ) )
+
+list_of_long_columns <- intersect(colnames(de_proteins_longer_annot), c("protein_names",
+                                                                        "ENSEMBL",
+                                                                        "PROTEIN-NAMES",
+                                                                        "KEYWORDS",
+                                                                        "GO-ID",
+                                                                        "go_biological_process",
+                                                                        "go_cellular_compartment",
+                                                                        "go_molecular_function",
+                                                                        "reactome_term",
+                                                                        "majority_protein_ids") )
+
+writexl::write_xlsx(de_proteins_longer_annot %>%
+                      mutate_at( list_of_long_columns, ~substr(., 1, 32760) ),
+                    file.path(args$output_dir, str_replace(args$output_long_file, "\\..*", ".xlsx")  ) )
+
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 te<-toc(quiet = TRUE)

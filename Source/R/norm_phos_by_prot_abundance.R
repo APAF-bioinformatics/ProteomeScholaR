@@ -58,7 +58,7 @@ parser <- add_option(parser, c("-c","--config"), type = "character", default = "
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "norm_phos_by_prot_abundance", dest = "output_dir",
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -86,6 +86,12 @@ parser <- add_option(parser, "--plots_format", type = "character",
 #parse comand line arguments first.
 args <- parse_args(parser)
 
+#parse and merge the configuration file options.
+if (args$config != "") {
+  args <- config.list.merge(eval.config(file = args$config, config = "norm_phos_by_prot_abundance"), args)
+}
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="norm_phos_by_prot_abundance" )
 
 createOutputDir(args$output_dir, args$no_backup)
 createDirectoryIfNotExists(args$tmp_dir)
@@ -98,10 +104,6 @@ addHandler(writeToFile, file = file.path(args$output_dir, args$log_file), format
 level <- ifelse(args$debug, loglevels["DEBUG"], loglevels["INFO"])
 setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 
-#parse and merge the configuration file options.
-if (args$config != "") {
-  args <- config.list.merge(eval.config(file = args$config, config = "norm_phos_by_prot_abundance"), args)
-}
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
@@ -143,14 +145,30 @@ phospho_tbl_orig <- vroom::vroom(args$phospho_file)
 logdebug(captured_output)
 
 
+list_of_phospho_columns <- c("sites_id",
+                             "uniprot_acc",
+                             "gene_name",
+                             "position",
+                             "residue",
+                             "sequence",
+                             "q.mod",
+                             "fdr.mod",
+                             "p.mod",
+                             "log2FC",
+                             "comparison",
+                             "maxquant_row_ids")
+
+if( ! "fdr.mod" %in% colnames( phospho_tbl_orig )) {
+  list_of_phospho_columns <- list_of_phospho_columns[list_of_phospho_columns != "fdr.mod"]
+}
+
+
 phospho_tbl <- phospho_tbl_orig %>%
-  dplyr::select(sites_id, q.mod, p.mod, log2FC, comparison, maxquant_row_ids) %>%
-  mutate( phosphosites_id_copy = sites_id ) %>%
-  separate(phosphosites_id_copy, sep="!", into=c("uniprot_acc", "gene_symbol", "positions", "peptide")) %>%
+  dplyr::select( one_of(list_of_phospho_columns)) %>%
   dplyr::rename( phos_maxquant_row_ids = "maxquant_row_ids" )
 
 phospho_cln <- phospho_tbl %>%
-  separate_rows(uniprot_acc, sep="[\\:;]")
+  separate_rows(uniprot_acc, position, residue, sequence, sep=":")
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -162,18 +180,29 @@ captured_output<-capture.output(
 logdebug(captured_output)
 
 
+list_of_prot_columns <- c("uniprot_acc",
+                          "q.mod",
+                          "fdr.mod",
+                          "p.mod",
+                          "log2FC",
+                          "comparison",
+                          "maxquant_row_id")
+
+if( ! "fdr.mod" %in% colnames( proteins_tbl_orig )) {
+  list_of_prot_columns <- list_of_prot_columns[list_of_prot_columns != "fdr.mod"]
+}
+
+
 proteins_tbl <- proteins_tbl_orig %>%
-  dplyr::select( uniprot_acc, q.mod, p.mod, log2FC, comparison, maxquant_row_id) %>%
+  dplyr::select( one_of(list_of_prot_columns) ) %>%
   dplyr::rename( prot_maxquant_row_ids = "maxquant_row_id")
 
 proteins_cln <- proteins_tbl  %>%
-  mutate( uniprot_acc_copy = uniprot_acc) %>%
-  separate_rows(uniprot_acc_copy, sep="[\\:;]")
-
+  separate_rows(uniprot_acc,   sep=":")
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc_copy) %>% pull(uniprot_acc_copy)
+proteins_uniprot_list <- proteins_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
 phospho_uniprot_list <- phospho_cln %>% distinct(uniprot_acc) %>% pull(uniprot_acc)
 prot_phos_uniprot_list <- intersect( proteins_uniprot_list,
            phospho_uniprot_list )
@@ -182,49 +211,82 @@ logdebug(proteins_uniprot_list %>% length())
 logdebug(phospho_uniprot_list %>% length())
 logdebug(prot_phos_uniprot_list %>% length())
 
-
-
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo( "Normalisation of the phosphopeptide abundance with the protein abundance.")
 basic_data_shared <- proteins_cln %>%
-  inner_join( phospho_cln, by=c("uniprot_acc_copy" = "uniprot_acc",
+  inner_join( phospho_cln, by=c("uniprot_acc" = "uniprot_acc",
                                 "comparison" = "comparison"), suffix=c(".phos", ".prot") ) %>%
   mutate( norm_phos_logFC = log2FC.phos - log2FC.prot) %>%
   mutate( adj_qmod.prot  = ifelse(sign(q.mod.phos)  ==  sign(q.mod.prot), 1-q.mod.prot,  q.mod.prot  )) %>%
   mutate( combined_q_mod = 1-pchisq(-2*( log(q.mod.phos) + log(adj_qmod.prot)   ), 2*2 )  ) %>%
-  dplyr::mutate( status  = "Phos_and_Prot") %>%
-  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc,  log2FC.phos, q.mod.phos,  log2FC.prot, q.mod.prot, status, phos_maxquant_row_ids, prot_maxquant_row_ids )   %>%
+  dplyr::mutate( status  = "Phos_and_Prot")
+
+if( "fdr.mod" %in% colnames( proteins_cln ) &
+    "fdr.mod" %in% colnames( phospho_cln ) ) {
+  basic_data_shared <- basic_data_shared %>%
+    mutate( adj_fdrmod.prot  = ifelse(sign(fdr.mod.phos)  ==  sign(fdr.mod.prot), 1-fdr.mod.prot,  fdr.mod.prot  )) %>%
+    mutate( combined_fdr_mod = 1-pchisq(-2*( log(fdr.mod.phos) + log(adj_fdrmod.prot)   ), 2*2 )  )  %>%
+    dplyr::select(-adj_fdrmod.prot)
+}
+
+list_of_data_shared_columns <- c( "comparison",  "norm_phos_logFC", "combined_q_mod", "combined_fdr_mod", "sites_id",
+                                  "uniprot_acc", "position", "residue", "sequence",
+                                  "log2FC.phos", "q.mod.phos", "fdr.mod.phos",
+                                  "log2FC.prot", "q.mod.prot", "fdr.mod.prot",
+                                  "status", "phos_maxquant_row_ids", "prot_maxquant_row_ids" )
+
+if( ! "combined_fdr_mod" %in% colnames( basic_data_shared )) {
+
+  list_of_data_shared_columns <- list_of_data_shared_columns[ !list_of_data_shared_columns %in% c( "combined_fdr_mod", "fdr.mod.phos", "q.mod.prot")]
+}
+
+basic_data_shared <- basic_data_shared %>%
+  dplyr::select(one_of(list_of_data_shared_columns))   %>%
   arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
   distinct() %>%
   as.data.frame
 
 basic_data_phospho_only <- phospho_cln %>%
-  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc_copy" ,
+  anti_join( proteins_cln, by=c( "uniprot_acc" = "uniprot_acc" ,
                                 "comparison" = "comparison") )  %>%
+  anti_join( basic_data_shared, by=c("sites_id" = "sites_id")) %>%
   dplyr::mutate(norm_phos_logFC =  log2FC, combined_q_mod = q.mod) %>%
   dplyr::rename( log2FC.phos= log2FC, q.mod.phos = q.mod ) %>%
-  dplyr::mutate( status  = "Phos_Only")%>%
-  dplyr::select(comparison,  norm_phos_logFC, combined_q_mod, sites_id, uniprot_acc, log2FC.phos, q.mod.phos, status, phos_maxquant_row_ids)    %>%
+  dplyr::mutate( status  = "Phos_Only")
+
+if( "fdr.mod" %in% colnames( proteins_cln ) &
+    "fdr.mod" %in% colnames( phospho_cln ) ) {
+  basic_data_phospho_only <- basic_data_phospho_only %>%
+    dplyr::rename(  fdr.mod.phos = fdr.mod )
+}
+
+list_of_phospho_only_columns <- c( "comparison", "norm_phos_logFC", "combined_q_mod", "sites_id", "uniprot_acc", "position", "residue", "sequence",
+"log2FC.phos", "q.mod.phos", "fdr.mod.phos", "status", "phos_maxquant_row_ids" )
+
+if( ! "combined_fdr_mod" %in% colnames( basic_data_shared )) {
+
+  list_of_phospho_only_columns <- list_of_phospho_only_columns[ !list_of_phospho_only_columns %in% c( "combined_fdr_mod", "fdr.mod.phos")]
+}
+
+basic_data_phospho_only <- basic_data_phospho_only %>%
+  dplyr::select(one_of( list_of_phospho_only_columns ))    %>%
   arrange(comparison, combined_q_mod, norm_phos_logFC ) %>%
   distinct() %>%
   as.data.frame
 
-basic_data <- basic_data_shared %>%
-  bind_rows(basic_data_phospho_only)
+basic_data <- basic_data_shared  %>%
+  bind_rows(basic_data_phospho_only )
 
- if (nrow(basic_data) != nrow(phospho_cln)){
-   logwarning("nrow(basic_data) != nrow(phospho_cln)")
+ if (nrow(basic_data %>% distinct(sites_id)) != nrow(phospho_cln %>% distinct(sites_id))){
+   logwarn("nrow(basic_data) != nrow(phospho_cln)")
  }
 
-
 vroom::vroom_write( basic_data, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_basic.tsv"))
-
-
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Join normalized phosphopeptide abundance table with phosphosite annotations")
 annotation_from_phospho_tbl <- phospho_tbl_orig %>%
-  dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc)
+  dplyr::select(-q.mod, -p.mod, -log2FC, -uniprot_acc,  -position, -residue, -sequence)
 
 annotated_phos_tbl <- basic_data %>%
   left_join( annotation_from_phospho_tbl, by=c("sites_id" = "sites_id",
@@ -237,6 +299,25 @@ annotated_phos_tbl <- basic_data %>%
 
 
 vroom::vroom_write( annotated_phos_tbl, file.path( args$output_dir,  "norm_phosphosite_lfc_minus_protein_lfc_annotated.tsv"))
+
+
+list_of_long_columns <- intersect(colnames(annotated_phos_tbl), c("protein_names",
+                                                                        "ENSEMBL",
+                                                                        "PROTEIN-NAMES",
+                                                                        "KEYWORDS",
+                                                                        "GO-ID",
+                                                                        "go_biological_process",
+                                                                        "go_cellular_compartment",
+                                                                        "go_molecular_function",
+                                                                        "reactome_term",
+                                                                        "majority_protein_ids") )
+
+
+writexl::write_xlsx(annotated_phos_tbl %>%
+                      mutate_at( list_of_long_columns, ~substr(., 1, 32760) ),
+                    file.path(args$output_dir, "norm_phosphosite_lfc_minus_protein_lfc_annotated.xlsx")  )
+
+
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Compare before and after normalization with protein abundance")
@@ -282,8 +363,24 @@ for( format_ext in args$plots_format) {
   logdebug(captured_output)
 }
 
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+loginfo("Count num. differentiall abundant phosphosites after normalization by protein abundance.")
 
+output_counts_tbl <- annotated_phos_tbl %>%
+   dplyr::select( comparison, norm_phos_logFC, combined_q_mod) %>%
+   group_by(comparison) %>%
+   nest( data = c( norm_phos_logFC, combined_q_mod) ) %>%
+   ungroup %>%
+   mutate( counts = purrr::map( data, function(x) {    countStatDeGenes(x, lfc_thresh = 0,
+                                                                        q_val_thresh = 0.05,
+                                                                        log_fc_column = norm_phos_logFC,
+                                                                        q_value_column = combined_q_mod )}   )  ) %>%
+  dplyr::select(-data) %>%
+  unnest(counts)
 
+ vroom::vroom_write(output_counts_tbl,
+                    file.path(args$output_dir,
+                              "num_sig_diff_abundant_norm_phosphosites.tab"))
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 loginfo("Create Volcano Plot")
 qm.threshold <- 0.05
