@@ -51,11 +51,11 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.")
 
-parser <- add_option(parser, c("-c","--config"), type = "character", default = "", dest = "config",
+parser <- add_option(parser, c("-c","--config"), type = "character", default = "config.ini", dest = "config",
                      help = "Configuration file.",
                      metavar = "string")
 
-parser <- add_option(parser, c("-o","--output_dir"), type = "character", default = "clean_proteins", dest = "output_dir",
+parser <- add_option(parser, c("-o","--output_dir"), type = "character", dest = "output_dir",
                      help = "Directory path for all results files.",
                      metavar = "string")
 
@@ -122,6 +122,8 @@ setLevel(level = ifelse(args$silent, loglevels["ERROR"], level))
 if (args$config != "") {
   args <- config.list.merge(eval.config(file = args$config, config = "clean_proteins"), args)
 }
+
+args <- setArgsDefault(args, "output_dir", as_func=as.character, default_val="de_analysis" )
 
 cmriWelcome("ProteomeRiver", c("Ignatius Pang", "Pablo Galaviz"))
 loginfo("Reading configuration file %s", args$config)
