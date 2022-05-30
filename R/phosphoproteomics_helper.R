@@ -415,6 +415,8 @@ filterByScoreAndGetSimilarPeptides <- function(get_15_mer_tbl, site_prob_thresho
 allPhosphositesPivotLonger <- function(get_15_mer_tbl,
                                        additional_cols = c("experiment"),
                                        col_pattern = "Reporter intensity corrected",
+                                       pattern_suffix = "_\\d+",
+                                       extract_patt_suffix="_(\\d+)",
                                        phospho_site_prob_col = phospho_sty_probabilities,
                                        num_phospho_site_col = phospho_sty
                                            ) {
@@ -430,15 +432,19 @@ allPhosphositesPivotLonger <- function(get_15_mer_tbl,
 
   all_sites_long <- get_15_mer_tbl %>%
     dplyr::select( {{cols_to_use}},
-                   matches( paste0(janitor::make_clean_names(col_pattern), "_\\d+" ), perl = TRUE) ) %>%
-    pivot_longer( cols = matches(c( paste0(janitor::make_clean_names(col_pattern), "_\\d+" )), perl = TRUE) ,
+                   matches( paste0(tolower(col_pattern), pattern_suffix ), perl = TRUE) ) %>%
+    pivot_longer( cols = matches(c( paste0(tolower(col_pattern), pattern_suffix )), perl = TRUE) ,
                   names_to = "replicate",
-                  values_to = "value") %>%
-    dplyr::mutate( replicate = str_replace(replicate,
-                                           paste0(janitor::make_clean_names(col_pattern), "_(\\d+)" ),
-                                           "\\1") %>%
-                     map_int(as.integer) ) %>%
-    mutate( value = value )
+                  values_to = "value")
+
+  if ( extract_patt_suffix != "") {
+    all_sites_long <- all_sites_long %>%
+      dplyr::mutate( replicate = str_replace(replicate,
+                                             paste0(tolower(col_pattern), extract_patt_suffix ),
+                                             "\\1") %>%
+                       map_int(as.integer) )
+  }
+
 
   return(all_sites_long)
 }
