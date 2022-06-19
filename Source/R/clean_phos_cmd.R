@@ -51,7 +51,7 @@ parser <- add_option(parser, c("-s", "--silent"), action = "store_true", default
 parser <- add_option(parser, c("-n", "--no_backup"), action = "store_true", default = FALSE,
                      help = "Deactivate backup of previous run.")
 
-parser <- add_option(parser, c("-c","--config"), type = "character", default = "", dest = "config",
+parser <- add_option(parser, c("-c","--config"), type = "character", default = "/home/ignatius/PostDoc/2022/MultiPhos2022/Source/Desch_2021/config_phos.ini", dest = "config",
                      help = "Configuration file.",
                      metavar = "string")
 
@@ -92,6 +92,14 @@ parser <- add_option(parser, "--col_pattern_string", type="character", dest = "c
                      help="String pattern that matches the abundance data columns. It also facilitate the ID of the sample to be extracted.",
                      metavar="string")
 
+parser <- add_option(parser, "--pattern_suffix", type = "character", dest = "pattern_suffix",
+                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
+                     metavar = "string")
+
+parser <- add_option(parser, "--extract_patt_suffix", type = "character", dest = "extract_patt_suffix",
+                     help = "Regular expression pattern to identify columns with abundance values belonging to the experiment. [default %default]",
+                     metavar = "string")
+
 parser <- add_option(parser, "--add_cols_string", type="character", dest = "add_cols_string",
                      help="A string listing all the additional columns to be included (e.g. experiment group column). Each column is separated by a comma.",
                      metavar="string")
@@ -126,6 +134,9 @@ for (v in names(args))
 }
 loginfo("----------------------------------------------------")
 
+args <- setArgsDefault(args, "pattern_suffix", as_func=as.character, default_val="_\\d+" )
+args <- setArgsDefault(args, "extract_patt_suffix", as_func=as.character, default_val="_\\d+" )
+
 
 testRequiredArguments(args, c(
   "fasta_file"
@@ -149,13 +160,15 @@ args<-parseType(args,
 args<-parseString(args,
   c("add_cols_string"
     ,"col_pattern_string"
+    ,"pattern_suffix"
+    ,"extract_patt_suffix"
   ))
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 additional_cols <- str_split(  args$add_cols_string, ",")[[1]]
-col_pattern <- janitor::make_clean_names( args$col_pattern_string)
+col_pattern <-  tolower(args$col_pattern_string)  # janitor::make_clean_names( args$col_pattern_string)
 
 captured_output<-capture.output(
   evidence_tbl <- vroom::vroom( args$raw_counts_file)
@@ -180,7 +193,6 @@ if(!file.exists( file.path( fasta_meta_file))) {
   aa_seq_tbl <- readRDS( file.path( fasta_meta_file))
 }
 
-
 ## Add the row id column and create a column containing the cleaned  peptide
 loginfo("Get row ID and get cleaned peptide sequence.")
 evidence_tbl_cleaned <- addColumnsToEvidenceTbl(evidence_janitor )
@@ -201,9 +213,6 @@ logdebug(captured_output)
 loginfo("Remove peptides without abundance values at all")
 evidence_tbl_filt <- removePeptidesWithoutAbundances(evidence_tbl_cleaned, col_pattern)
 
-
-
-
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## For all the multi-phosphosites peptide extract their intensity, filter peptide with no intensity across all samples, extract site probabilities
 loginfo("Filter peptides with no intensity across all samples, extract intensity data, extract sites")
@@ -213,8 +222,6 @@ sites_probability_tbl <- filterPeptideAndExtractProbabilities (evidence_tbl_filt
                                                                accession_col = leading_proteins,
                                                                phospho_site_prob_col = phospho_sty_probabilities,
                                                                num_phospho_site_col = phospho_sty )
-
-
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Get the peptide start and end position for each peptide
@@ -240,7 +247,9 @@ get_15_mer_tbl_filt <- filterByScoreAndGetSimilarPeptides(get_15_mer_tbl,
 loginfo("Pivot phosphosites/phosphopeptide table to long format")
 all_phos_sites_long_tbl <- allPhosphositesPivotLonger(get_15_mer_tbl_filt,
                                                       additional_cols ,
-                                                      col_pattern  )
+                                                      col_pattern,
+                                                      pattern_suffix = args$pattern_suffix,
+                                                      extract_patt_suffix=args$extract_patt_suffix)
 
 ## Group peptides from paralog proteins
 loginfo("Group peptides from paralog proteins ")
@@ -261,14 +270,11 @@ loginfo("Summarise abundance values for each unique phosphosites, wide format")
 summarised_wide_tbl_list <- uniquePhosphositesSummariseWideList(summarised_long_tbl_list,
                                                                 additional_cols)
 
-
-
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 results_list  <- list( summarised_wide_list = summarised_wide_tbl_list,
                 summarised_long_list = summarised_long_tbl_list,
                 all_phos_sites_wide  = all_phos_sites_wide_tbl,
                 all_phos_sites_long  = all_phos_sites_long_tbl )
-
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 output_files <- map_chr( list(  "mean", "median", "sum"),
@@ -287,6 +293,11 @@ saveRDS( results_list$summarised_long_list,
 saveRDS( results_list$summarised_wide_list,
          file.path(args$output_dir, "summarised_wide_tbl_list.RDS" ))
 
+## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+sample_names_file<-file.path(args$output_dir, "sample_names.tab")
+loginfo("Save the sample names to %s", "sample_names.tab")
+sample_names <- colnames(results_list$summarised_wide_list)[c(-1,-2)]
+vroom::vroom_write(data.frame( sample_names=t(t(sample_names) ) ), sample_names_file)
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
