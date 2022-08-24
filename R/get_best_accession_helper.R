@@ -160,8 +160,8 @@ chooseBestAccession <- function(input_tbl, acc_detail_tab, accessions_column, gr
 
   my_group_id <- enquo(group_id)
 
-  join_names <- set_names( c(quo_name(my_group_id), "ranking", "gene_name" ) ,
-                           c(quo_name(my_group_id), "ranking", "gene_name" ) )
+  join_names <- set_names( c(as_name(my_group_id), "ranking", "gene_name" ) ,
+                           c(as_name(my_group_id), "ranking", "gene_name" ) )
 
   group_gene_names_and_uniprot_accs <- score_isoforms %>%
     distinct( {{group_id}}, gene_name, ranking ) %>%
