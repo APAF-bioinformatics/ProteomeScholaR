@@ -41,6 +41,29 @@ clean_phos_cmd.R \
  --add-columns="experiment"
 ```
 
+## Annotations Download Procedures (keep here for now)
+
+## Download UniProt data table
+wget -O data.xml.gz "https://rest.uniprot.org/uniprotkb/stream?compressed=true&download=true&format=xml&query=%28%28proteome%3AUP000005640%29%29"
+# stream?compressed=true&download=true&format=xml&query=((proteome:UP000005640))
+gunzip ata.xml.gz
+mv data data.xml
+tail -n +2 data.xml > data_updated.xml
+# cd /home/ignatius/PostDoc/2022/Embryology_BMP_14/Source/UniProt
+## Edit the parameters in python file
+python /home/ignatius/PostDoc/2021/proteomeriver/Source/Python/parse_go_terms.py "/home/ignatius/PostDoc/2022/pml_apex_tony_cesare_pml_20220822/Data/UniProt/data_updated.xml" \
+ '/home/ignatius/PostDoc/2022/pml_apex_tony_cesare_pml_20220822/Results/UniProt/go_terms_table_python_all.tab'
+wget -O data.tab.gz  "https://rest.uniprot.org/uniprotkb/stream?compressed=true&download=true&fields=accession%2Cid%2Corganism_id%2Creviewed%2Cannotation_score%2Cprotein_name%2Cgene_names%2Clength%2Ckeyword&format=tsv&query=%28%28proteome%3AUP000005640%29%29"
+gunzip data.tab.gz
+mv data data.tab
+
+## Download Reactome
+/home/ignatius/PostDoc/2021/proteomeriver/Source/R/download_reactome_table.R
+
+## Download KEGG 
+ /home/ignatius/PostDoc/2021/proteomeriver/Source/Rmd/retrive_kegg_annotation.Rmd
+
+
 ## History
 
 * First release 01/10/2021.
