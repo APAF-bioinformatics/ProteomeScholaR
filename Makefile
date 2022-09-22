@@ -73,6 +73,8 @@ install:intro setdirs
 	@$(REXEC) CMD INSTALL -l $(RLIB) ./
 	@cp -r $(SCRIPTS)/R/* $(PREFIX)/$(PROJECT)/Source/R
 	@chmod +x $(PREFIX)/$(PROJECT)/Source/R/*
+	@cp -r $(SCRIPTS)/Python/* $(PREFIX)/$(PROJECT)/Source/Python
+	@chmod +x $(PREFIX)/$(PROJECT)/Source/Python/*
 	@cp -r $(TEST)/* $(PREFIX)/$(PROJECT)/test/
 	@echo '	'
 	@echo 'append $(PREFIX)/$(PROJECT)/Source/R to your PATH environment variable'
