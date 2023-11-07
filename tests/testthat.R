@@ -106,3 +106,11 @@ for ( i in seq_along(positions) ) {
 
 #purrr::walk(  positions, list_of_15_mers,  test_function  )
 
+
+##--------
+context("formatPhosphositePosition")
+
+test_that ( "Test formatPhosphositePosition 1", {expect_that(formatPhosphositePosition( "MFG1", "(1986)|(1998)|(2010)	", "S"), equals("MFG1:S1986")) })
+test_that (  "Test formatPhosphositePosition 2", {expect_that(formatPhosphositePosition( "MFG1", "1082;1087", "S;Y"), equals("MFG1:S1082,Y1087")) })
+
+##--------
