@@ -49,7 +49,7 @@ installProteomeScholaR <- function(verbose = TRUE) {
     # Install package
     devtools::install_github(
         "APAF-BIOINFORMATICS/ProteomeScholaR",
-        ref = "vers-0.9",
+        ref = "main",
         dependencies = TRUE,
         upgrade = "never",
         force = TRUE
