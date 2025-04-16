@@ -63,7 +63,7 @@ This section establishes the directory structure for your project. Setting up a 
 ## This section sets up the project directory structure for ProteomeScholaR
 ## Directory management can be challenging, particularly when managing objects
 ## across multiple chunks within a single R Markdown document.
-experiment_label <- "" # NB this will affect directory structure and name of your experiment downstream
+experiment_label <- "my_experiment" # NB this will affect directory structure and name of your experiment downstream
 
 setupAndShowDirectories(
   label = experiment_label,
