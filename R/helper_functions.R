@@ -680,82 +680,106 @@ readConfigFileSection <- function( theObject
 #'
 #' @export
 loadDependencies <- function(verbose = TRUE) {
-    # Define all required packages
-    required_packages <- c(
-        # CRAN packages
-        "tidyverse", "seqinr", "lazyeval", "rlang", "glue", "GGally",
-        "here", "tibble", "mixOmics", "limma", "magrittr", "future.apply",
-        "tictoc", "beepr", "furrr", "readxl", "writexl", "RColorBrewer",
-        "multidplyr", "RSpectra", "progress", "Rcpp", "RcppEigen",
-        "qvalue", "ruv", "iq", "ggrepel", "patchwork",
-        "dplyr", "gtools", "shiny", "DT", "gh", "openxlsx",
-        # Additional packages
-        "plotly", "vroom", "gplots", "iheatmapr",
-        "UpSetR", "gt", "gprofiler2", "htmltools",
-        "rstudioapi", "flextable", "viridis",
-        # Git and GitHub related packages
-        "git2r", "gh",
-        # Bioconductor packages
-        "BiocManager",
-        # GitHub packages
-        "UniProt.ws",
-        # Add previously separate Bioconductor packages
-        "clusterProfiler", 
-        "GO.db", 
-        "mixOmics"
-    )
-    
-    # Install pacman if not present
+    # --- Install Core Managers ---
     if (!requireNamespace("pacman", quietly = TRUE)) {
         if (verbose) message("Installing pacman...")
         utils::install.packages("pacman")
     }
-    
-    # Install BiocManager if not present
+    library(pacman)
+
     if (!requireNamespace("BiocManager", quietly = TRUE)) {
         if (verbose) message("Installing BiocManager...")
         utils::install.packages("BiocManager")
     }
-    
-    # Check and install/load packages
-    required_packages |>
-        purrr::map(function(pkg) {
-            if (!requireNamespace(pkg, quietly = TRUE)) {
-                if (verbose) message("Installing ", pkg, "...")
-                pacman::p_load(char = pkg, character.only = TRUE)
-            } else {
-                if (verbose) message(pkg, " is already installed, loading...")
-                pacman::p_load(char = pkg, character.only = TRUE)
-            }
-        })
-    
-    # Handle RUVIIIC separately as it's from GitHub
-    if (!requireNamespace("RUVIIIC", quietly = TRUE)) {
-        if (verbose) message("Installing RUVIIIC from GitHub...")
-        tryCatch({
-            devtools::install_github("cran/RUVIIIC")
-        }, error = function(e) {
-            warning("Failed to install RUVIIIC: ", e$message)
-        })
-    } else {
-        if (verbose) message("RUVIIIC is already installed, loading...")
-        pacman::p_load(RUVIIIC)
+    # Ensure BiocManager is loaded for installation checks, but don't need library()
+    # library(BiocManager) # Not strictly needed just for install()
+
+    if (!requireNamespace("devtools", quietly = TRUE)) {
+        if (verbose) message("Installing devtools...")
+        utils::install.packages("devtools")
     }
-    
-    # Handle GlimmaV2 separately as it's from GitHub
-    if (!requireNamespace("GlimmaV2", quietly = TRUE)) {
-        if (verbose) message("Installing GlimmaV2 from GitHub...")
-        tryCatch({
-            devtools::install_github("APAF-bioinformatics/GlimmaV2")
-        }, error = function(e) {
-            warning("Failed to install GlimmaV2: ", e$message)
-        })
-    } else {
-        if (verbose) message("GlimmaV2 is already installed, loading...")
-        pacman::p_load(GlimmaV2)
+    # library(devtools) # Not strictly needed just for install_github()
+
+    # --- Define Packages by Source ---
+    cran_packages <- c(
+        "tidyverse", "seqinr", "lazyeval", "rlang", "glue", "GGally",
+        "here", "tibble", "magrittr", "future.apply", "tictoc",
+        "beepr", "furrr", "readxl", "writexl", "RColorBrewer",
+        "multidplyr", "RSpectra", "progress", "Rcpp", "RcppEigen",
+        "ruv", "iq", "ggrepel", "patchwork", "dplyr", "gtools",
+        "shiny", "DT", "gh", "openxlsx", "plotly", "vroom",
+        "gplots", "iheatmapr", "UpSetR", "gt", "gprofiler2",
+        "htmltools", "rstudioapi", "flextable", "viridis",
+        "git2r" # gh already listed, git2r for git operations
+    )
+
+    bioc_packages <- c(
+        "UniProt.ws", "mixOmics", "limma", "qvalue",
+        "clusterProfiler", "GO.db" # GO.db is often a dependency, ensure it's listed
+    )
+
+    github_packages <- list(
+        RUVIIIC = "cran/RUVIIIC", # Hosted on CRAN's GitHub mirror? Check source if issues
+        GlimmaV2 = "APAF-bioinformatics/GlimmaV2"
+    )
+
+    # --- Installation and Loading Logic ---
+
+    # Helper function to install/load
+    install_and_load <- function(pkg, installer_func, source_name, verbose) {
+        if (!requireNamespace(pkg, quietly = TRUE)) {
+            if (verbose) message(sprintf("Installing %s from %s...", pkg, source_name))
+            tryCatch({
+                installer_func(pkg)
+                # After install, load it
+                pacman::p_load(char = pkg, character.only = TRUE)
+            }, error = function(e) {
+                warning(sprintf("Failed to install %s from %s: %s", pkg, source_name, e$message))
+            })
+        } else {
+            if (verbose) message(sprintf("%s is already installed, loading...", pkg))
+            pacman::p_load(char = pkg, character.only = TRUE)
+        }
     }
-    
-    if (verbose) message("All dependencies loaded successfully!")
+
+    # CRAN Packages
+    if (verbose) message("\n--- Processing CRAN Packages ---")
+    purrr::walk(cran_packages, ~install_and_load(
+        pkg = .x,
+        installer_func = function(p) pacman::p_install(char = p, character.only = TRUE),
+        source_name = "CRAN",
+        verbose = verbose
+    ))
+
+    # Bioconductor Packages
+    if (verbose) message("\n--- Processing Bioconductor Packages ---")
+    purrr::walk(bioc_packages, ~install_and_load(
+        pkg = .x,
+        installer_func = function(p) BiocManager::install(p, update = FALSE, ask = FALSE), # Use BiocManager
+        source_name = "Bioconductor",
+        verbose = verbose
+    ))
+
+    # GitHub Packages
+    if (verbose) message("\n--- Processing GitHub Packages ---")
+    purrr::iwalk(github_packages, ~{
+        pkg_name <- .y # Name of the package (e.g., "RUVIIIC")
+        repo <- .x     # Repository path (e.g., "cran/RUVIIIC")
+        if (!requireNamespace(pkg_name, quietly = TRUE)) {
+             if (verbose) message(sprintf("Installing %s from GitHub (%s)...", pkg_name, repo))
+             tryCatch({
+                 devtools::install_github(repo)
+                 pacman::p_load(char = pkg_name, character.only = TRUE)
+             }, error = function(e) {
+                 warning(sprintf("Failed to install %s from GitHub (%s): %s", pkg_name, repo, e$message))
+             })
+         } else {
+             if (verbose) message(sprintf("%s is already installed, loading...", pkg_name))
+             pacman::p_load(char = pkg_name, character.only = TRUE)
+         }
+    })
+
+    if (verbose) message("\nAll dependencies processed successfully!")
 }
 
 ##################################################################################################################
