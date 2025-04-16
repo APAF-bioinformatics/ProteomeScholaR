@@ -13,6 +13,9 @@ output:
 # Initial R environment setup  
 ## Checks your R environment for the required packages to run ProteomeScholaR, and installs them if they are not.
 This function checks for and installs all the required packages for the ProteomeScholaR workflow. It installs packages from CRAN, Bioconductor, and GitHub as needed. The function is designed to make setup easy for users who may not be familiar with R package management.
+
+## IF THIS IS YOUR FIRST INSTALL, THIS WILL TAKE SOME TIME AS THERE ARE A NUMBER OF DEPENDENCIES TO INSTALL :)
+## GOOD POINT TO GRAB A COFFEE!
 ```{r ProteomeScholaR FIRST INSTALL }
 installProteomeScholaR <- function(verbose = TRUE) {
     # Install devtools if missing
