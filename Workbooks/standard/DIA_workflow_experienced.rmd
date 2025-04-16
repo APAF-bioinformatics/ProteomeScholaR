@@ -88,10 +88,10 @@ config_list <- readConfigFile(file = file.path(source_dir, "config.ini"))
 ## conversions
 ## Please set the name of your fasta file here in the root directory if you 
 ## already have it
-DIANN_filename <- "report.tsv"
-fasta_filename <- "fasta.fasta"
-uniprot_search_results <- NULL
-uniparc_search_results <- NULL
+DIANN_filename <- "report.tsv" ## copy to /data/proteomics in your project directory
+fasta_filename <- "fasta.fasta" ## copy to /data/UniProt in your project directory
+uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory
+uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory
 ## Please supply your organism's taxon ID here
 taxon_id <- your_organism_id_here
 ## Please supply your organism's name here
