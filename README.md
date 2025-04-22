@@ -4,14 +4,22 @@
 
 ### 1. Required Software
 
+#### (4/25) R VERSION 4.4.3 CURRENTLY LATEST SUPPORTED VERSION DUE TO DEPENDENCY MIGRATION LAG to R 4.5.0
+
 <a href="https://cran.r-project.org/bin/windows/base/" target="_blank">
     <img src="https://img.shields.io/badge/Download-R_(Windows)-276DC3?style=for-the-badge&logo=r" alt="Download R for Windows">
 </a>
 <a href="https://cran.r-project.org/bin/macosx/" target="_blank">
     <img src="https://img.shields.io/badge/Download-R_(macOS)-276DC3?style=for-the-badge&logo=r" alt="Download R for macOS">
 </a>
+
 <a href="https://posit.co/download/rstudio-desktop/" target="_blank">
     <img src="https://img.shields.io/badge/Download-RStudio_Desktop-75AADB?style=for-the-badge&logo=rstudio" alt="Download RStudio">
+</a>
+
+#### Windows Users Only:
+<a href="https://cran.r-project.org/bin/windows/Rtools/" target="_blank">
+    <img src="https://img.shields.io/badge/Download-Rtools_(Windows)-276DC3?style=for-the-badge&logo=r" alt="Download Rtools for Windows">
 </a>
 
 ### 2. Setup Script
@@ -35,12 +43,13 @@ The data is derived from the publicly available dataset published in [Mu, Klare,
 
 ## Setup Instructions
 
-1. Install RStudio Desktop and R if you haven't already (use button above)
-2. Download the setup script using the button above (right click + save as)
-3. Open the downloaded file in RStudio
-4. Change the project name at the top of the script (optional: specify custom directory)
-5. Run the entire script (Ctrl+A then Ctrl+Enter)
-6. A new RStudio project will open automatically with all required files and structure
+1. Install RStudio Desktop and R if you haven't already (use button above).
+2. (If you are on WindowS). Install RTools (match version numbers to your R install).
+3. Download the setup script using the button above (right click + save as)
+4. Open the downloaded file in RStudio
+5. Change the project name at the top of the script (optional: specify custom directory)
+6. Run the entire script (Ctrl+A then Ctrl+Enter)
+7. A new RStudio project will open automatically with all required files and structure
 
 ## What Gets Set Up
 
