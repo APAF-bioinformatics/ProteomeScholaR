@@ -724,7 +724,7 @@ loadDependencies <- function(verbose = TRUE) {
 
     github_packages <- list(
         RUVIIIC = "cran/RUVIIIC", # Hosted on CRAN's GitHub mirror? Check source if issues
-        GlimmaV2 = "APAF-bioinformatics/GlimmaV2"
+        Glimma = "APAF-bioinformatics/GlimmaV2"
     )
 
     # --- Installation and Loading Logic ---
@@ -773,7 +773,8 @@ loadDependencies <- function(verbose = TRUE) {
         if (!requireNamespace(pkg_name, quietly = TRUE)) {
              if (verbose) message(sprintf("Installing %s from GitHub (%s)...", pkg_name, repo))
              tryCatch({
-                 devtools::install_github(repo)
+                 # Force installation to handle potentially corrupt states
+                 devtools::install_github(repo, force = TRUE)
                  pacman::p_load(char = pkg_name, character.only = TRUE)
              }, error = function(e) {
                  warning(sprintf("Failed to install %s from GitHub (%s): %s", pkg_name, repo, e$message))

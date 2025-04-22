@@ -31,6 +31,9 @@ vignettes/*.pdf
 *_cache/
 /cache/
 
+# Testing files
+*test_checklist
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
@@ -45,3 +48,4 @@ vignettes/*.pdf
 #Doxygen generated files
 *.Rd
 *NAMESPACE
+
