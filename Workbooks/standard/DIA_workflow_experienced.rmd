@@ -17,21 +17,19 @@ This function checks for and installs all the required packages for the Proteome
 ## IF THIS IS YOUR FIRST INSTALL, THIS WILL TAKE SOME TIME AS THERE ARE A NUMBER OF DEPENDENCIES TO INSTALL :)
 ## GOOD POINT TO GRAB A COFFEE!
 ```{r ProteomeScholaR FIRST INSTALL }
+# --- Simple ProteomeScholaR Check & Install ---
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+options(download.file.method = "libcurl")
+
+# Function to install/update
 installProteomeScholaR <- function(verbose = TRUE) {
-  # Install devtools if missing
-  if (!requireNamespace("devtools", quietly = TRUE)) {
-    install.packages("devtools")
-  }
-
-  # Detach if loaded
+  if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
   if ("package:ProteomeScholaR" %in% search()) {
-    try(detach("package:ProteomeScholaR", unload = TRUE, force = TRUE), silent = TRUE)
+      try(detach("package:ProteomeScholaR", unload = TRUE, force = TRUE), silent = TRUE)
   }
-
-  # Unload namespace
   try(unloadNamespace("ProteomeScholaR"), silent = TRUE)
 
-  # Install package
+  if(verbose) message("Installing/Updating ProteomeScholaR from GitHub...")
   devtools::install_github(
     "APAF-BIOINFORMATICS/ProteomeScholaR",
     ref = "main",
@@ -39,13 +37,40 @@ installProteomeScholaR <- function(verbose = TRUE) {
     upgrade = "never",
     force = TRUE
   )
-
-  # Load it
+  if(verbose) message("Loading ProteomeScholaR...")
   library(ProteomeScholaR)
 }
 
-installProteomeScholaR()
-loadDependencies()
+# Check if ProteomeScholaR is installed
+if (requireNamespace("ProteomeScholaR", quietly = TRUE)) {
+    # Package is installed
+    installed_version <- packageVersion("ProteomeScholaR")
+    installed_version_str <- as.character(installed_version)
+    message(paste("ProteomeScholaR version", installed_version_str, "is installed."))
+
+    # Check if it's an older version (< 0.9.0)
+    if (utils::compareVersion(installed_version_str, "0.9.0") < 0) {
+        message("\n--- IMPORTANT: UPDATE RECOMMENDED --- ")
+        message("-> Your installed version (", installed_version_str, ") is older than v0.9.")
+        message("-> Major changes were introduced in v0.9.")
+        message("-> Please consider updating manually using:")
+        message("   devtools::install_github(\"APAF-BIOINFORMATICS/ProteomeScholaR\", ref = \"main\", dependencies = TRUE, upgrade = \"never\", force = TRUE)")
+        message("-> Also, update your project_setup.R (if used) and .Rmd files, available from the GitHub repository. :-) ") 
+        message("-------------------------------------")
+    } else {
+        message("-> Your version is 0.9.0 or newer. Loading...")
+    }
+    
+    # Load the installed version and dependencies
+    library(ProteomeScholaR)
+    loadDependencies()
+
+} else {
+    # Package is NOT installed
+    message("ProteomeScholaR is not installed. Performing initial installation...")
+    installProteomeScholaR()
+    loadDependencies()
+}
 ```
 
 # START HERE if you already have ProteomeScholaR installed

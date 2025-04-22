@@ -11,7 +11,7 @@ Authors@R: c(
            family = "Klare",
            role = c("aut"),
            email = "william.klare@mq.edu.au",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+           comment = c(ORCID = "0000-0002-1490-9704"))
     )
 Description: Tools for Proteomics and Phosphoproteomics analysis.
 License: LGPL (>= 3)
@@ -30,6 +30,10 @@ Suggests:
     mixOmics, 
     qvalue, 
     UniProt.ws
+    ggplot2,
+    plotly,
+    seqinr,
+    UpSetR
 Config/testthat/edition: 3
 Imports: 
     beepr,
@@ -41,7 +45,6 @@ Imports:
     furrr,
     future.apply,
     GGally,
-    ggplot2,
     ggpubr,
     ggrepel,
     gh,
@@ -68,7 +71,6 @@ Imports:
     optparse,
     pacman,
     patchwork,
-    plotly,
     progress,
     purrr,
     Rcpp,
@@ -80,7 +82,6 @@ Imports:
     rstudioapi,
     ruv,
     rvest,
-    seqinr,
     shiny,
     statmod,
     stringi,
