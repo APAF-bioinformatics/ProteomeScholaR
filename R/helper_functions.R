@@ -842,44 +842,17 @@ extract_experiment <- function(x, mode = "range", start = 1, end = NULL) {
 }
 
 #' @title Setup Project Directories
-#' @description Creates and manages project directories with version control
+#' @description Creates and manages project directories with version control. If directories exist, prompts user to overwrite or reuse.
 #' @param base_dir Base directory path (optional, defaults to here::here())
 #' @param label Optional label to append to proteomics directory name (e.g., "proteomics_MyLabel")
-#' @param force Logical; if TRUE, skips user confirmation (default: FALSE)
-#' @return List of directory paths
+#' @param force Logical; if TRUE, skips user confirmation and overwrites existing directories (default: FALSE)
+#' @return List of directory paths assigned to the global environment.
 #' @export
 setupAndShowDirectories <- function(base_dir = here::here(), label = NULL, force = FALSE) {
-    # Create base paths and names
+    # --- Define Base Paths and Names ---
     proteomics_dirname <- if (!is.null(label)) paste0("proteomics_", substr(label, 1, 30)) else "proteomics"
     
-    # Check if directories already exist
-    results_path <- file.path(base_dir, "results", proteomics_dirname)
-    results_summary_path <- file.path(base_dir, "results_summary", proteomics_dirname)
-    scripts_path <- file.path(base_dir, "scripts", proteomics_dirname)
-    
-    if (!force && (dir.exists(results_path) || dir.exists(results_summary_path) || dir.exists(scripts_path))) {
-        cat(sprintf("\nWarning: Directory(ies) already exist:\n"))
-        if (dir.exists(results_path)) cat(sprintf("- %s\n", results_path))
-        if (dir.exists(results_summary_path)) cat(sprintf("- %s\n", results_summary_path))
-        if (dir.exists(scripts_path)) cat(sprintf("- %s\n", scripts_path))
-        
-        response <- readline(prompt = "Do you want to overwrite? (y/n): ")
-        
-        if (tolower(substr(response, 1, 1)) != "y") {
-            message("Setup cancelled by user")
-            return(invisible(NULL))
-        }
-        
-        # Remove existing directories if user confirmed
-        if (dir.exists(results_path)) unlink(results_path, recursive = TRUE)
-        if (dir.exists(results_summary_path)) unlink(results_summary_path, recursive = TRUE)
-        if (dir.exists(scripts_path)) unlink(scripts_path, recursive = TRUE)
-    }
-    
-    # Create timestamp for this run
-    timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-    
-    # Define all paths and subdirs in one structure
+    # Define all expected paths in one structure for easier management
     paths <- list(
         results = list(
             base = file.path(base_dir, "results", proteomics_dirname),
@@ -893,66 +866,120 @@ setupAndShowDirectories <- function(base_dir = here::here(), label = NULL, force
         ),
         special = list(
             data = file.path(base_dir, "data"),
-            scripts = file.path(base_dir, "scripts", proteomics_dirname),
-            qc = file.path(base_dir, "results", proteomics_dirname, "publication_graphs", "filtering_qc"),
-            time = file.path(base_dir, "results", proteomics_dirname, "publication_graphs", 
-                           "filtering_qc", timestamp)
+            scripts = file.path(base_dir, "scripts", proteomics_dirname), # Project-specific scripts
+            qc_base = file.path(base_dir, "results", proteomics_dirname, "publication_graphs", "filtering_qc")
+            # 'time' directory path defined later using timestamp
         )
     )
     
-    # Create directories without copying content from existing ones
-    # Create results and results_summary directories
-    lapply(c("results", "results_summary"), function(type) {
-        # Create base directory first
-        dir.create(paths[[type]]$base, recursive = TRUE, showWarnings = FALSE)
+    results_path <- paths$results$base
+    results_summary_path <- paths$results_summary$base
+    scripts_path <- paths$special$scripts
+    
+    # Flag to track if we should skip creation/copying and just set vars
+    reuse_existing <- FALSE 
+
+    # --- Handle Existing Directories ---
+    if (!force && (dir.exists(results_path) || dir.exists(results_summary_path) || dir.exists(scripts_path))) {
+        cat(sprintf("\nWarning: Key directory(ies) already exist:\n"))
+        if (dir.exists(results_path)) cat(sprintf("- %s\n", results_path))
+        if (dir.exists(results_summary_path)) cat(sprintf("- %s\n", results_summary_path))
+        if (dir.exists(scripts_path)) cat(sprintf("- %s\n", scripts_path))
         
-        # Create any subdirectories
+        response_overwrite <- readline(prompt = "Do you want to overwrite these directories? (y/n): ")
+        
+        if (tolower(substr(response_overwrite, 1, 1)) == "y") {
+            # User chose to overwrite: Delete existing directories
+            message("Overwriting existing directories as requested...")
+            if (dir.exists(results_path)) unlink(results_path, recursive = TRUE, force = TRUE)
+            if (dir.exists(results_summary_path)) unlink(results_summary_path, recursive = TRUE, force = TRUE)
+            if (dir.exists(scripts_path)) unlink(scripts_path, recursive = TRUE, force = TRUE)
+            # reuse_existing remains FALSE, proceed to create new structure
+        } else {
+            # User chose NOT to overwrite
+            response_reuse <- readline(prompt = "Do you wish to use the existing directory structure for this session? (y/n): ")
+            if (tolower(substr(response_reuse, 1, 1)) == "y") {
+                message("Reusing existing directory structure and setting environment variables.")
+                reuse_existing <- TRUE # Set flag to skip creation/copying
+            } else {
+                message("Setup cancelled by user. Directory variables not set.")
+                return(invisible(NULL)) # Abort if user neither overwrites nor reuses
+            }
+        }
+    } else if (force) {
+        message("Force=TRUE: Overwriting existing directories if they exist.")
+        if (dir.exists(results_path)) unlink(results_path, recursive = TRUE, force = TRUE)
+        if (dir.exists(results_summary_path)) unlink(results_summary_path, recursive = TRUE, force = TRUE)
+        if (dir.exists(scripts_path)) unlink(scripts_path, recursive = TRUE, force = TRUE)
+    }
+    
+    # --- Timestamp and Final Path Definitions ---
+    timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    # Define timestamp-specific path (needed regardless of reuse)
+    paths$special$time <- file.path(paths$special$qc_base, timestamp)
+
+    # --- Directory Creation and Script Copying ---
+    # Only run if NOT reusing existing structure
+    if (!reuse_existing) {
+        message("Creating directory structure...")
+        # Create results and results_summary base and subdirs
+    lapply(c("results", "results_summary"), function(type) {
+        dir.create(paths[[type]]$base, recursive = TRUE, showWarnings = FALSE)
         invisible(sapply(
             file.path(paths[[type]]$base, paths[[type]]$subdirs),
             dir.create, recursive = TRUE, showWarnings = FALSE
         ))
     })
     
-    # Create special directories
-    invisible(sapply(paths$special, dir.create, recursive = TRUE, showWarnings = FALSE))
-    
-    # Handle scripts directory copying
-    scripts_source <- file.path(base_dir, "scripts", "proteomics")
-    if (dir.exists(scripts_source)) {
-        # Create destination directory
+        # Create special directories (ensure qc_base exists for time dir)
+        dir.create(paths$special$qc_base, recursive = TRUE, showWarnings = FALSE)
+        dir.create(paths$special$data, recursive = TRUE, showWarnings = FALSE)
         dir.create(paths$special$scripts, recursive = TRUE, showWarnings = FALSE)
-        
-        # Copy all files from scripts directory except .rmd files
-        script_files <- list.files(scripts_source, full.names = TRUE, recursive = TRUE)
-        
-        # Filter out .rmd files (case-insensitive) with improved pattern
-        script_files <- script_files[!grepl("\\.[rR][mM][dD]$", script_files)]
+        dir.create(paths$special$time, recursive = TRUE, showWarnings = FALSE) # Timestamped dir
+
+        # Handle scripts directory copying from template
+        scripts_template_source <- file.path(base_dir, "scripts", "proteomics") # Base template location
+        if (dir.exists(scripts_template_source)) {
+            message("Copying script files (excluding .Rmd) from template...")
+            script_files <- list.files(scripts_template_source, full.names = TRUE, recursive = TRUE)
+            script_files <- script_files[!grepl("\\.[rR][mM][dD]$", script_files)] # Filter out .Rmd
         
         if (length(script_files) > 0) {
             sapply(script_files, function(f) {
-                rel_path <- sub(paste0("^", scripts_source, "/"), "", f)
-                dest_file <- file.path(paths$special$scripts, rel_path)
+                    # Calculate relative path within the source template
+                    rel_path <- sub(paste0("^", tools::file_path_as_absolute(scripts_template_source), "/?"), "", tools::file_path_as_absolute(f))
+                    dest_file <- file.path(paths$special$scripts, rel_path) # Destination in project scripts dir
                 dir.create(dirname(dest_file), recursive = TRUE, showWarnings = FALSE)
                 file.copy(f, dest_file, overwrite = TRUE)
             })
+            } else {
+                 message("No non-Rmd script files found in template directory.")
+            }
+        } else {
+            message(paste("Script template directory not found at:", scripts_template_source, "- skipping script copy."))
         }
+    } else {
+         message("Skipping directory creation and script copying as existing structure is being reused.")
+         # IMPORTANT: Ensure the timestamped directory for THIS session exists even when reusing.
+         dir.create(paths$special$time, recursive = TRUE, showWarnings = FALSE)
     }
-    
-    # Build global variables directory paths
+
+    # --- Define Final Directory Paths List for Environment ---
+    # This part runs whether creating new or reusing existing structure.
     publication_graphs_dir <- file.path(paths$results$base, "publication_graphs")
-    qc_dir <- file.path(publication_graphs_dir, "filtering_qc")
+    # qc_dir now refers to the timestamped directory base
+    qc_dir <- paths$special$qc_base 
     
-    # Assign all directories to global environment (matching original setupDirectories)
     dir_paths <- list(
         base_dir = base_dir,
         results_dir = paths$results$base,
         data_dir = paths$special$data,
-        source_dir = paths$special$scripts,
+        source_dir = paths$special$scripts, # This is the *project-specific* scripts dir
         de_output_dir = file.path(paths$results$base, "de_proteins"),
         publication_graphs_dir = publication_graphs_dir,
         timestamp = timestamp,
-        qc_dir = qc_dir,
-        time_dir = paths$special$time,
+        qc_dir = qc_dir, # Base QC dir
+        time_dir = paths$special$time, # Timestamped dir for current run output
         results_summary_dir = paths$results_summary$base,
         pathway_dir = file.path(paths$results$base, "pathway_enrichment"),
         protein_qc_dir = file.path(paths$results$base, "protein_qc"),
@@ -964,19 +991,30 @@ setupAndShowDirectories <- function(base_dir = here::here(), label = NULL, force
         study_report_dir = file.path(paths$results_summary$base, "Study_report")
     )
     
-    # Assign to global environment
+    # --- Assign to Global Environment ---
+    message("Assigning directory paths to global environment...")
     list2env(dir_paths, envir = .GlobalEnv)
     
-    # Print simple directory structure with file counts
-    cat("\nDirectory Structure:\n")
-    invisible(lapply(dir_paths, function(p) {
-        if (is.character(p) && dir.exists(p)) {
-            cat(sprintf("%s (%d files)\n", p, length(list.files(p, recursive = TRUE))))
+    # --- Print Structure Summary ---
+    cat("\nFinal Directory Structure Set in Global Environment:\n")
+    print_paths <- sort(names(dir_paths)) # Sort for consistent order
+    invisible(lapply(print_paths, function(name) {
+        p <- dir_paths[[name]]
+        # Check existence only for paths expected to be directories within the project
+        is_project_dir <- startsWith(p, base_dir) && name != "base_dir" && name != "timestamp"
+        
+        if (is_project_dir && dir.exists(p)) {
+            file_count <- length(list.files(p, recursive = TRUE, all.files = TRUE))
+            cat(sprintf("%s = %s (%d files/dirs)\n", name, p, file_count))
         } else if (is.character(p)) {
-            cat(sprintf("%s\n", p))
+             # Print non-dirs (like timestamp) or dirs outside base_dir (shouldn't happen here)
+            cat(sprintf("%s = %s\n", name, p))
+        } else {
+            cat(sprintf("%s = %s [Non-character path]\n", name, p)) # Should not happen
         }
     }))
     
+    # Return the list of paths invisibly
     invisible(dir_paths)
 }
 
