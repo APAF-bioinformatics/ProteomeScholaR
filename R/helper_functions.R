@@ -750,7 +750,8 @@ loadDependencies <- function(verbose = TRUE) {
     if (verbose) message("\n--- Processing CRAN Packages ---")
     purrr::walk(cran_packages, ~install_and_load(
         pkg = .x,
-        installer_func = function(p) pacman::p_install(char = p, character.only = TRUE),
+        # Use base R install.packages directly
+        installer_func = function(p) utils::install.packages(p, dependencies = TRUE),
         source_name = "CRAN",
         verbose = verbose
     ))
