@@ -91,7 +91,6 @@ Imports:
     tidyr,
     tidyselect,
     tidyverse,
-    UpSetR,
     viridis,
     vroom,
     writexl,
