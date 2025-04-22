@@ -35,9 +35,6 @@ This function checks for and installs all the required packages for the Proteome
 ## IF THIS IS YOUR FIRST INSTALL, THIS WILL TAKE SOME TIME AS THERE ARE A NUMBER OF DEPENDENCIES TO INSTALL :)
 ## GOOD POINT TO GRAB A COFFEE!
 ```{r ProteomeScholaR FIRST INSTALL, message=TRUE, warning=TRUE}
-# --- Simple ProteomeScholaR Check & Install ---
-options(repos = c(CRAN = "https://cloud.r-project.org/"))
-options(download.file.method = "libcurl")
 
 # Function to install/update
 installProteomeScholaR <- function(verbose = TRUE) {
@@ -191,9 +188,9 @@ fasta_filename <- "fasta.fasta" ## copy to /data/UniProt in your project directo
 uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory
 uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory
 ## Please supply your organism's taxon ID here
-taxon_id <- your_organism_id_here
+taxon_id <- your_organism_id_here # You can find this at the links above.
 ## Please supply your organism's name here
-organism_name <- "your_organism_name_here"
+organism_name <- "your_organism_name_here" # If you don't know this by now, you have bigger problems than this workflow!
 
 data_tbl <- vroom::vroom(file.path(data_dir, "proteomics", DIANN_filename))
 fasta_file_path <- file.path(data_dir, "UniProt", fasta_filename)
@@ -1452,16 +1449,17 @@ ruv_correlation_vec <- pearsonCorForSamplePairs(
   tech_rep_remove_regex = "pool",
   correlation_group = "group"
 )
-corfilt_protein_count <- ruv_normalised_filtered_results_obj@protein_quant_table |>
-  distinct(Protein.Ids) |>
-  nrow()
-message(paste("Number of distinct proteins remaining after removing low-correlation samples:", corfilt_protein_count))
 
 ruv_normalised_filtered_results_obj <- filterSamplesByProteinCorrelationThreshold(
   ruv_normalised_results_cln_obj,
   pearson_correlation_per_pair = ruv_correlation_vec,
   min_pearson_correlation_threshold = 0.5
 )
+
+corfilt_protein_count <- ruv_normalised_filtered_results_obj@protein_quant_table |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after removing low-correlation samples:", corfilt_protein_count))
 
 updateProteinFiltering(
   data = ruv_normalised_filtered_results_obj@protein_quant_table,

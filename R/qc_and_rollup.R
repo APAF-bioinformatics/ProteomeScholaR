@@ -2496,13 +2496,21 @@ updateProteinFiltering <- function(data, step_name, publication_graphs_dir = NUL
     # Get the current filtering_progress object
     filtering_progress <- get("filtering_progress", envir = .GlobalEnv)
     
-    # Create necessary directories without prompting if publication_graphs_dir is provided
-    if (!is.null(publication_graphs_dir)) {
-        qc_dir <- file.path(publication_graphs_dir, "filtering_qc")
-        time_dir <- file.path(qc_dir, format(Sys.time(), "%Y%m%d_%H%M%S"))
-        dir.create(qc_dir, recursive = TRUE, showWarnings = FALSE)
-        dir.create(time_dir, recursive = TRUE, showWarnings = FALSE)
-        assign("time_dir", time_dir, envir = .GlobalEnv)
+    # --- REMOVED: Local creation of qc_dir and time_dir ---
+    # # Create necessary directories without prompting if publication_graphs_dir is provided
+    # if (!is.null(publication_graphs_dir)) {
+    #     qc_dir <- file.path(publication_graphs_dir, "filtering_qc")
+    #     time_dir <- file.path(qc_dir, format(Sys.time(), "%Y%m%d_%H%M%S")) # Creates a NEW timestamp
+    #     dir.create(qc_dir, recursive = TRUE, showWarnings = FALSE)
+    #     dir.create(time_dir, recursive = TRUE, showWarnings = FALSE)
+    #     assign("time_dir", time_dir, envir = .GlobalEnv) # Overwrites global!
+    # }
+    # --- Use globally defined time_dir if publication_graphs_dir is provided ---
+    # Ensure time_dir exists globally if we intend to save plots
+    save_plots <- !is.null(publication_graphs_dir) && exists("time_dir", envir = .GlobalEnv)
+    if (!is.null(publication_graphs_dir) && !exists("time_dir", envir = .GlobalEnv)) {
+        warning("publication_graphs_dir provided, but global 'time_dir' not found. Plots will not be saved. Run setupAndShowDirectories() first.")
+        save_plots <- FALSE
     }
     
     # Determine if we're working with protein_quant_table
@@ -2846,10 +2854,14 @@ updateProteinFiltering <- function(data, step_name, publication_graphs_dir = NUL
         peptides_per_run = p5
     )
     
-    # Save plots if directory is specified
-    if (!is.null(publication_graphs_dir)) {
+    # Save plots if directory is specified and time_dir exists globally
+    if (save_plots) {
+        # Retrieve the globally defined time_dir
+        current_time_dir <- get("time_dir", envir = .GlobalEnv)
+        
         for (plot_name in names(plot_list)) {
-            filename <- file.path(publication_graphs_dir, 
+            # Use current_time_dir (the globally defined one) for saving
+            filename <- file.path(current_time_dir, 
                                 sprintf("%s_%s.png", step_name, plot_name))
             ggsave(filename, 
                    plot = plot_list[[plot_name]], 
@@ -2883,9 +2895,12 @@ updateProteinFiltering <- function(data, step_name, publication_graphs_dir = NUL
             )
         }
         
-        # Save the grid if directory is specified
-        if (!is.null(publication_graphs_dir)) {
-            filename <- file.path(publication_graphs_dir, 
+        # Save the grid if directory is specified and time_dir exists globally
+        if (save_plots) {
+            # Retrieve the globally defined time_dir
+            current_time_dir <- get("time_dir", envir = .GlobalEnv)
+            # Use current_time_dir (the globally defined one) for saving
+            filename <- file.path(current_time_dir, 
                                 sprintf("%s_combined_plots.png", step_name))
             ggsave(filename, 
                    plot = grid_plot, 

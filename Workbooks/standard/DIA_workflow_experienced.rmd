@@ -17,9 +17,6 @@ This function checks for and installs all the required packages for the Proteome
 ## IF THIS IS YOUR FIRST INSTALL, THIS WILL TAKE SOME TIME AS THERE ARE A NUMBER OF DEPENDENCIES TO INSTALL :)
 ## GOOD POINT TO GRAB A COFFEE!
 ```{r ProteomeScholaR FIRST INSTALL }
-# --- Simple ProteomeScholaR Check & Install ---
-options(repos = c(CRAN = "https://cloud.r-project.org/"))
-options(download.file.method = "libcurl")
 
 # Function to install/update
 installProteomeScholaR <- function(verbose = TRUE) {
@@ -120,7 +117,7 @@ fasta_filename <- "fasta.fasta" ## copy to /data/UniProt in your project directo
 uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory
 uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory
 ## Please supply your organism's taxon ID here
-taxon_id <- your_organism_id_here
+taxon_id <- your_organism_id_here # (https://www.uniprot.org/taxonomy)
 ## Please supply your organism's name here
 organism_name <- "your_organism_name_here"
 
