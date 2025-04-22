@@ -10,8 +10,14 @@
 <a href="https://cran.r-project.org/bin/macosx/" target="_blank">
     <img src="https://img.shields.io/badge/Download-R_(macOS)-276DC3?style=for-the-badge&logo=r" alt="Download R for macOS">
 </a>
+
 <a href="https://posit.co/download/rstudio-desktop/" target="_blank">
     <img src="https://img.shields.io/badge/Download-RStudio_Desktop-75AADB?style=for-the-badge&logo=rstudio" alt="Download RStudio">
+</a>
+
+#### Windows Users Only:
+<a href="https://cran.r-project.org/bin/windows/Rtools/" target="_blank">
+    <img src="https://img.shields.io/badge/Download-Rtools_(Windows)-276DC3?style=for-the-badge&logo=r" alt="Download Rtools for Windows">
 </a>
 
 ### 2. Setup Script
