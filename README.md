@@ -4,6 +4,8 @@
 
 ### 1. Required Software
 
+#### (4/25) R VERSION 4.4.3 CURRENTLY LATEST SUPPORTED VERSION DUE TO DEPENDENCY MIGRATION LAG to R 4.5.0
+
 <a href="https://cran.r-project.org/bin/windows/base/" target="_blank">
     <img src="https://img.shields.io/badge/Download-R_(Windows)-276DC3?style=for-the-badge&logo=r" alt="Download R for Windows">
 </a>
