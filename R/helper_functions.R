@@ -710,12 +710,16 @@ loadDependencies <- function(verbose = TRUE) {
         "shiny", "DT", "gh", "openxlsx", "plotly", "vroom",
         "gplots", "iheatmapr", "UpSetR", "gt", "gprofiler2",
         "htmltools", "rstudioapi", "flextable", "viridis",
-        "git2r" # gh already listed, git2r for git operations
+        "git2r", # gh already listed, git2r for git operations
+        # Added from Suggests:
+        "testthat", "ggplot2", "ggpubr", "svglite"
     )
 
     bioc_packages <- c(
         "UniProt.ws", "mixOmics", "limma", "qvalue",
-        "clusterProfiler", "GO.db" # GO.db is often a dependency, ensure it's listed
+        "clusterProfiler", "GO.db", # GO.db is often a dependency, ensure it's listed
+        # Added from Suggests:
+        "EDASeq", "RUVSeq"
     )
 
     github_packages <- list(
