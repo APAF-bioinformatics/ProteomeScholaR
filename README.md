@@ -42,6 +42,7 @@ The data is derived from the publicly available dataset published in [Mu, Klare,
 ## Setup Instructions
 
 1. Install RStudio Desktop and R if you haven't already (use button above)
+  1a. Install RTools (match version numbers to your R install) if you are on Windows.
 2. Download the setup script using the button above (right click + save as)
 3. Open the downloaded file in RStudio
 4. Change the project name at the top of the script (optional: specify custom directory)
