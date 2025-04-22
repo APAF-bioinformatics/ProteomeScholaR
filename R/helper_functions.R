@@ -709,7 +709,7 @@ loadDependencies <- function(verbose = TRUE) {
         "ruv", "iq", "ggrepel", "patchwork", "dplyr", "gtools",
         "shiny", "DT", "gh", "openxlsx", "plotly", "vroom",
         "gplots", "iheatmapr", "UpSetR", "gt", "gprofiler2",
-        "htmltools", "rstudioapi", "flextable", "viridis", "here"
+        "htmltools", "rstudioapi", "flextable", "viridis", "here",
         "git2r", # gh already listed, git2r for git operations
         # Added from Suggests:
         "testthat", "ggplot2", "ggpubr", "svglite"
