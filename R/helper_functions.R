@@ -1928,3 +1928,106 @@ RenderReport <- function(suffix) {
                   ,params = list(suffix = suffix)
                 ,output_file = file.path(here::here(), "results_summary", paste0("proteomics_", suffix), paste0("DIANN_report_", suffix, ".docx")))
 }
+
+#' @title Update Parameter in S4 Object Args and Global Config List
+#' @description Modifies a specific parameter within an S4 object's @args slot
+#'              and also updates the corresponding value in a global list named
+#'              'config_list'.
+#'
+#' @param theObject The S4 object whose @args slot needs updating.
+#' @param function_name The name identifying the parameter section (character string,
+#'                      e.g., "peptideIntensityFiltering"). Corresponds to the
+#'                      first-level key in both @args and config_list.
+#' @param parameter_name The specific parameter name to update (character string,
+#'                       e.g., "peptides_proportion_of_samples_below_cutoff").
+#'                       Corresponds to the second-level key.
+#' @param new_value The new value to assign to the parameter.
+#' @param config_list_name The name of the global list variable holding the
+#'                         configuration (defaults to "config_list").
+#' @param env The environment where the global config list resides (defaults to
+#'            .GlobalEnv).
+#'
+#' @return The modified S4 object.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Assume 'myPeptideData' is a PeptideQuantitativeData object
+#' # Assume 'config_list' exists in the global environment
+#'
+#' # Check initial values (example)
+#' # print(myPeptideData@args$peptideIntensityFiltering$peptides_proportion_of_samples_below_cutoff)
+#' # print(config_list$peptideIntensityFiltering$peptides_proportion_of_samples_below_cutoff)
+#'
+#' # Update the parameter to 0.7
+#' myPeptideData <- updateConfigParameter(
+#'   theObject = myPeptideData,
+#'   function_name = "peptideIntensityFiltering",
+#'   parameter_name = "peptides_proportion_of_samples_below_cutoff",
+#'   new_value = 0.7
+#' )
+#'
+#' # Verify changes (example)
+#' # print(myPeptideData@args$peptideIntensityFiltering$peptides_proportion_of_samples_below_cutoff) # Should be 0.7
+#' # print(config_list$peptideIntensityFiltering$peptides_proportion_of_samples_below_cutoff) # Should be 0.7
+#' }
+updateConfigParameter <- function(theObject,
+                                function_name,
+                                parameter_name,
+                                new_value,
+                                config_list_name = "config_list",
+                                env = .GlobalEnv) {
+
+  # --- Input Validation ---
+  if (!isS4(theObject)) {
+    stop("'theObject' must be an S4 object.")
+  }
+  if (!"args" %in% methods::slotNames(theObject)) {
+      stop("'theObject' must have an '@args' slot.")
+  }
+  if (!is.character(function_name) || length(function_name) != 1) {
+    stop("'function_name' must be a single character string.")
+  }
+  if (!is.character(parameter_name) || length(parameter_name) != 1) {
+    stop("'parameter_name' must be a single character string.")
+  }
+  if (!exists(config_list_name, envir = env)) {
+      stop("Global config list '", config_list_name, "' not found in the specified environment.")
+  }
+
+  # Retrieve the global list safely
+  current_config_list <- get(config_list_name, envir = env)
+
+  if (!is.list(current_config_list)) {
+      stop("Global variable '", config_list_name, "' is not a list.")
+  }
+   if (!function_name %in% names(current_config_list)) {
+    warning("Function name '", function_name, "' not found in global config list '", config_list_name, "'. Adding it.")
+    current_config_list[[function_name]] <- list()
+  }
+  if (!parameter_name %in% names(current_config_list[[function_name]])) {
+       warning("Parameter '", parameter_name, "' not found under '", function_name, "' in global config list '", config_list_name, "'. Adding it.")
+  }
+
+
+  # --- Update S4 Object @args ---
+  if (is.null(theObject@args)) {
+       theObject@args <- list() # Initialize args if it's NULL
+   }
+  if (!is.list(theObject@args[[function_name]])) {
+     # Initialize the sub-list if it doesn't exist or isn't a list
+     theObject@args[[function_name]] <- list()
+  }
+  theObject@args[[function_name]][[parameter_name]] <- new_value
+  message("Updated @args$", function_name, "$", parameter_name, " in S4 object.")
+
+
+  # --- Update Global Config List ---
+  current_config_list[[function_name]][[parameter_name]] <- new_value
+  # Assign the modified list back to the global environment
+  assign(config_list_name, current_config_list, envir = env)
+  message("Updated ", config_list_name, "$", function_name, "$", parameter_name, " in global environment.")
+
+  # --- Return the modified object ---
+  return(theObject)
+}

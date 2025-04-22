@@ -243,7 +243,6 @@ design_matrix <- read.table(
   stringsAsFactors = FALSE
 )
 
-# Replace read.table with vroom for better file reading
 data_cln <- vroom::vroom(
   file = file.path(source_dir, "data_cln.tab"),
   delim = "\t",
@@ -359,7 +358,7 @@ peptide_data <- new(
 This section begins the quality control process by examining your raw data and establishes a baseline for subsequent filtering steps. Each `updateProteinFiltering()` call throughout the workflow creates a checkpoint that allows you to track the effects of each filtering step on your dataset. This systematic approach lets you monitor how many peptides and proteins remain after each filter, helping you understand the impact of quality thresholds and optimize your data processing strategy. The visualization tools create plots showing the effect of each filtering step, providing documentation for your methods section and helping identify potential issues in your analysis pipeline.
 
 ```{r Raw Data QC}
-updateProteinFiltering(
+updateProteinFiltering( # Please note that these images don't render properly in RStudio, please see the publication_graphs_dir for the images
   data = data_cln,
   step_name = "1_Raw Data",
   publication_graphs_dir = publication_graphs_dir,
@@ -391,10 +390,31 @@ This step filters your dataset based on the statistical confidence of peptide id
 
 ```{r Filter Peptides on q Value and Proteotypic Peptide Match}
 search_srl_quant_cln <- srlQvalueProteotypicPeptideClean(theObject = peptide_data)
-
-search_srl_quant_cln@peptide_data |>
+qval_protein_count <- search_srl_quant_cln@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins remaining after q-value and proteotypic filtering:", qval_protein_count))
+
+# Example: Interactively change q-value thresholds and re-run this chunk
+# peptide_data <- updateConfigParameter(
+#   theObject      = peptide_data, # Use the input object from the previous step
+#   function_name  = "srlQvalueProteotypicPeptideClean",
+#   parameter_name = "qvalue_threshold",               # Effect: Lower = stricter peptide ID confidence
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_data <- updateConfigParameter(
+#   theObject      = peptide_data,
+#   function_name  = "srlQvalueProteotypicPeptideClean",
+#   parameter_name = "global_qvalue_threshold",        # Effect: Lower = stricter protein group ID confidence
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_data <- updateConfigParameter(
+#   theObject      = peptide_data,
+#   function_name  = "srlQvalueProteotypicPeptideClean",
+#   parameter_name = "choose_only_proteotypic_peptide",# Effect: 1 = Keep only unique peptides, 0 = Keep shared peptides
+#   new_value      = NEW_VALUE_HERE
+# )
+# search_srl_quant_cln <- srlQvalueProteotypicPeptideClean(theObject = peptide_data) # Re-run after update
 
 updateProteinFiltering(
   data = search_srl_quant_cln@peptide_data,
@@ -427,10 +447,10 @@ This step aggregates intensity measurements from multiple precursor ions (differ
 
 ```{r Roll-up Precursor to Peptide}
 peptide_normalized_tbl <- rollUpPrecursorToPeptide(search_srl_quant_cln)
-
-peptide_normalized_tbl@peptide_data |>
+rollup_protein_count <- peptide_normalized_tbl@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins after precursor roll-up to peptide level:", rollup_protein_count))
 
 updateProteinFiltering(
   data = peptide_normalized_tbl@peptide_data,
@@ -467,10 +487,25 @@ This step removes peptides with low intensity values or those that are detected 
 peptide_normalized_pif_cln <- peptideIntensityFiltering(
   theObject = peptide_normalized_tbl
 )
-
-peptide_normalized_pif_cln@peptide_data |>
+pif_protein_count <- peptide_normalized_pif_cln@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins remaining after peptide intensity/proportion filtering:", pif_protein_count))
+
+# Example: Interactively change intensity filtering thresholds and re-run this chunk
+# peptide_normalized_tbl <- updateConfigParameter(
+#   theObject      = peptide_normalized_tbl, # Use the input object from the previous step
+#   function_name  = "peptideIntensityFiltering",
+#   parameter_name = "peptides_intensity_cutoff_percentile", # Effect: Higher = stricter intensity threshold (removes more)
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_normalized_tbl <- updateConfigParameter(
+#   theObject      = peptide_normalized_tbl,
+#   function_name  = "peptideIntensityFiltering",
+#   parameter_name = "peptides_proportion_of_samples_below_cutoff", # Effect: Higher = more relaxed filtering (keeps more)
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_normalized_pif_cln <- peptideIntensityFiltering(theObject = peptide_normalized_tbl) # Re-run after update
 
 updateProteinFiltering(
   data = peptide_normalized_pif_cln@peptide_data,
@@ -507,10 +542,25 @@ This step filters proteins based on the number of unique peptides identified for
 removed_proteins_with_less_than_two_peptides <- filterMinNumPeptidesPerProtein(
   theObject = peptide_normalized_pif_cln
 )
-
-removed_proteins_with_less_than_two_peptides@peptide_data |>
+twopep_protein_count <- removed_proteins_with_less_than_two_peptides@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins identified by >= 2 peptides:", twopep_protein_count))
+
+# Example: Interactively change minimum peptide/peptidoform count and re-run this chunk
+# peptide_normalized_pif_cln <- updateConfigParameter(
+#   theObject      = peptide_normalized_pif_cln, # Use the input object from the previous step
+#   function_name  = "filterMinNumPeptidesPerProtein",
+#   parameter_name = "num_peptides_per_protein_thresh", # Effect: Higher = requires more unique peptides per protein
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_normalized_pif_cln <- updateConfigParameter(
+#   theObject      = peptide_normalized_pif_cln,
+#   function_name  = "filterMinNumPeptidesPerProtein",
+#   parameter_name = "num_peptidoforms_per_protein_thresh", # Effect: Higher = requires more peptide forms per protein (more stringent)
+#   new_value      = NEW_VALUE_HERE
+# )
+# removed_proteins_with_less_than_two_peptides <- filterMinNumPeptidesPerProtein(theObject = peptide_normalized_pif_cln) # Re-run after update
 
 updateProteinFiltering(
   data = removed_proteins_with_less_than_two_peptides@peptide_data,
@@ -547,6 +597,31 @@ This step identifies and removes samples with poor performance, indicated by an 
 peptide_keep_samples_with_min_num_peptides <- filterMinNumPeptidesPerSample(
   theObject = removed_proteins_with_less_than_two_peptides
 )
+minsamp_protein_count <- peptide_keep_samples_with_min_num_peptides@peptide_data |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after removing low-peptide-count samples:", minsamp_protein_count))
+message(paste(
+  "Number of distinct runs remaining:",
+  peptide_keep_samples_with_min_num_peptides@peptide_data |> distinct(Run) |> nrow()
+))
+message("Peptidoform counts per remaining run:")
+print(
+  peptide_keep_samples_with_min_num_peptides@peptide_data |>
+    distinct(Run, Protein.Ids, Stripped.Sequence, peptidoform_count) |>
+    group_by(Run) |>
+    summarise(n = sum(peptidoform_count)) |>
+    arrange(desc(n))
+)
+
+# Example: Interactively change minimum peptides per sample cutoff and re-run this chunk
+# removed_proteins_with_less_than_two_peptides <- updateConfigParameter(
+#   theObject      = removed_proteins_with_less_than_two_peptides, # Use the input object from the previous step
+#   function_name  = "filterMinNumPeptidesPerSample",
+#   parameter_name = "peptides_per_sample_cutoff", # Effect: Higher = stricter sample quality filter (removes more samples)
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_keep_samples_with_min_num_peptides <- filterMinNumPeptidesPerSample(theObject = removed_proteins_with_less_than_two_peptides) # Re-run after update
 
 updateProteinFiltering(
   data = peptide_keep_samples_with_min_num_peptides@peptide_data,
@@ -555,18 +630,6 @@ updateProteinFiltering(
   return_grid = TRUE,
   overwrite = TRUE
 )
-
-peptide_keep_samples_with_min_num_peptides@peptide_data |>
-  distinct(Run, Protein.Ids, Stripped.Sequence, peptidoform_count) |>
-  group_by(Run) |>
-  summarise(n = sum(peptidoform_count)) |>
-  arrange(desc(n))
-
-## Show the distinct number of Samples to manually check how many samples are
-## removed from the previous step
-peptide_keep_samples_with_min_num_peptides@peptide_data |>
-  distinct(Run) |>
-  nrow()
 ```
 
 ## Remove peptides with only one replicate in the data set
@@ -596,10 +659,20 @@ removed_peptides_with_only_one_replicate <- removePeptidesWithOnlyOneReplicate(
   peptide_keep_samples_with_min_num_peptides,
   replicate_group_column = peptide_keep_samples_with_min_num_peptides@technical_replicate_id
 )
-
-removed_peptides_with_only_one_replicate@peptide_data |>
+onerep_protein_count <- removed_peptides_with_only_one_replicate@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins remaining after removing single-replicate peptides:", onerep_protein_count))
+
+# Example: Interactively change replicate filtering and re-run this chunk
+# peptide_keep_samples_with_min_num_peptides <- updateConfigParameter(
+#   theObject      = peptide_keep_samples_with_min_num_peptides, # Use the input object from the previous step
+#   function_name  = "removePeptidesWithOnlyOneReplicate",
+#   parameter_name = "replicate_group_column", # Effect: Change the column used for replicate filtering
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_keep_samples_with_min_num_peptides <- removePeptidesWithOnlyOneReplicate(peptide_keep_samples_with_min_num_peptides, replicate_group_column = NEW_VALUE_HERE) # Re-run after update
+
 
 updateProteinFiltering(
   data = removed_peptides_with_only_one_replicate@peptide_data,
@@ -637,10 +710,20 @@ This step addresses missing values in the dataset by using information from tech
 peptide_values_imputed <- peptideMissingValueImputation(
   theObject = removed_peptides_with_only_one_replicate
 )
-
-peptide_values_imputed@peptide_data |>
+impute_protein_count <- peptide_values_imputed@peptide_data |>
   distinct(Protein.Ids) |>
   nrow()
+message(paste("Number of distinct proteins after peptide-level imputation:", impute_protein_count))
+
+# Example: Interactively change imputation threshold and re-run this chunk
+# removed_peptides_with_only_one_replicate <- updateConfigParameter(
+#   theObject      = removed_peptides_with_only_one_replicate, # Use the input object from the previous step
+#   function_name  = "peptideMissingValueImputation",
+#   parameter_name = "proportion_missing_values", # Effect: Lower = imputes more readily (less stringent)
+#   new_value      = NEW_VALUE_HERE
+# )
+# peptide_values_imputed <- peptideMissingValueImputation(theObject = removed_peptides_with_only_one_replicate) # Re-run after update
+
 
 peptide_values_imputed_file <- file.path(
   results_dir,
@@ -700,13 +783,10 @@ iq::process_long_format(
 )
 
 ## Read in the IQ output file (which outputs a file, not an object)
-dir.create(file.path(results_dir, "proteomics", "protein_qc"), recursive = TRUE)
+dir.create(file.path(results_dir, "proteomics", "protein_qc"), recursive = TRUE) # does this need to be here?
 protein_log2_quant <- vroom::vroom(
   file.path(results_dir, "protein_qc", "iq_output_file.txt")
 )
-
-## Check the number of proteins here to ensure no data lost
-nrow(protein_log2_quant)
 ```
 
 ## Create Protein Quantitative Data Object
@@ -779,6 +859,10 @@ if (is.null(uniprot_search_results)) {
     replace_zero_with_na = TRUE,
     aggregation_method = "mean"
   )
+  annotclean_protein_count <- protein_log2_quant_cln@protein_quant_table |>
+    distinct(Protein.Ids) |>
+    nrow()
+  message(paste("Number of distinct proteins after choosing best protein accession:", annotclean_protein_count))
 
   updateProteinFiltering(
     data = protein_log2_quant_cln@protein_quant_table,
@@ -848,6 +932,32 @@ This step removes proteins with consistently low intensity values or those detec
 protein_normalized_pif_cln <- removeRowsWithMissingValuesPercent(
   protein_log2_quant_cln
 )
+protmiss_protein_count <- protein_normalized_pif_cln@protein_quant_table |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after protein intensity/proportion filtering:", protmiss_protein_count))
+
+# Example: Interactively change protein missing value filtering and re-run this chunk
+# protein_log2_quant_cln <- updateConfigParameter(
+#   theObject      = protein_log2_quant_cln, # Use the input object from the previous step
+#   function_name  = "removeRowsWithMissingValuesPercent",
+#   parameter_name = "groupwise_percentage_cutoff", # Effect: Lower = stricter filtering within groups (removes more)
+#   new_value      = NEW_VALUE_HERE
+# )
+# protein_log2_quant_cln <- updateConfigParameter(
+#   theObject      = protein_log2_quant_cln,
+#   function_name  = "removeRowsWithMissingValuesPercent",
+#   parameter_name = "max_groups_percentage_cutoff", # Effect: Lower = stricter filtering across groups (removes more)
+#   new_value      = NEW_VALUE_HERE
+# )
+# protein_log2_quant_cln <- updateConfigParameter(
+#   theObject      = protein_log2_quant_cln,
+#   function_name  = "removeRowsWithMissingValuesPercent",
+#   parameter_name = "proteins_intensity_cutoff_percentile", # Effect: Higher = stricter intensity threshold (removes more)
+#   new_value      = NEW_VALUE_HERE
+# )
+# protein_normalized_pif_cln <- removeRowsWithMissingValuesPercent(protein_log2_quant_cln) # Re-run after update
+
 
 updateProteinFiltering(
   data = protein_normalized_pif_cln@protein_quant_table,
@@ -856,10 +966,6 @@ updateProteinFiltering(
   return_grid = TRUE,
   overwrite = TRUE
 )
-
-protein_normalized_pif_cln@protein_quant_table |>
-  distinct(Protein.Ids) |>
-  nrow()
 ```
 
 ## Summarize data from duplicate proteins
@@ -938,6 +1044,10 @@ remove_proteins_with_only_one_rep <- removeProteinsWithOnlyOneReplicate(
   core_utilisation,
   grouping_variable = "group"
 )
+protonerep_protein_count <- remove_proteins_with_only_one_rep@protein_quant_table |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after removing single-replicate proteins:", protonerep_protein_count))
 vroom::vroom_write(
   remove_proteins_with_only_one_rep@protein_quant_table,
   file.path(results_dir, "protein_qc", "remove_proteins_with_only_one_rep.tsv")
@@ -950,10 +1060,6 @@ updateProteinFiltering(
   return_grid = TRUE,
   overwrite = TRUE
 )
-
-remove_proteins_with_only_one_rep@protein_quant_table |>
-  distinct(Protein.Ids) |>
-  nrow()
 ```
 
 ## Pre-normalisation data QC
@@ -1045,9 +1151,9 @@ frozen_protein_matrix_tech_rep <- proteinTechRepCorrelation(
 frozen_protein_matrix_tech_rep |>
   dplyr::filter(pearson > 0.8) |>
   nrow()
-frozen_protein_matrix_tech_rep |>
-  dplyr::filter(spearman > 0.8) |>
-  nrow()
+# frozen_protein_matrix_tech_rep |>
+#  dplyr::filter(spearman > 0.8) |>
+#  nrow()
 ```
 
 ## Cyclic loess normalisation and QC
@@ -1228,6 +1334,10 @@ config_list <- updateRuvParameters(
 ruv_normalised_results_cln_obj <- removeRowsWithMissingValuesPercent(
   theObject = ruv_normalised_results_temp_obj
 )
+ruvfilt_protein_count <- ruv_normalised_results_cln_obj@protein_quant_table |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after RUV normalization and filtering:", ruvfilt_protein_count))
 
 updateProteinFiltering(
   data = ruv_normalised_results_cln_obj@protein_quant_table,
@@ -1317,6 +1427,10 @@ ruv_correlation_vec <- pearsonCorForSamplePairs(
   tech_rep_remove_regex = "pool",
   correlation_group = "group"
 )
+corfilt_protein_count <- ruv_normalised_filtered_results_obj@protein_quant_table |>
+  distinct(Protein.Ids) |>
+  nrow()
+message(paste("Number of distinct proteins remaining after removing low-correlation samples:", corfilt_protein_count))
 
 ruv_normalised_filtered_results_obj <- filterSamplesByProteinCorrelationThreshold(
   ruv_normalised_results_cln_obj,
@@ -1337,7 +1451,7 @@ vroom::vroom_write(
   file.path(
     results_dir,
     "protein_qc",
-    "ruv_normalized_results_cln_with_replicates.tsv"
+    "ruv_normalised_results_cln_with_replicates.tsv"
   )
 )
 
@@ -1412,24 +1526,6 @@ vroom::vroom_write(
 ruv_normalised_for_de_analysis_mat <- ruv_normalised_for_de_analysis |>
   column_to_rownames("uniprot_acc") |>
   as.matrix()
-
-vroom::vroom_write(
-  ruv_normalised_filtered_results_obj@protein_quant_table,
-  file.path(
-    results_dir,
-    "protein_qc",
-    "ruv_normalised_results_cln_with_replicates.tsv"
-  )
-)
-
-saveRDS(
-  ruv_normalised_filtered_results_obj,
-  file.path(
-    results_dir,
-    "protein_qc",
-    "ruv_normalised_results_cln_with_replicates.RDS"
-  )
-)
 ```
 
 ## Composite QC Figure Generation
@@ -1517,7 +1613,7 @@ contrasts_tbl <- file.path(source_dir, "contrast_strings.tab") |>
     \(x) x[!grepl("^contrasts", x)]
   }() |>
   as_tibble() |>
-  rename(contrasts = value)
+  dplyr::rename(contrasts = value)
 ```
 
 ## DE Analysis Generation

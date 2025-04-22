@@ -265,6 +265,9 @@ RunApplet <- function(applet_type, force = FALSE) {
       groups <- reactiveVal(initial_state$groups)
       factors <- reactiveVal(initial_state$factors)
 
+      # Create a proxy for the main data table to allow updates without state loss
+      proxy_data_table <- dataTableProxy("data_table")
+
       contrasts <- reactiveVal(data.frame(
         contrast_name = character(),
         numerator = character(),
@@ -275,28 +278,6 @@ RunApplet <- function(applet_type, force = FALSE) {
         factor2_den = character(),
         stringsAsFactors = FALSE
       ))
-
-      # Update dropdown choices
-      observe({
-        current_factors <- factors()
-
-        updateSelectInput(session, "factor1_select",
-          choices = c("", current_factors),
-          selected = ""
-        )
-        updateSelectInput(session, "factor2_select",
-          choices = c("", current_factors),
-          selected = ""
-        )
-        updateSelectInput(session, "contrast_group1",
-          choices = c("", groups()),
-          selected = ""
-        )
-        updateSelectInput(session, "contrast_group2",
-          choices = c("", groups()),
-          selected = ""
-        )
-      })
 
       # Session information for the settings tab
       output$session_info <- renderText({
@@ -459,6 +440,17 @@ RunApplet <- function(applet_type, force = FALSE) {
           updateSelectInput(session, "contrast_group1", choices = c("", initial_state$groups), selected = "")
           updateSelectInput(session, "contrast_group2", choices = c("", initial_state$groups), selected = "")
         }
+        # Add updates if only factors were reset
+        else if (scope == "factors"){
+            updateSelectInput(session, "factor1_select", choices = c("", initial_state$factors), selected = "")
+            updateSelectInput(session, "factor2_select", choices = c("", initial_state$factors), selected = "")
+        }
+        # Add updates if only contrasts were reset (groups affect contrast dropdowns)
+        else if (scope == "contrasts"){
+             # Groups don't reset here, so just ensure dropdowns reflect current groups
+             updateSelectInput(session, "contrast_group1", choices = c("", groups()), selected = "")
+             updateSelectInput(session, "contrast_group2", choices = c("", groups()), selected = "")
+        }
 
         # Close the modal
         removeModal()
@@ -600,8 +592,13 @@ RunApplet <- function(applet_type, force = FALSE) {
         req(input$new_factor)
         if (input$new_factor != "") {
           current_factors <- factors()
-          if (!input$new_factor %in% current_factors) {
-            factors(c(current_factors, input$new_factor))
+          new_factor_name <- trimws(input$new_factor) # Trim whitespace
+          if (new_factor_name != "" && !new_factor_name %in% current_factors) {
+            new_factor_list <- c(current_factors, new_factor_name)
+            factors(new_factor_list)
+            # Update factor dropdowns after adding
+            updateSelectInput(session, "factor1_select", choices = c("", new_factor_list), selected = "")
+            updateSelectInput(session, "factor2_select", choices = c("", new_factor_list), selected = "")
           }
           updateTextInput(session, "new_factor", value = "")
         }
@@ -658,6 +655,13 @@ RunApplet <- function(applet_type, force = FALSE) {
         if (input$factor2_select != "" && !input$factor2_select %in% current_factors) {
           factors(c(current_factors, input$factor2_select))
         }
+
+        # Update dropdowns AFTER potential changes to groups/factors
+        updateSelectInput(session, "contrast_group1", choices = c("", groups()), selected = "")
+        updateSelectInput(session, "contrast_group2", choices = c("", groups()), selected = "")
+        # Also update factor dropdowns in case a factor was implicitly added (though not ideal)
+        updateSelectInput(session, "factor1_select", choices = c("", factors()), selected = input$factor1_select) # Preserve selection
+        updateSelectInput(session, "factor2_select", choices = c("", factors()), selected = input$factor2_select) # Preserve selection
       })
 
       # Add contrast handler
@@ -699,8 +703,13 @@ RunApplet <- function(applet_type, force = FALSE) {
           design_matrix()
         },
         selection = "none",
-        options = list(pageLength = 10, scrollX = TRUE)
+        options = list(pageLength = 10, scrollX = TRUE, server = FALSE)
       ) # Adjusted pageLength
+
+      # Observer to update the main table data via proxy when design_matrix changes
+      observeEvent(design_matrix(), {
+        replaceData(proxy_data_table, design_matrix(), resetPaging = FALSE)
+      })
 
       # NEW: Render UI for Available Factors Display (in LHS info panel)
       output$available_factors_display <- renderUI({
