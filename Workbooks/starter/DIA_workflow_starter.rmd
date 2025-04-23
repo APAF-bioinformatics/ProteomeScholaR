@@ -35,10 +35,16 @@ This function checks for and installs all the required packages for the Proteome
 ## IF THIS IS YOUR FIRST INSTALL, THIS WILL TAKE SOME TIME AS THERE ARE A NUMBER OF DEPENDENCIES TO INSTALL :)
 ## GOOD POINT TO GRAB A COFFEE!
 ```{r ProteomeScholaR FIRST INSTALL, message=TRUE, warning=TRUE}
+# Function to install/update ProteomeScholaR
+# Set force_install = TRUE to force reinstallation from GitHub
+installProteomeScholaR <- function(force_install = FALSE, verbose = TRUE) {
+  # Ensure devtools is available
+  if (!requireNamespace("devtools", quietly = TRUE)) {
+    if(verbose) message("Installing devtools...")
+    install.packages("devtools")
+  }
 
-# Function to install/update
-installProteomeScholaR <- function(verbose = TRUE) {
-  if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
+  # Detach and unload if already loaded to allow clean installation
   if ("package:ProteomeScholaR" %in% search()) {
       try(detach("package:ProteomeScholaR", unload = TRUE, force = TRUE), silent = TRUE)
   }
@@ -50,9 +56,11 @@ installProteomeScholaR <- function(verbose = TRUE) {
     ref = "main",
     dependencies = TRUE,
     upgrade = "never",
-    force = TRUE
+    force = force_install # Use the function argument to control force
   )
+
   if(verbose) message("Loading ProteomeScholaR...")
+  # Load the newly installed/updated package
   library(ProteomeScholaR)
 }
 
@@ -63,29 +71,38 @@ if (requireNamespace("ProteomeScholaR", quietly = TRUE)) {
     installed_version_str <- as.character(installed_version)
     message(paste("ProteomeScholaR version", installed_version_str, "is installed."))
 
-    # Check if it's an older version (< 0.9.0)
+    # Check if it's an older version (< 0.9.0) - Suggest manual update
     if (utils::compareVersion(installed_version_str, "0.9.0") < 0) {
-        message("\n--- IMPORTANT: UPDATE RECOMMENDED --- ")
+        message("\\n--- IMPORTANT: UPDATE RECOMMENDED --- ")
         message("-> Your installed version (", installed_version_str, ") is older than v0.9.")
         message("-> Major changes were introduced in v0.9.")
-        message("-> Please consider updating manually using:")
-        message("   devtools::install_github(\"APAF-BIOINFORMATICS/ProteomeScholaR\", ref = \"main\", dependencies = TRUE, upgrade = \"never\", force = TRUE)")
-        message("-> Also, update your project_setup.R (if used) and .Rmd files, available from the GitHub repository. :-) ") 
+        message("-> Please consider updating manually by running:")
+        message("   installProteomeScholaR(force_install = TRUE)")
+        message("-> Also, update your project_setup.R (if used) and .Rmd files, available from the GitHub repository. :-) ")
         message("-------------------------------------")
+        message("Loading existing older version...")
+        library(ProteomeScholaR) # Load the existing older version for now
     } else {
         message("-> Your version is 0.9.0 or newer. Loading...")
+        library(ProteomeScholaR) # Load the existing recent version
     }
-    
-    # Load the installed version and dependencies
-    library(ProteomeScholaR)
-    loadDependencies()
 
 } else {
     # Package is NOT installed
     message("ProteomeScholaR is not installed. Performing initial installation...")
+    # Call the function to install (force_install defaults to FALSE)
+    # The function will also load the library after installation
     installProteomeScholaR()
-    loadDependencies()
 }
+
+# Load dependencies AFTER ProteomeScholaR is guaranteed to be loaded
+# (either from existing install or fresh install)
+installProteomeScholaR(force_install = FALSE, verbose = TRUE)
+loadDependencies()
+# Example of how to force an update manually if needed:
+# installProteomeScholaR(force_install = TRUE)
+# loadDependencies() # Reload dependencies if you forced an update
+
 ```
 
 # START HERE if you already have ProteomeScholaR installed
