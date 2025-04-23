@@ -10,6 +10,8 @@
 #' @param private Boolean indicating if repository should be private (default: TRUE)
 #'
 #' @return Invisible TRUE if successful
+#' @importFrom utils menu
+#' @importFrom fs path_rel dir_ls dir_tree
 #' @export
 pushProjectToGithub <- function(base_dir,
                                source_dir,
@@ -20,8 +22,18 @@ pushProjectToGithub <- function(base_dir,
                                commit_message = "Initial project commit",
                                private = TRUE) {
   
+  # === DEBUG: Print base_dir ===
+  # message("DEBUG: Entered pushProjectToGithub. base_dir: ", base_dir)
+  
   # Use gh package's token function
   github_token <- gh::gh_token()
+  
+  # === DEBUG: Check token ===
+  if (is.null(github_token) || nchar(github_token) == 0) {
+      stop("DEBUG: Failed to retrieve GitHub token from gh::gh_token()")
+  } else {
+      # message("DEBUG: Retrieved GitHub token (starts with: ", substr(github_token, 1, 6), "...)")
+  }
   
   # Validate inputs
   if (missing(project_id)) {
@@ -44,24 +56,88 @@ pushProjectToGithub <- function(base_dir,
   }
   dir.create(temp_dir, recursive = TRUE)
   
-  # Find workflow file with any case
-  possible_workflow_files <- c(
-    file.path(source_dir, "DIA_workflow.rmd"),
-    file.path(source_dir, "DIA_workflow.Rmd"),
-    file.path(source_dir, "DIA_workflow.RMD")
-  )
-  workflow_file <- possible_workflow_files[file.exists(possible_workflow_files)][1]
+  # === DEBUG: Print temp_dir ===
+  # message("DEBUG: Created temp_dir: ", temp_dir)
   
-  if (is.na(workflow_file)) {
-    stop("Could not find DIA workflow file in: ", source_dir)
+  # Recursively find all R Markdown files in base_dir (case-insensitive) using fs
+  # This tends to be more robust with paths and regex across platforms
+  # STEP 1: List ALL files recursively
+  all_files_found <- fs::dir_ls(
+      path = base_dir
+      # , regexp = "\\.[Rr][Mm][Dd]$" # Remove regex for now
+      , recurse = TRUE
+      , type = "file"
+      , fail = FALSE # Don't error if path doesn't exist, just return empty
+  )
+  
+  # === DEBUG: Print ALL files found by fs::dir_ls before ANY filtering ===
+  # message("DEBUG: ALL files found by fs::dir_ls (no pattern):")
+  # print(all_files_found)
+  
+  # STEP 2: Filter for Rmd files using grepl (case-insensitive)
+  all_rmd_files <- all_files_found[grepl("\\.[Rr][Mm][Dd]$", all_files_found)]
+  
+  # === DEBUG: Print files after grepl filtering ===
+  # message("DEBUG: Files after grepl filtering for Rmd:")
+  print(all_rmd_files)
+  
+  # === DEBUG: Print files found by fs::dir_ls BEFORE filtering ===
+  # message("DEBUG: Files found by fs::dir_ls before filtering:") # Original debug line
+  # print(all_rmd_files) # Original debug line
+  
+  workflow_file <- NULL # Initialize variable
+  
+  if (length(all_rmd_files) == 0) {
+    stop("No R Markdown files (.Rmd, .rmd, .RMD) found recursively in: ", base_dir)
+  } else if (length(all_rmd_files) == 1) {
+    workflow_file <- all_rmd_files[1]
+    message("Using the only R Markdown file found: ", fs::path_rel(workflow_file, start = base_dir))
+  } else {
+    message("Multiple R Markdown files found. Please select one to use as the main project workflow:")
+    # Display relative paths for clarity in the menu
+    relative_paths <- fs::path_rel(all_rmd_files, start = base_dir)
+    selection <- utils::menu(
+        choices = relative_paths
+        , title = "Select the main workflow file:"
+    )
+    if (selection == 0) {
+        stop("User cancelled file selection.")
+    }
+    workflow_file <- all_rmd_files[selection]
+    # Convert selected fs_path back to character for downstream use if needed, though file.copy handles it
+    workflow_file_char <- as.character(workflow_file) 
+    message("Selected workflow file: ", fs::path_rel(workflow_file_char, start = base_dir))
   }
   
   # Define the new workflow filename with project_id
-  new_workflow_name <- paste0(project_id, ".rmd")
+  new_workflow_name <- paste0(project_id, ".Rmd") # Use consistent .Rmd extension
   
   # Create directory structure in temp folder
   scripts_proteomics_dir <- file.path(temp_dir, "scripts", "proteomics")
   dir.create(scripts_proteomics_dir, recursive = TRUE)
+  
+  # === Create .gitignore file ===
+  gitignore_path <- file.path(temp_dir, ".gitignore")
+  gitignore_content <- c(
+    "# Ignore large data files",
+    "scripts/proteomics/data_cln.tab",
+    "",
+    "# R temporary files and caches",
+    ".Rproj.user/",
+    ".Rhistory",
+    ".Rdata",
+    ".Ruserdata",
+    "*.RData",
+    ".httr-oauth",
+    "*\\.Rproj.user",
+    "*\\.Rhistory",
+    "*\\.Rdata",
+    "*\\.Ruserdata",
+    "*\\*.RData",
+    "*\\.httr-oauth"
+  )
+  writeLines(gitignore_content, gitignore_path)
+  # message("DEBUG: Created .gitignore file at: ", gitignore_path)
   
   # Copy and rename workflow file to scripts/proteomics with new name
   file.copy(
@@ -83,10 +159,19 @@ pushProjectToGithub <- function(base_dir,
   
   # Copy other files from source_dir (excluding any DIA workflow files)
   source_files <- list.files(source_dir, full.names = TRUE)
-  source_files <- source_files[!grepl("DIA_workflow\\.R[mM][dD]$", source_files)]
-  if (length(source_files) > 0) {
+  # Ensure we don't accidentally copy the selected workflow file again if it happens to be in source_dir
+  # Also keep the original exclusion logic for generic DIA_workflow files
+  # *** AND explicitly exclude data_cln.tab ***
+  normalized_workflow_file <- normalizePath(workflow_file_char, winslash = "/")
+  excluded_files <- c("DIA_workflow\\.R[mM][dD]$", "data_cln\\.tab$") # Add data_cln.tab pattern (fixed escape)
+  source_files_to_copy <- source_files[
+    !grepl(paste(excluded_files, collapse="|"), basename(source_files)) & # Check basename against patterns
+    normalizePath(source_files, winslash = "/") != normalized_workflow_file
+  ]
+
+  if (length(source_files_to_copy) > 0) {
     file.copy(
-      from = source_files,
+      from = source_files_to_copy,
       to = scripts_proteomics_dir,
       recursive = TRUE,
       overwrite = TRUE
@@ -96,14 +181,52 @@ pushProjectToGithub <- function(base_dir,
   # Initialize git repository
   repo <- git2r::init(temp_dir)
   
+  # === DEBUG: List files in temp_dir BEFORE git add ===
+  # message("DEBUG: Contents of temp_dir before git add:")
+  # print(fs::dir_tree(temp_dir))
+  
   # Configure git user
   git2r::config(repo, user.name = github_user_name, user.email = github_user_email)
   
   # Stage all files
   git2r::add(repo, "*")
   
+  # === DEBUG: Check git status AFTER git add ===
+  # message("DEBUG: Git status after git add:")
+  # print(git2r::status(repo))
+  
   # Create initial commit
   git2r::commit(repo, message = commit_message)
+  
+  # === DEBUG: Show commit details ===
+  # This requires the commit object, let's get the last commit
+  last_commit <- git2r::last_commit(repo)
+  # Get the current branch AFTER the commit
+  current_branch_obj <- git2r::repository_head(repo)
+  # Check if it's a valid branch head (not detached)
+  if (!git2r::is_branch(current_branch_obj)) {
+      stop("Repository is in a detached HEAD state after commit.")
+  }
+  current_branch_name <- current_branch_obj$name
+  # message("DEBUG: Branch name after commit: ", current_branch_name)
+  
+  # Rename branch to 'main' if it's not already 'main'
+  target_branch_name <- "main"
+  if (current_branch_name != target_branch_name) {
+    # message("DEBUG: Renaming local branch from '", current_branch_name, "' to '", target_branch_name, "'")
+    # Find the branch object and rename it
+    branch_to_rename <- git2r::branches(repo, "local")[[current_branch_name]]
+    if (is.null(branch_to_rename)) {
+        stop("Could not find local branch object: ", current_branch_name)
+    }
+    git2r::branch_rename(branch_to_rename, target_branch_name)
+    # message("DEBUG: Branch renamed successfully.")
+    # Update current branch name variable for push
+    current_branch_name <- target_branch_name 
+  }
+  
+  # message("DEBUG: Last commit details:")
+  # print(last_commit)
   
   # Create repository in the organization
   tryCatch({
@@ -124,18 +247,43 @@ pushProjectToGithub <- function(base_dir,
   remote_url <- sprintf("https://x-access-token:%s@github.com/%s/%s.git",
                        github_token, github_org, repo_name)
   git2r::remote_add(repo, "origin", remote_url)
+  # message("DEBUG: Added remote 'origin' with URL: ", sprintf("https://github.com/%s/%s.git", github_org, repo_name)) # Hide token in debug
   
-  # Get current branch name
-  current_branch <- git2r::repository_head(repo)$name
-  
-  # Push to GitHub using the current branch name
+  # Push to GitHub using the potentially renamed 'main' branch via system() call
   tryCatch({
-    git2r::push(repo, "origin", paste0("refs/heads/", current_branch))
+    # Construct the git command to run in the temp directory
+    git_cmd <- sprintf("git -C %s push origin %s", 
+                       shQuote(normalizePath(temp_dir, winslash = "/", mustWork = FALSE)), # Normalize and quote path
+                       paste0("refs/heads/", current_branch_name))
+                       
+    # message("DEBUG: Attempting push via system() command: git push origin ", paste0("refs/heads/", current_branch_name), " (in dir: ", normalizePath(temp_dir, winslash = "/", mustWork = FALSE), ")")
+    
+    # Execute the command
+    push_output <- system(git_cmd, intern = TRUE, ignore.stderr = FALSE)
+    
+    # Check the system command exit status (0 means success)
+    exit_status <- attr(push_output, "status")
+    # message("DEBUG: system('git push') exit status: ", exit_status)
+    # message("DEBUG: system('git push') output:")
+    # print(push_output)
+    
+    if (!is.null(exit_status) && exit_status != 0) {
+        stop("system('git push') failed with exit code: ", exit_status)
+    }
+    
+    # === DEBUG: Push successful ===
+    # message("DEBUG: system('git push') command appeared successful (exit code 0).")
   }, error = function(e) {
-    stop("Failed to push to repository: ", e$message)
+    # === DEBUG: Push FAILED ===
+    message("DEBUG: Push operation failed. Error:")
+    print(e)
+    # Include original error message if available
+    stop("Failed to push to repository. Error during push step: ", e$message)
   })
   
   # Clean up
+  # === DEBUG: Temporarily disabled cleanup to allow inspection ===
+  # message("DEBUG: Skipping cleanup of temp_dir: ", temp_dir)
   unlink(temp_dir, recursive = TRUE)
   
   # Create success message with clickable URL

@@ -185,8 +185,8 @@ config_list <- readConfigFile(file = file.path(source_dir, "config.ini"))
 ## already have it
 DIANN_filename <- "report.tsv" ## copy to /data/proteomics in your project directory
 fasta_filename <- "fasta.fasta" ## copy to /data/UniProt in your project directory
-uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory
-uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory
+uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory eg "idmapping.tsv"
+uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory eg "idmapping.tsv"
 ## Please supply your organism's taxon ID here
 taxon_id <- your_organism_id_here # You can find this at the links above.
 ## Please supply your organism's name here

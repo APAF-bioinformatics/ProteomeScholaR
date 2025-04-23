@@ -54,6 +54,7 @@ Imports:
     flextable,
     furrr,
     future.apply,
+    fs,
     gh,
     git2r,
     glue,
