@@ -711,7 +711,7 @@ loadDependencies <- function(verbose = TRUE) {
         "gplots", "iheatmapr", "UpSetR", "gt", "gprofiler2",
         "htmltools", "rstudioapi", "flextable", "viridis", "here",
         "git2r", "fs",
-        "configr", 
+        "configr", "webshot2",
         # Added from Suggests:
         "testthat", "ggplot2", "ggpubr", "svglite"
     )

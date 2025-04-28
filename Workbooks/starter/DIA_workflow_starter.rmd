@@ -1389,7 +1389,7 @@ updateProteinFiltering(
 QC_composite_figure@rle_plots$rle_plot_after_ruvIIIc_group <- plotRle(
   ruv_normalised_results_cln_obj,
   group = "group",
-  yaxis_limit = c(-4, 4)
+  yaxis_limit = c(-6, 6)
 )
 
 QC_composite_figure@pca_plots$pca_plot_after_ruvIIIc_group <- plotPca(
