@@ -130,12 +130,13 @@ config_list <- readConfigFile(file = file.path(source_dir, "config.ini"))
 ## already have it
 DIANN_filename <- "report.tsv" ## copy to /data/proteomics in your project directory
 fasta_filename <- "fasta.fasta" ## copy to /data/UniProt in your project directory
+#(https://www.uniprot.org/id-mapping) for UniProt ID mapping below
 uniprot_search_results <- NULL ## copy to /data/UniProt in your project directory eg "idmapping.tsv"
 uniparc_search_results <- NULL ## copy to /data/UniProt in your project directory eg "idmapping.tsv"
 ## Please supply your organism's taxon ID here
 taxon_id <- your_organism_id_here # (https://www.uniprot.org/taxonomy)
 ## Please supply your organism's name here
-organism_name <- "your_organism_name_here"
+organism_name <- "your_organism_name_here" 
 
 data_tbl <- vroom::vroom(file.path(data_dir, "proteomics", DIANN_filename))
 fasta_file_path <- file.path(data_dir, "UniProt", fasta_filename)

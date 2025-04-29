@@ -183,6 +183,9 @@ setupAndShowDirectories(
 - [NCBI Taxonomy Browser](https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi) - Look up taxonomic IDs for different organisms
 - [UniProt Taxonomy](https://www.uniprot.org/taxonomy) - Alternative source for organism taxonomy information
 
+#### UniProt ID Mapping
+- [UniProt ID Mapping](https://www.uniprot.org/id-mapping) - UniProt ID mapping service
+
 This section handles importing your DIA-NN results and FASTA file, and setting up essential parameters like taxonomy ID that will be used throughout the analysis. Make sure to download your organism's FASTA file from UniProt and find its correct taxonomy ID before proceeding.
 ```{r Data Management}
 ## Input Parameters for Quality Control
