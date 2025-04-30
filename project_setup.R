@@ -188,7 +188,7 @@ setup_dia_project <- function(root_dir = NULL, overwrite = FALSE) {
             dest = file.path(dirs$scripts_proteomics, workflow_filename)
         ),
         config = list(
-            url = "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/dev-jr/Workbooks/config.ini",
+            url = "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/main/Workbooks/config.ini",
             dest = file.path(dirs$scripts_proteomics, "config.ini")
         )
     )
