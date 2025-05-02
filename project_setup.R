@@ -111,7 +111,7 @@ setup_dia_project <- function(root_dir = NULL, overwrite = FALSE) {
     
     # Determine workflow file based on workflow_type and user_experience
     get_workflow_url <- function(workflow_type, user_experience) {
-        base_url <- "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/main/Workbooks"
+        base_url <- "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/main/Workbooks/proteomics"
         
         if (workflow_type == "DIA-NN") {
             if (user_experience == "experienced") {
@@ -131,7 +131,7 @@ setup_dia_project <- function(root_dir = NULL, overwrite = FALSE) {
     
     # Get report template URL based on workflow type
     get_report_url <- function(workflow_type) {
-        base_url <- "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/main/Workbooks/report"
+        base_url <- "https://raw.githubusercontent.com/APAF-bioinformatics/ProteomeScholaR/main/Workbooks/proteomics/report"
         
         if (workflow_type == "DIA-NN") {
             return(paste0(base_url, "/DIANN_report.rmd"))
