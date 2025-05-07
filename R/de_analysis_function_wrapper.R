@@ -56,6 +56,7 @@ deAnalysisWrapperFunction <- function( theObject
 
   pca_plot <-  plotPca( theObject
                         , grouping_variable = theObject@group_id
+                        , shape_variable = NULL
                         , label_column = ""
                         , title = ""
                         , font_size = 8) +
@@ -73,6 +74,7 @@ deAnalysisWrapperFunction <- function( theObject
 
   pca_plot_with_labels <-  plotPca( theObject
                                     , grouping_variable = theObject@group_id
+                                    , shape_variable = NULL
                                     , label_column = theObject@sample_id
                                     , title = ""
                                     , font_size = 8) +
@@ -221,19 +223,19 @@ deAnalysisWrapperFunction <- function( theObject
   return_list$list_of_volcano_plots <- list_of_volcano_plots
 
 
-  list_of_volcano_plots_with_gene_names <-  static_volcano_plot_data %>%
-    group_by( comparison) %>%
-    nest() %>%
-    ungroup() %>%
-    mutate( title = paste( comparison)) %>%
-    mutate( plot = purrr:::map2( data, \(x) {
-      printOneVolcanoPlotWithProteinLabel( input_table=  x$de_proteins_long
-                                           , uniprot_table = uniprot_dat_cln |>
-                                             mutate( gene_name = purrr::map_chr( gene_names
-                                                                                 , \(x) str_split(x, "; ")[[1]][1])) )
-       } ) )
-
-  return_list$list_of_volcano_plots_with_gene_names <- list_of_volcano_plots_with_gene_names
+  # list_of_volcano_plots_with_gene_names <-  static_volcano_plot_data %>%
+  #   group_by( comparison) %>%
+  #   nest() %>%
+  #   ungroup() %>%
+  #   mutate( title = paste( comparison)) %>%
+  #   mutate( plot = purrr:::map( data, \(x) {
+  #     printOneVolcanoPlotWithProteinLabel( input_table=  x$de_proteins_long
+  #                                          , uniprot_table = uniprot_dat_cln |>
+  #                                            mutate( gene_name = purrr::map_chr( gene_names
+  #                                                                                , \(y) str_split(y, "; ")[[1]][1])) )
+  #      } ) )
+  #
+  # return_list$list_of_volcano_plots_with_gene_names <- list_of_volcano_plots_with_gene_names
 
 
   ## Return the number of significant molecules
@@ -704,24 +706,24 @@ outputDeAnalysisResults <- function(de_analysis_results_list
     width = 7, height = 7
   )
 
-  list_of_volcano_plots_with_gene_names <- de_analysis_results_list$list_of_volcano_plots_with_gene_names
-
-
-  purrr::walk2( list_of_volcano_plots_with_gene_names %>% dplyr::pull(title)
-                , list_of_volcano_plots_with_gene_names %>% dplyr::pull(plot)
-                , \(x, y) {
-
-                  savePlot( x
-                            , file.path( publication_graphs_dir, "Volcano_Plots")
-                            , paste0( y,"_with_protein_labels"))
-                })
-
-
-  ggsave(
-    filename = file.path(publication_graphs_dir, "Volcano_Plots", "list_of_volcano_plots_with_gene_names.pdf" ),
-    plot = gridExtra::marrangeGrob( (list_of_volcano_plots_with_gene_names  %>% dplyr::pull(plot)), nrow=1, ncol=1),
-    width = 7, height = 7
-  )
+  # list_of_volcano_plots_with_gene_names <- de_analysis_results_list$list_of_volcano_plots_with_gene_names
+  #
+  #
+  # purrr::walk2( list_of_volcano_plots_with_gene_names %>% dplyr::pull(title)
+  #               , list_of_volcano_plots_with_gene_names %>% dplyr::pull(plot)
+  #               , \(x, y) {
+  #
+  #                 savePlot( x
+  #                           , file.path( publication_graphs_dir, "Volcano_Plots")
+  #                           , paste0( y,"_with_protein_labels"))
+  #               })
+  #
+  #
+  # ggsave(
+  #   filename = file.path(publication_graphs_dir, "Volcano_Plots", "list_of_volcano_plots_with_gene_names.pdf" ),
+  #   plot = gridExtra::marrangeGrob( (list_of_volcano_plots_with_gene_names  %>% dplyr::pull(plot)), nrow=1, ncol=1),
+  #   width = 7, height = 7
+  # )
 
 
   ## Number of significant molecules

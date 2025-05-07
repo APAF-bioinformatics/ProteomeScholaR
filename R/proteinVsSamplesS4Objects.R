@@ -390,7 +390,7 @@ setGeneric(name="plotPca"
 #'@export
 setMethod(f="plotPca"
           , signature="ProteinQuantitativeData"
-          , definition=function( theObject, grouping_variable, shape_variable, label_column, title, font_size=8) {
+          , definition=function( theObject, grouping_variable, shape_variable=NULL, label_column, title, font_size=8) {
             protein_quant_table <- theObject@protein_quant_table
             protein_id_column <- theObject@protein_id_column
             design_matrix <- theObject@design_matrix

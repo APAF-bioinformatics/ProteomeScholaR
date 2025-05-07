@@ -245,7 +245,7 @@ setArgsDefault <- function(args, value_name, as_func, default_val=NA ) {
 #' This function saves a given plot in multiple specified formats and also save the ggplot object as a rds file.
 #'
 #' @param plot The plot object to be saved
-#' @param base_path The base directory path where the plot will be saved
+#' @param base_dir The base directory path where the plot will be saved
 #' @param plot_name The name to be used for the saved plot files
 #' @param formats A vector of file formats to save the plot in (default: c("pdf", "png"))
 #' @param width The width of the plot (default: 7)
@@ -256,10 +256,10 @@ setArgsDefault <- function(args, value_name, as_func, default_val=NA ) {
 #' @export
 #'
 #'
-savePlot <- function(plot, base_path, plot_name, formats = c("pdf", "png"), width=7, height=7, ... ) {
-  saveRDS( plot, file.path(base_path, paste0(plot_name, ".rds")))
+savePlot <- function(plot, base_dir, plot_name, formats = c("pdf", "png"), width=7, height=7, ... ) {
+  saveRDS( plot, file.path(base_dir, paste0(plot_name, ".rds")))
   purrr::walk( formats, \(format){
-    file_path <- file.path(base_path, paste0(plot_name, ".", format))
+    file_path <- file.path(base_dir, paste0(plot_name, ".", format))
     ggsave(filename = file_path, plot = plot, device = format, width=width, height=height, ...)
   })
 }
@@ -271,7 +271,7 @@ savePlot <- function(plot, base_path, plot_name, formats = c("pdf", "png"), widt
 #' This function saves a given plot in multiple specified formats and also save the ggplot object as a rds file.
 #'
 #' @param plot The plot object to be saved
-#' @param base_path The base directory path where the plot will be saved
+#' @param base_dir The base directory path where the plot will be saved
 #' @param plot_name The name to be used for the saved plot files
 #' @param formats A vector of file formats to save the plot in (default: c("pdf", "png"))
 #'#' @param width The width of the plot (default: 7)
@@ -282,8 +282,8 @@ savePlot <- function(plot, base_path, plot_name, formats = c("pdf", "png"), widt
 #' @export
 #'
 #'
-save_plot <- function(plot, base_path, plot_name, formats = c("pdf", "png"), width=7, height=7, ... ) {
-  savePlot(plot, base_path, plot_name, formats, width, height, ...)
+save_plot <- function(plot, base_dir, plot_name, formats = c("pdf", "png"), width=7, height=7, ... ) {
+  savePlot(plot, base_dir, plot_name, formats, width, height, ...)
 }
 
 
@@ -678,23 +678,23 @@ loadDependencies <- function(verbose = TRUE) {
         # GitHub packages
         "UniProt.ws",
         # Add previously separate Bioconductor packages
-        "clusterProfiler", 
-        "GO.db", 
+        "clusterProfiler",
+        "GO.db",
         "mixOmics"
     )
-    
+
     # Install pacman if not present
     if (!requireNamespace("pacman", quietly = TRUE)) {
         if (verbose) message("Installing pacman...")
         utils::install.packages("pacman")
     }
-    
+
     # Install BiocManager if not present
     if (!requireNamespace("BiocManager", quietly = TRUE)) {
         if (verbose) message("Installing BiocManager...")
         utils::install.packages("BiocManager")
     }
-    
+
     # Check and install/load packages
     required_packages |>
         purrr::map(function(pkg) {
@@ -706,7 +706,7 @@ loadDependencies <- function(verbose = TRUE) {
                 pacman::p_load(char = pkg, character.only = TRUE)
             }
         })
-    
+
     # Handle RUVIIIC separately as it's from GitHub
     if (!requireNamespace("RUVIIIC", quietly = TRUE)) {
         if (verbose) message("Installing RUVIIIC from GitHub...")
@@ -719,7 +719,7 @@ loadDependencies <- function(verbose = TRUE) {
         if (verbose) message("RUVIIIC is already installed, loading...")
         pacman::p_load(RUVIIIC)
     }
-    
+
     # Handle GlimmaV2 separately as it's from GitHub
     if (!requireNamespace("GlimmaV2", quietly = TRUE)) {
         if (verbose) message("Installing GlimmaV2 from GitHub...")
@@ -732,7 +732,7 @@ loadDependencies <- function(verbose = TRUE) {
         if (verbose) message("GlimmaV2 is already installed, loading...")
         pacman::p_load(GlimmaV2)
     }
-    
+
     if (verbose) message("All dependencies loaded successfully!")
 }
 
@@ -1064,19 +1064,19 @@ setMethod("show",
 copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, current_rmd = NULL) {
     # Track failed copies
     failed_copies <- list()
-    
+
     # Try to detect the currently active .Rmd file if none provided
     if (is.null(current_rmd) && exists("rstudioapi") && requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
         # Get the active document context
         context <- rstudioapi::getActiveDocumentContext()
-        
+
         # Check if it's an .Rmd file
         if (!is.null(context) && !is.null(context$path) && grepl("\\.rmd$", context$path, ignore.case = TRUE)) {
             current_rmd <- context$path
             cat(sprintf("Detected active .Rmd file: %s\n", current_rmd))
         }
     }
-    
+
     # Handle current Rmd file if provided or detected
     if (!is.null(current_rmd) && file.exists(current_rmd)) {
         # Attempt to save the current Rmd file to ensure latest changes are captured
@@ -1085,9 +1085,9 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
             if (exists("rstudioapi") && requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
                 # Get all open documents
                 context <- rstudioapi::getActiveDocumentContext()
-                
+
                 # Check if our target file is open and active
-                if (!is.null(context) && !is.null(context$path) && 
+                if (!is.null(context) && !is.null(context$path) &&
                     normalizePath(context$path) == normalizePath(current_rmd)) {
                     # Save the document
                     rstudioapi::documentSave(context$id)
@@ -1104,7 +1104,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                     }
                 }
             }
-            
+
             # Copy the Rmd file to the scripts directory
             if (exists("source_dir") && dir.exists(source_dir)) {
                 dest_file <- file.path(source_dir, basename(current_rmd))
@@ -1131,23 +1131,23 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
             )
         })
     }
-    
+
     # Define target directories
     pub_tables_dir <- file.path(results_summary_dir, "Publication_tables")
-    
+
     # Check if results_summary directory exists
     if (dir.exists(results_summary_dir)) {
         # Create backup directory name with optional label and timestamp
         backup_dirname <- if (!is.null(label)) {
-            paste0("proteomics_", substr(label, 1, 30), "_backup_", 
+            paste0("proteomics_", substr(label, 1, 30), "_backup_",
                   format(Sys.time(), "%Y%m%d_%H%M%S"))
         } else {
             paste0("proteomics_backup_", format(Sys.time(), "%Y%m%d_%H%M%S"))
         }
-        
+
         # Create full backup path in the parent directory
         backup_dir <- file.path(dirname(results_summary_dir), backup_dirname)
-        
+
         # Only prompt if force=FALSE
         should_proceed <- if (!force) {
             cat(sprintf("\nResults summary directory exists:\n- %s\n", results_summary_dir))
@@ -1164,25 +1164,25 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
             cat("Force mode enabled - backing up and proceeding...\n")
             TRUE
         }
-        
+
         if (!should_proceed) {
             message("Copy operation cancelled by user")
             return(invisible(NULL))
         }
-        
+
         # Create backup directory
         dir.create(backup_dir, recursive = TRUE, showWarnings = FALSE)
-        
+
         # Copy contents directly to backup directory without creating nested structure
         file.copy(
             list.files(results_summary_dir, full.names = TRUE),
             backup_dir,
             recursive = TRUE
         )
-        
+
         if (length(list.files(backup_dir)) > 0) {
             cat(sprintf("Backed up results_summary directory to: %s\n", backup_dir))
-            
+
             # Create a backup info file
             backup_info <- data.frame(
                 original_dir = results_summary_dir,
@@ -1190,7 +1190,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                 label = if(!is.null(label)) label else NA_character_,
                 stringsAsFactors = FALSE
             )
-            
+
             write.table(
                 backup_info,
                 file = file.path(backup_dir, "backup_info.txt"),
@@ -1198,7 +1198,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                 row.names = FALSE,
                 quote = FALSE
             )
-            
+
             # Remove original directory after successful backup
             unlink(results_summary_dir, recursive = TRUE)
             dir.create(results_summary_dir, recursive = TRUE, showWarnings = FALSE)
@@ -1211,11 +1211,11 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
             )
         }
     }
-    
+
     # Check if Excel files already exist
     de_results_path <- file.path(pub_tables_dir, "DE_proteins_results.xlsx")
     enrichment_path <- file.path(pub_tables_dir, "Pathway_enrichment_results.xlsx")
-    
+
     # Define subdirectories to create
     summary_subdirs <- c(
         "QC_figures",
@@ -1322,57 +1322,57 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
 
     # Create a combined workbook for DE results
     de_wb <- openxlsx::createWorkbook()
-    
+
     # Create an index sheet first
     openxlsx::addWorksheet(de_wb, "DE_Results_Index")
-    
+
     # Create index data frame for DE results
     de_index_data <- data.frame(
         Sheet = character(),
         Description = character(),
         stringsAsFactors = FALSE
     )
-    
+
     # Process each DE file
     de_files |>
         purrr::imap(\(file, idx) {
             # Create simple sheet name
             sheet_name <- sprintf("DE_Sheet%d", idx)
-            
+
             # Get base name for index
             base_name <- basename(file) |>
                 stringr::str_remove("de_proteins_") |>
                 stringr::str_remove("_long_annot.xlsx")
-            
+
             # Add to index
-            de_index_data <<- rbind(de_index_data, 
+            de_index_data <<- rbind(de_index_data,
                                data.frame(
                                    Sheet = sheet_name,
                                    Description = base_name,
                                    stringsAsFactors = FALSE
                                ))
-            
+
             # Add data sheet
             data <- openxlsx::read.xlsx(file)
             openxlsx::addWorksheet(de_wb, sheet_name)
             openxlsx::writeData(de_wb, sheet_name, data)
         })
-    
+
     # Write DE index sheet
     openxlsx::writeData(de_wb, "DE_Results_Index", de_index_data)
-    
+
     # Apply formatting to DE index sheet
     openxlsx::setColWidths(de_wb, "DE_Results_Index", cols = 1:2, widths = c(10, 50))
-    openxlsx::addStyle(de_wb, "DE_Results_Index", 
+    openxlsx::addStyle(de_wb, "DE_Results_Index",
                       style = openxlsx::createStyle(textDecoration = "bold"),
                       rows = 1, cols = 1:2)
-    
+
     # Create a new workbook for pathway enrichment results
     enrichment_wb <- openxlsx::createWorkbook()
-    
+
     # Create an index sheet for enrichment results
     openxlsx::addWorksheet(enrichment_wb, "Enrichment_Index")
-    
+
     # Create index data frame for enrichment results
     enrichment_index_data <- data.frame(
         Sheet = character(),
@@ -1380,14 +1380,14 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
         Direction = character(),
         stringsAsFactors = FALSE
     )
-    
+
     # Get all enrichment result files
     enrichment_files <- list.files(
         path = pathway_dir,
         pattern = "_enrichment_results.tsv$",
         full.names = TRUE
     )
-    
+
     # Process each enrichment file
     enrichment_files |>
         purrr::imap(\(file, idx) {
@@ -1396,11 +1396,11 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                 stringr::str_remove("_enrichment_results.tsv") |>
                 stringr::str_split("_") |>
                 unlist()
-            
+
             contrast <- file_parts[1]
             direction <- file_parts[2]
             sheet_name <- sprintf("Enrichment_Sheet%d", idx)
-            
+
             # Add to index
             enrichment_index_data <<- rbind(enrichment_index_data,
                                           data.frame(
@@ -1409,25 +1409,25 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                                               Direction = direction,
                                               stringsAsFactors = FALSE
                                           ))
-            
+
             # Add data sheet
             data <- readr::read_tsv(file, show_col_types = FALSE)
             openxlsx::addWorksheet(enrichment_wb, sheet_name)
             openxlsx::writeData(enrichment_wb, sheet_name, data)
         })
-    
+
     # Write enrichment index sheet
     openxlsx::writeData(enrichment_wb, "Enrichment_Index", enrichment_index_data)
-    
+
     # Apply formatting to enrichment index sheet
     openxlsx::setColWidths(enrichment_wb, "Enrichment_Index", cols = 1:3, widths = c(15, 30, 15))
     openxlsx::addStyle(enrichment_wb, "Enrichment_Index",
                       style = openxlsx::createStyle(textDecoration = "bold"),
                       rows = 1, cols = 1:3)
-    
+
     # Before saving, ensure the Publication_tables directory exists
     dir.create(pub_tables_dir, recursive = TRUE, showWarnings = FALSE)
-    
+
     # Save the workbooks with a try-catch to handle potential write errors
     tryCatch({
         openxlsx::saveWorkbook(de_wb, de_results_path, overwrite = TRUE)
@@ -1440,7 +1440,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
         )
         warning(sprintf("Failed to save DE results workbook: %s", e$message))
     })
-    
+
     tryCatch({
         openxlsx::saveWorkbook(enrichment_wb, enrichment_path, overwrite = TRUE)
         cat(sprintf("Successfully saved: %s\n", enrichment_path))
@@ -1476,7 +1476,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                     file.exists(file_spec$source)
                 }
                 if (!source_exists) {
-                    error_msg <- sprintf("Source %s not found: %s", 
+                    error_msg <- sprintf("Source %s not found: %s",
                         if(file_spec$is_dir) "directory" else "file",
                         file_spec$source)
                 }
@@ -1515,7 +1515,7 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                     } else {
                         # Copy all files from source to destination
                         files_to_copy <- list.files(source_path, full.names = TRUE, recursive = TRUE)
-                        
+
                         copy_results <- files_to_copy |>
                             sapply(\(f) {
                                 rel_path <- sub(paste0("^", source_path, "/"), "", f)
@@ -1523,13 +1523,13 @@ copyToResultsSummary <- function(contrasts_tbl, label = NULL, force = FALSE, cur
                                 dir.create(dirname(dest_file), showWarnings = FALSE, recursive = TRUE)
                                 file.copy(f, dest_file, overwrite = TRUE)
                             })
-                        
+
                         if (!all(copy_results)) {
                             copy_success <- FALSE
                             failed_files <- files_to_copy[!copy_results]
                             error_msg <- sprintf("Failed to copy %d files", length(failed_files))
                         }
-                        
+
                         # Verify file counts match
                         source_files <- list.files(source_path, recursive = TRUE)
                         dest_files <- list.files(dest_path, recursive = TRUE)
@@ -1708,10 +1708,10 @@ updateRuvParameters <- function(config_list, best_k, control_genes_index, percen
   config_list$ruvParameters$best_k <- best_k
   config_list$ruvParameters$num_neg_ctrl <- length(control_genes_index)
   config_list$ruvParameters$percentage_as_neg_ctrl <- percentage_as_neg_ctrl
-  
+
   # Print the number of negative controls (as in the original code)
   config_list$ruvParameters$num_neg_ctrl
-  
+
   # Return the updated config list
   return(config_list)
 }
