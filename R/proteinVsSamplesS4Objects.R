@@ -382,7 +382,7 @@ savePlotRleList <- function( input_list, prefix = "RLE", suffix = c("png", "pdf"
 
 #'@export
 setGeneric(name="plotPca"
-           , def=function( theObject, grouping_variable, label_column, title, font_size ) {
+           , def=function( theObject, grouping_variable, shape_variable, label_column, title, font_size ) {
              standardGeneric("plotPca")
            }
            , signature=c("theObject", "grouping_variable", "label_column", "title", "font_size"))
@@ -411,6 +411,7 @@ setMethod(f="plotPca"
                                        , design_matrix
                                        , sample_id_column =  sample_id
                                        , grouping_variable = grouping_variable
+                                       , shape_variable = shape_variable
                                        , label_column =  label_column
                                        , title = title
                                        , geom.text.size = font_size )
@@ -624,7 +625,7 @@ setGeneric("InitialiseGrid", function(dummy = NULL) {
 })
 
 #' @export
-setMethod("InitialiseGrid", 
+setMethod("InitialiseGrid",
           signature(dummy = "ANY"),
           function(dummy = NULL) {
             new("GridPlotData",
@@ -654,16 +655,16 @@ setGeneric(name = "createGridQC",
 setMethod(f = "createGridQC",
           signature = "GridPlotData",
           definition = function(theObject, pca_titles = NULL, density_titles = NULL, rle_titles = NULL, pearson_titles = NULL, save_path = NULL, file_name = "pca_density_rle_pearson_corr_plots_merged") {
-            
+
             # Use stored titles if not provided as parameters
             pca_titles <- if(is.null(pca_titles)) theObject@pca_titles else pca_titles
             density_titles <- if(is.null(density_titles)) theObject@density_titles else density_titles
             rle_titles <- if(is.null(rle_titles)) theObject@rle_titles else rle_titles
             pearson_titles <- if(is.null(pearson_titles)) theObject@pearson_titles else pearson_titles
-            
+
             createLabelPlot <- function(title) {
               # Option 1: Use xlim to expand the plot area and position text at left edge
-              ggplot() + 
+              ggplot() +
                 annotate("text", x = 0, y = 0.5, label = title, size = 5, hjust = 0) +
                 xlim(0, 1) +  # Explicitly set the x limits
                 theme_void() +
@@ -672,7 +673,7 @@ setMethod(f = "createGridQC",
                   panel.background = element_blank()
                 )
             }
-            
+
             # Create basic plots without titles
             createPcaPlot <- function(plot) {
               plot +
@@ -682,11 +683,11 @@ setMethod(f = "createGridQC",
                       panel.grid.minor = element_blank(),
                       panel.background = element_blank())
             }
-            
+
             createDensityPlot <- function(plot) {
               # For all plots, just apply the theme without adding title
               if (inherits(plot, "patchwork")) {
-                plot & 
+                plot &
                   theme(
                     panel.grid.major = element_blank(),
                     panel.grid.minor = element_blank(),
@@ -701,31 +702,31 @@ setMethod(f = "createGridQC",
                         panel.background = element_blank())
               }
             }
-            
+
             createRlePlot <- function(plot) {
               plot +
                 theme(text = element_text(size = 15),
                       axis.text.x = element_blank(),
                       axis.ticks.x = element_blank())
             }
-            
+
             createPearsonPlot <- function(plot) {
               plot +
                 theme(text = element_text(size = 15))
             }
-            
+
             # Create plots without titles
             created_pca_plots <- lapply(theObject@pca_plots, createPcaPlot)
             created_density_plots <- lapply(theObject@density_plots, createDensityPlot)
             created_rle_plots <- lapply(theObject@rle_plots, createRlePlot)
             created_pearson_plots <- lapply(theObject@pearson_plots, createPearsonPlot)
-            
+
             # Create label plots
             pca_labels <- lapply(pca_titles, createLabelPlot)
             density_labels <- lapply(density_titles, createLabelPlot)
             rle_labels <- lapply(rle_titles, createLabelPlot)
             pearson_labels <- lapply(pearson_titles, createLabelPlot)
-            
+
             # Combine with labels above each row - modified to keep legends with their plots
             combined_plot <- (
               wrap_plots(pca_labels, ncol = 3) /
@@ -750,7 +751,7 @@ setMethod(f = "createGridQC",
               })
               message(paste("Plots saved in", save_path))
             }
-            
+
             return(combined_plot)
           })
 
@@ -1631,7 +1632,7 @@ setMethod(f="plotDensity"
             # For gg class objects, create a copy and change its class to ggplot
             gg_obj <- theObject
             class(gg_obj) <- "ggplot"
-            
+
             # Then call the ggplot method
             plotDensity(gg_obj, grouping_variable, title, font_size)
           })
@@ -1646,7 +1647,7 @@ setMethod(f="plotDensity"
             } else {
               # Fall back to other extraction methods
               pca_data <- as_tibble(ggplot_build(theObject)$data[[1]])
-              
+
               # If the data doesn't have PC1/PC2, try to extract from the plot's environment
               if (!("PC1" %in% colnames(pca_data) && "PC2" %in% colnames(pca_data))) {
                 # Try to get the data from the plot's environment
@@ -1657,12 +1658,12 @@ setMethod(f="plotDensity"
                 }
               }
             }
-            
+
             # Check if grouping variable exists in the data
             if (!grouping_variable %in% colnames(pca_data)) {
               stop(sprintf("grouping_variable '%s' not found in the data", grouping_variable))
             }
-            
+
             # Create PC1 boxplot
             pc1_box <- ggplot(pca_data, aes(x = !!sym(grouping_variable), y = PC1, fill = !!sym(grouping_variable))) +
               geom_boxplot(notch = TRUE) +
@@ -1680,7 +1681,7 @@ setMethod(f="plotDensity"
                 panel.grid.minor = element_blank(),
                 panel.background = element_blank()
               )
-            
+
             # Create PC2 boxplot
             pc2_box <- ggplot(pca_data, aes(x = !!sym(grouping_variable), y = PC2, fill = !!sym(grouping_variable))) +
               geom_boxplot(notch = TRUE) +
@@ -1697,14 +1698,14 @@ setMethod(f="plotDensity"
                 panel.grid.minor = element_blank(),
                 panel.background = element_blank()
               )
-            
+
             # Combine plots with minimal spacing
-            combined_plot <- pc1_box / pc2_box + 
+            combined_plot <- pc1_box / pc2_box +
               plot_layout(heights = c(1, 1)) +
               plot_annotation(theme = theme(plot.margin = margin(0, 0, 0, 0)))
-            
+
             return(combined_plot)
-          }) 
+          })
 
 ##----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1719,11 +1720,11 @@ setGeneric(name="plotDensityList"
 setMethod(f="plotDensityList"
           , signature="ProteinQuantitativeData"
           , definition=function(theObject, grouping_variables_list, title = "", font_size = 8) {
-            
+
             # Create a list of density plots for each grouping variable
             density_plots_list <- purrr::map(grouping_variables_list, function(group_var) {
               tryCatch({
-                plotDensity(theObject, 
+                plotDensity(theObject,
                            grouping_variable = group_var,
                            title = title,
                            font_size = font_size)
@@ -1732,13 +1733,13 @@ setMethod(f="plotDensityList"
               return(NULL)
                   })
                               })
-            
+
             # Name the list elements with the grouping variables
             names(density_plots_list) <- grouping_variables_list
-            
+
             # Remove any NULL elements (failed plots)
             density_plots_list <- density_plots_list[!sapply(density_plots_list, is.null)]
-            
+
             return(density_plots_list)
           })
 
@@ -1746,19 +1747,19 @@ setMethod(f="plotDensityList"
 
 #' @export
 savePlotDensityList <- function(input_list, prefix = "Density", suffix = c("png", "pdf"), output_dir) {
-  
+
   list_of_filenames <- expand_grid(column = names(input_list), suffix = suffix) |>
     mutate(filename = paste0(prefix, "_", column, ".", suffix)) |>
     left_join(tibble(column = names(input_list),
               plots = input_list),
               by = join_by(column))
-  
+
   purrr::walk2(list_of_filenames$plots,
                list_of_filenames$filename,
                \(.x, .y) {
                  ggsave(plot = .x, filename = file.path(output_dir, .y))
                })
-  
+
   list_of_filenames
 }
 
