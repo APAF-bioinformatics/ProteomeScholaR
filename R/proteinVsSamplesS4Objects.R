@@ -385,7 +385,7 @@ setGeneric(name="plotPca"
            , def=function( theObject, grouping_variable, shape_variable, label_column, title, font_size ) {
              standardGeneric("plotPca")
            }
-           , signature=c("theObject", "grouping_variable", "label_column", "title", "font_size"))
+           , signature=c("theObject", "grouping_variable", "shape_variable", "label_column", "title", "font_size"))
 
 #'@export
 setMethod(f="plotPca"
